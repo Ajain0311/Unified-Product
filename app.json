@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "ZUPER",
+    "slug": "zuper",
+    "version": "1.0.4",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.superapp.v2",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "SuperApp uses your location to set pickup points for rides and recommend nearby restaurants and stores.",
+        "LSApplicationQueriesSchemes": [
+          "tel",
+          "telprompt"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.superapp.v2",
+      "versionCode": 3,
+      "softwareKeyboardLayoutMode": "pan",
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0E21",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "POST_NOTIFICATIONS",
+        "REQUEST_INSTALL_PACKAGES"
+      ],
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "SuperApp uses your location to set pickup points for rides and recommend nearby restaurants and stores."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1976D2"
+        }
+      ],
+      "expo-dev-client",
+      "@rnmapbox/maps"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d34cada7-3333-4648-a237-b1b67069f607"
+      }
+    },
+    "owner": "ajain0311"
+  }
+}

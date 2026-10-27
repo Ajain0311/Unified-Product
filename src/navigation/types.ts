@@ -1,0 +1,88 @@
+import { NavigatorScreenParams } from '@react-navigation/native';
+
+export type MainTabParamList = {
+  // Customer tabs
+  Home: undefined;
+  Food: undefined;
+  Rides: undefined;
+  Bazaar: undefined;
+  // Shared profile tab
+  ProfileTab: undefined;
+  // Driver tabs
+  DriverHome: { focusRideId?: number; rideNumber?: string } | undefined;
+  DriverRides: undefined;
+
+  DriverEarnings: undefined;
+  // Vendor tabs
+  VendorDashboard: undefined;
+  VendorOrders: undefined;
+  VendorMenu: undefined;
+  // Seller tabs
+  SellerDashboard: undefined;
+  SellerAddListing: undefined;
+  // Admin tabs
+  AdminDashboard: undefined;
+};
+
+export type RootStackParamList = {
+  Splash: undefined;
+  PhoneEntry: undefined;
+  OtpVerification: {
+    mobileNumber: string;
+    isNewUser?: boolean;
+    isAdmin?: boolean;
+    devOtp?: string;
+  };
+  AdminPortal: undefined;
+  MainTabs: NavigatorScreenParams<MainTabParamList>;
+  RestaurantDetail: {
+    restaurantId: string;
+  };
+  FoodOrderTracking: {
+    orderId: string;
+    orderNumericId?: number;
+  };
+  ActiveRide: {
+    rideId: string;
+    rideNumericId?: number;
+    rideData?: any;
+  };
+  ListingDetail: {
+    listingId: string;
+  };
+  MarketplaceChat: {
+    conversationId?: number;
+    listingId: string | number;
+    sellerId: number;
+    sellerName: string;
+    listingTitle: string;
+    listingPrice: number;
+    listingImageUrl?: string;
+  };
+  AddListing: undefined;
+  Profile: undefined;
+  SavedAddresses: undefined;
+  HelpSupport: undefined;
+  Notifications: undefined;
+  Activity: {
+    initialTab?: number;
+  };
+  KitchenOrders: undefined;
+  VendorMenu: undefined;
+  DriverRides: undefined;
+  DriverEarnings: undefined;
+  AdminCoupons: undefined;
+  AdminHotelCommissions: undefined;
+  AdminRestaurantCommissions: undefined;
+  AdminRideFares: undefined;
+  AdminRoleApplications: undefined;
+  RoleApplication: { role: 'DRIVER' | 'RESTAURANT_OWNER' | 'HOTEL_OWNER' };
+  HotelHome: undefined;
+  HotelDetail: { hotelId: string };
+  HotelCheckout: { hotelId: string; roomId: string };
+  HotelMyBookings: undefined;
+  HotelOwnerDashboard: undefined;
+  BarHub: undefined;
+  BeverageHub: undefined;
+  B2BWaterSupplies: undefined;
+};

@@ -1,0 +1,1162 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+  StatusBar,
+  Modal,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+  Linking,
+} from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../navigation/types';
+import { ListingDetail } from '../../models/marketplace';
+import { useMarketplaceStore } from '../../store/marketplaceStore';
+import { colors } from '../../theme/colors';
+import { typography } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { apiClient } from '../../services/apiClient';
+import { ApiEndpoints } from '../../constants/api';
+import { OfflineBanner } from '../../components/common/OfflineBanner';
+import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
+import { useAuthStore } from '../../store/authStore';
+
+const { width } = Dimensions.get('window');
+
+function sanitizeDialNumber(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  // Keep leading + for country code; strip other non-digits
+  const sanitized = trimmed.replace(/[^\d+]/g, '');
+  const digits = sanitized.replace(/\D/g, '');
+  if (digits.length < 6) return null;
+  return sanitized.startsWith('+') ? `+${digits}` : digits;
+}
+
+async function openPhoneDialer(rawPhone: string): Promise<void> {
+  const sanitized = sanitizeDialNumber(rawPhone);
+  if (!sanitized) {
+    Alert.alert('Invalid Phone Number', 'Seller phone number format is invalid.');
+    return;
+  }
+  const telUrl = `tel:${sanitized}`;
+  try {
+    // Do not gate on canOpenURL — Android often returns false for tel: even when dialer works.
+    await Linking.openURL(telUrl);
+  } catch {
+    Alert.alert('Call Error', `Could not open phone dialer. Number: ${rawPhone}`);
+  }
+}
+
+export const ListingDetailScreen: React.FC = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'ListingDetail'>>();
+  const listingId = route.params?.listingId;
+
+  const { favorites, toggleFavorite } = useMarketplaceStore();
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('SPAM');
+  const [reportDetails, setReportDetails] = useState('');
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [offerPrice, setOfferPrice] = useState('');
+  const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const currentUser = useAuthStore((s) => s.user);
+  const currentUserId = currentUser?.id;
+  const isAdmin = (currentUser?.roles || []).some(
+    (r) => String(r).toUpperCase() === 'ADMIN',
+  );
+
+  const idNum = listingId != null && listingId !== '' ? parseInt(String(listingId), 10) : NaN;
+  const isFav = Number.isFinite(idNum) ? favorites.includes(idNum) : false;
+
+  const [detail, setDetail] = useState<ListingDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchListing = useCallback(async () => {
+    if (!listingId) {
+      setError('Listing id is missing');
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient.get<any>(ApiEndpoints.marketplace.listingDetail(listingId));
+      const data = res.data?.data || res.data;
+      if (data && data.title) {
+        const resolvedId = Number(data.id);
+        const imagesRaw = Array.isArray(data.images) ? data.images : [];
+        const images = imagesRaw
+          .map((im: any) => (typeof im === 'string' ? im : im?.imageUrl))
+          .filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+        if (images.length === 0 && data.primaryImageUrl) {
+          images.push(String(data.primaryImageUrl));
+        }
+        setDetail({
+          id: Number.isFinite(resolvedId) ? resolvedId : idNum,
+          title: data.title,
+          description: data.description ?? null,
+          price: Number(data.price),
+          condition: data.condition ?? '',
+          location: data.location ?? null,
+          images,
+          isFeatured: Boolean(data.isFeatured),
+          viewCount: Number(data.viewCount) || 0,
+          createdAt: data.createdAt ?? '',
+          categoryId: Number(data.categoryId) || 0,
+          categoryName: data.categoryName ?? '',
+          sellerId: Number(data.sellerId),
+          sellerName: data.sellerName ?? '',
+          sellerPhone: data.sellerPhone ?? null,
+          sellerJoinedAt: data.sellerJoinedAt ?? null,
+          isFavorite: favorites.includes(Number.isFinite(resolvedId) ? resolvedId : idNum),
+        });
+        const listed = Number(data.price);
+        if (Number.isFinite(listed) && listed > 0) {
+          setOfferPrice(String(Math.round(listed)));
+        } else {
+          setOfferPrice('');
+        }
+      } else {
+        setError('Listing details not found');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load listing');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [listingId, idNum, favorites]);
+
+  useEffect(() => {
+    fetchListing();
+  }, [fetchListing]);
+
+  const isOwner =
+    detail != null &&
+    currentUserId != null &&
+    Number(currentUserId) === Number(detail.sellerId);
+  const canRemoveListing = isOwner || isAdmin;
+  const canContactSeller = detail != null && !isOwner;
+
+  const handleSendOffer = async () => {
+    if (!detail || isOwner) return;
+    const price = Number(offerPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      Alert.alert('Invalid Offer', 'Enter a valid offer amount greater than zero.');
+      return;
+    }
+    setIsSubmittingOffer(true);
+    try {
+      await apiClient.post(ApiEndpoints.marketplace.makeOffer(detail.id), {
+        offeredPrice: price,
+      });
+      setShowOfferModal(false);
+      Alert.alert('Offer Sent', `Offer of ₹${price} sent to ${detail.sellerName || 'seller'}.`);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not send offer');
+    } finally {
+      setIsSubmittingOffer(false);
+    }
+  };
+
+  const handleRemoveListing = () => {
+    if (!detail || !canRemoveListing) return;
+    Alert.alert('Remove Listing', 'Remove this listing from the bazaar?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          setIsRemoving(true);
+          try {
+            await apiClient.post(ApiEndpoints.marketplace.manageListings, {
+              action: 'DELETE',
+              id: detail.id,
+            });
+            Alert.alert('Removed', 'Listing has been removed.');
+            navigation.goBack();
+          } catch (err: any) {
+            Alert.alert('Error', err.message || 'Could not remove listing');
+          } finally {
+            setIsRemoving(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleOpenChat = () => {
+    if (!detail || isOwner) return;
+    navigation.navigate('MarketplaceChat', {
+      listingId: detail.id,
+      sellerId: detail.sellerId,
+      sellerName: detail.sellerName || '',
+      listingTitle: detail.title,
+      listingPrice: detail.price,
+      listingImageUrl: detail.images[0],
+    });
+  };
+
+  const handleCallSeller = async () => {
+    if (!detail || isOwner) return;
+    const rawPhone = detail.sellerPhone?.trim();
+    if (!rawPhone) {
+      Alert.alert(
+        'Phone Number Unavailable',
+        'Seller has not shared a phone number. Use in-app chat instead.',
+      );
+      return;
+    }
+    await openPhoneDialer(rawPhone);
+  };
+
+  const handleReportListing = async () => {
+    if (!reportReason) return;
+    setIsSubmittingReport(true);
+    try {
+      await apiClient.post(`/marketplace/listings/${listingId}/report`, {
+        reason: reportReason,
+        details: reportDetails,
+      });
+      setShowReportModal(false);
+      setReportDetails('');
+      Alert.alert('Report Submitted', 'Thank you. Our moderation team has been notified.');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not submit report');
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, styles.centerBox]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading listing details...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !detail) {
+    return (
+      <SafeAreaView style={[styles.safeArea, styles.centerBox]}>
+        <MaterialIcons name="error-outline" size={48} color={colors.error} />
+        <Text style={styles.errorTitle}>Listing Unavailable</Text>
+        <Text style={styles.errorSubtitle}>{error || 'Listing could not be loaded'}</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={fetchListing}>
+          <Text style={styles.retryBtnText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.goBackBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.goBackText}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Photo Carousel */}
+        <View style={styles.carouselContainer}>
+          {detail.images.length > 0 ? (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
+                setActivePhotoIndex(newIndex);
+              }}
+            >
+              {detail.images.map((imgUrl, idx) => (
+                <Image
+                  key={idx}
+                  source={{ uri: imgUrl }}
+                  style={styles.carouselImage}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={[styles.carouselImage, styles.carouselEmpty]}>
+              <MaterialIcons name="image-not-supported" size={48} color={colors.textTertiary} />
+              <Text style={styles.carouselEmptyText}>No photos</Text>
+            </View>
+          )}
+
+          {/* Floating Top Nav Buttons */}
+          <View style={styles.floatingTopBar}>
+            <TouchableOpacity
+              style={styles.roundIconButton}
+              onPress={() => navigation.goBack()}
+            >
+              <MaterialIcons name="arrow-back" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.topRightActions}>
+              {canRemoveListing ? (
+                <TouchableOpacity
+                  style={styles.roundIconButton}
+                  onPress={handleRemoveListing}
+                  disabled={isRemoving}
+                  accessibilityLabel="Remove listing"
+                >
+                  {isRemoving ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <MaterialIcons name="delete-outline" size={20} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+              ) : null}
+
+              {!isOwner ? (
+                <TouchableOpacity
+                  style={styles.roundIconButton}
+                  onPress={() => setShowReportModal(true)}
+                >
+                  <MaterialIcons name="flag" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              ) : null}
+
+              <TouchableOpacity
+                style={styles.roundIconButton}
+                onPress={() => toggleFavorite(detail.id)}
+              >
+                <MaterialIcons
+                  name={isFav ? 'favorite' : 'favorite-border'}
+                  size={20}
+                  color={isFav ? colors.error : '#FFFFFF'}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Dot Indicators */}
+          {detail.images.length > 1 && (
+            <View style={styles.dotsContainer}>
+              {detail.images.map((_, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.dot,
+                    idx === activePhotoIndex && styles.dotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Details Content */}
+        <View style={styles.contentBody}>
+          {/* Price & Views */}
+          <View style={styles.priceRow}>
+            <Text style={styles.priceText}>
+              ₹{Number.isFinite(detail.price) ? detail.price.toFixed(0) : '—'}
+            </Text>
+            <View style={styles.negotiableBadge}>
+              <Text style={styles.negotiableText}>Negotiable</Text>
+            </View>
+            <View style={styles.viewsWrapper}>
+              <MaterialIcons name="visibility" size={14} color={colors.textTertiary} />
+              <Text style={styles.viewsText}>{detail.viewCount} views</Text>
+            </View>
+          </View>
+
+          {/* Title */}
+          <Text style={styles.titleText}>{detail.title}</Text>
+
+          {/* Meta Tags Row */}
+          <View style={styles.metaTagsRow}>
+            {detail.categoryName ? (
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryBadgeText}>{detail.categoryName}</Text>
+              </View>
+            ) : null}
+            {detail.condition ? (
+              <View style={styles.conditionBadge}>
+                <Text style={styles.conditionBadgeText}>{detail.condition}</Text>
+              </View>
+            ) : null}
+            {detail.location ? (
+              <View style={styles.locationWrapper}>
+                <MaterialIcons name="location-on" size={14} color={colors.textTertiary} />
+                <Text style={styles.locationText}>{detail.location}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Description */}
+          <Text style={styles.sectionHeader}>Description</Text>
+          <View style={styles.descriptionBox}>
+            <Text style={styles.descriptionText}>
+              {detail.description?.trim() ? detail.description : 'No description'}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Seller Profile */}
+          <Text style={styles.sectionHeader}>Seller Profile</Text>
+          <View style={styles.sellerCard}>
+            <View style={styles.sellerRow}>
+              <View style={styles.sellerAvatar}>
+                <MaterialIcons name="person" size={28} color={colors.textSecondary} />
+              </View>
+              <View style={styles.sellerMeta}>
+                <View style={styles.sellerNameRow}>
+                  <Text style={styles.sellerName}>
+                    {detail.sellerName?.trim() ? detail.sellerName : 'Seller'}
+                  </Text>
+                </View>
+                {isOwner ? (
+                  <Text style={styles.sellerStats}>This is your listing</Text>
+                ) : detail.sellerPhone ? (
+                  <Text style={styles.sellerStats}>{detail.sellerPhone}</Text>
+                ) : null}
+              </View>
+            </View>
+
+            {canContactSeller ? (
+              <>
+                <View style={styles.sellerDivider} />
+                <View style={styles.sellerActionsRow}>
+                  <TouchableOpacity style={styles.sellerChatBtn} onPress={handleOpenChat}>
+                    <MaterialIcons name="chat-bubble-outline" size={16} color="#FFFFFF" />
+                    <Text style={styles.sellerActionText}>Chat</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.sellerCallBtn} onPress={handleCallSeller}>
+                    <MaterialIcons name="call" size={16} color="#FFFFFF" />
+                    <Text style={styles.sellerActionText}>Call</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : null}
+          </View>
+
+          {/* Safety Advice */}
+          <View style={styles.safetyBox}>
+            <MaterialIcons name="security" size={20} color={colors.secondary} />
+            <View style={styles.safetyContent}>
+              <Text style={styles.safetyTitle}>Safety Guidelines for Buyers</Text>
+              <Text style={styles.safetyBody}>
+                Always meet in public places, inspect the goods thoroughly in person, and never pay advance booking amounts.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Persistent Bottom Action Bar */}
+      {canContactSeller ? (
+        <View style={styles.bottomBar}>
+          <TouchableOpacity style={styles.bottomContactBtn} onPress={() => setShowContactModal(true)}>
+            <Text style={styles.bottomContactText}>Chat / Call</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bottomOfferBtn} onPress={() => setShowOfferModal(true)}>
+            <Text style={styles.bottomOfferText}>Make an Offer</Text>
+          </TouchableOpacity>
+        </View>
+      ) : canRemoveListing ? (
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={[styles.bottomOfferBtn, { flex: 1, backgroundColor: colors.error }]}
+            onPress={handleRemoveListing}
+            disabled={isRemoving}
+          >
+            {isRemoving ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.bottomOfferText}>Remove Listing</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {/* Make Offer Modal */}
+      <Modal visible={showOfferModal} transparent animationType="slide">
+        <FormKeyboardAvoid>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Make an Offer</Text>
+              <TouchableOpacity onPress={() => setShowOfferModal(false)}>
+                <MaterialIcons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalPriceHint}>
+              Listed price: ₹{Number.isFinite(detail.price) ? detail.price.toFixed(0) : '—'}
+            </Text>
+
+            <View style={styles.offerInputWrapper}>
+              <Text style={styles.offerPrefix}>₹ </Text>
+              <TextInput
+                keyboardType="numeric"
+                value={offerPrice}
+                onChangeText={setOfferPrice}
+                style={styles.offerInput}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.submitOfferBtn}
+              onPress={handleSendOffer}
+              disabled={isSubmittingOffer}
+            >
+              {isSubmittingOffer ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.submitOfferText}>Send Offer to Seller</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+        </FormKeyboardAvoid>
+      </Modal>
+
+      {/* Contact Options Modal */}
+      <Modal visible={showContactModal && canContactSeller} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Contact {detail.sellerName?.trim() ? detail.sellerName : 'seller'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowContactModal(false)}>
+                <MaterialIcons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.contactOptionRow}
+              onPress={async () => {
+                setShowContactModal(false);
+                await handleCallSeller();
+              }}
+            >
+              <View style={[styles.contactIconCircle, { backgroundColor: 'rgba(0, 200, 83, 0.2)' }]}>
+                <MaterialIcons name="call" size={20} color={colors.secondary} />
+              </View>
+              <View>
+                <Text style={styles.contactOptionTitle}>Call Seller Directly</Text>
+                <Text style={styles.contactOptionSub}>
+                  {detail.sellerPhone ? detail.sellerPhone : 'Number not provided'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.contactOptionRow}
+              onPress={() => {
+                setShowContactModal(false);
+                handleOpenChat();
+              }}
+            >
+              <View style={[styles.contactIconCircle, { backgroundColor: 'rgba(33, 150, 243, 0.2)' }]}>
+                <MaterialIcons name="chat-bubble" size={20} color={colors.blue} />
+              </View>
+              <View>
+                <Text style={styles.contactOptionTitle}>Chat in SuperApp</Text>
+                <Text style={styles.contactOptionSub}>In-app messages with the seller</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Report Listing Modal */}
+      <Modal visible={showReportModal} transparent animationType="slide">
+        <FormKeyboardAvoid>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Report Listing</Text>
+              <TouchableOpacity onPress={() => setShowReportModal(false)}>
+                <MaterialIcons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.reportSubtitle}>Select a reason for reporting this ad:</Text>
+
+            <View style={styles.reasonsContainer}>
+              {['SPAM', 'FRAUD', 'OFFENSIVE', 'MISLEADING', 'OTHER'].map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[
+                    styles.reasonOption,
+                    reportReason === reason && styles.reasonOptionSelected,
+                  ]}
+                  onPress={() => setReportReason(reason)}
+                >
+                  <Text
+                    style={[
+                      styles.reasonOptionText,
+                      reportReason === reason && styles.reasonOptionTextSelected,
+                    ]}
+                  >
+                    {reason}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={styles.reportInput}
+              placeholder="Additional details (optional)..."
+              placeholderTextColor={colors.textTertiary}
+              value={reportDetails}
+              onChangeText={setReportDetails}
+              multiline
+              numberOfLines={3}
+            />
+
+            <TouchableOpacity
+              style={[styles.submitReportBtn, isSubmittingReport && { opacity: 0.6 }]}
+              disabled={isSubmittingReport}
+              onPress={handleReportListing}
+            >
+              {isSubmittingReport ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.submitReportText}>Submit Report</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+        </FormKeyboardAvoid>
+      </Modal>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    paddingBottom: 110,
+  },
+  carouselContainer: {
+    width: width,
+    height: 320,
+    backgroundColor: colors.surface,
+    position: 'relative',
+  },
+  carouselImage: {
+    width: width,
+    height: 320,
+  },
+  carouselEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.cardDark,
+    gap: 8,
+  },
+  carouselEmptyText: {
+    ...typography.caption,
+    color: colors.textTertiary,
+  },
+  floatingTopBar: {
+    position: 'absolute',
+    top: 40,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  roundIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(10, 14, 33, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topRightActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  dotsContainer: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  dotActive: {
+    width: 20,
+    backgroundColor: colors.primary,
+  },
+  contentBody: {
+    padding: spacing.md,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  priceText: {
+    ...typography.h1,
+    color: colors.primary,
+    fontWeight: '900',
+    fontSize: 28,
+  },
+  negotiableBadge: {
+    backgroundColor: 'rgba(0, 200, 83, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 200, 83, 0.3)',
+  },
+  negotiableText: {
+    color: colors.secondary,
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  viewsWrapper: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewsText: {
+    ...typography.caption,
+    color: colors.textTertiary,
+  },
+  titleText: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    marginTop: 10,
+    lineHeight: 26,
+  },
+  metaTagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  categoryBadge: {
+    backgroundColor: colors.surfaceLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  categoryBadgeText: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  conditionBadge: {
+    backgroundColor: 'rgba(255, 107, 53, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  conditionBadgeText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  locationWrapper: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  locationText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.divider,
+    marginVertical: 18,
+  },
+  sectionHeader: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  highlightsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  highlightChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardDark,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  highlightChipText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  descriptionBox: {
+    backgroundColor: colors.cardDark,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  descriptionText: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
+  sellerCard: {
+    backgroundColor: colors.cardDark,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sellerAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sellerMeta: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  sellerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sellerName: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    fontWeight: 'bold',
+  },
+  sellerStats: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  sellerDivider: {
+    height: 1,
+    backgroundColor: colors.divider,
+    marginVertical: 12,
+  },
+  sellerActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  sellerChatBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  sellerCallBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceLight,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  sellerActionText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  safetyBox: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(20, 24, 41, 0.8)',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 18,
+    gap: 12,
+  },
+  safetyContent: {
+    flex: 1,
+  },
+  safetyTitle: {
+    ...typography.bodyMedium,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  safetyBody: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    paddingBottom: 24,
+    backgroundColor: colors.cardDark,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: 12,
+  },
+  bottomContactBtn: {
+    flex: 1,
+    height: 48,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomContactText: {
+    ...typography.bodyMedium,
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  bottomOfferBtn: {
+    flex: 2,
+    height: 48,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomOfferText: {
+    ...typography.bodyMedium,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.cardDark,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    fontWeight: 'bold',
+  },
+  modalPriceHint: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    marginBottom: 16,
+  },
+  offerInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    marginBottom: 20,
+  },
+  offerPrefix: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  offerInput: {
+    flex: 1,
+    height: 52,
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  submitOfferBtn: {
+    height: 48,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitOfferText: {
+    ...typography.bodyMedium,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  contactOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 14,
+  },
+  contactIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactOptionTitle: {
+    ...typography.bodyMedium,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  contactOptionSub: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  centerBox: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    marginTop: 12,
+  },
+  errorTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    marginTop: 16,
+  },
+  errorSubtitle: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  retryBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  retryBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  goBackBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  goBackText: {
+    color: colors.textSecondary,
+  },
+  reportSubtitle: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    marginBottom: 14,
+  },
+  reasonsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  reasonOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reasonOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(255, 68, 68, 0.15)',
+  },
+  reasonOptionText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  reasonOptionTextSelected: {
+    color: colors.primary,
+  },
+  reportInput: {
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 8,
+    padding: 12,
+    color: '#FFFFFF',
+    ...typography.bodyMedium,
+    textAlignVertical: 'top',
+    height: 80,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  submitReportBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  submitReportText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+});

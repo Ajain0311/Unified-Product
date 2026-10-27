@@ -1,0 +1,545 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+  TextInput,
+  Modal,
+  Alert,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { colors } from '../../theme/colors';
+import { typography } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
+import { apiClient, ApiError } from '../../services/apiClient';
+import { ApiEndpoints } from '../../constants/api';
+import { LocationMapPicker } from '../../components/maps/LocationMapPicker';
+import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
+import { locationService } from '../../services/locationService';
+import { mapboxService } from '../../services/mapboxService';
+import { SelectedMapPlace } from '../../services/mapboxService';
+
+type SavedAddress = {
+  id: number;
+  label?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  isDefault: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+const LABELS = ['Home', 'Work', 'Other'];
+
+const emptyForm = {
+  label: 'Home',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  state: '',
+  pinCode: '',
+  isDefault: false,
+  latitude: undefined as number | undefined,
+  longitude: undefined as number | undefined,
+};
+
+export const SavedAddressesScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState(emptyForm);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient.get<any>(ApiEndpoints.common.addresses);
+      const payload = res?.data ?? res;
+      const items = Array.isArray(payload) ? payload : [];
+      setAddresses(items);
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : 'Could not load addresses';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load])
+  );
+
+  const openAdd = () => {
+    setEditingId(null);
+    setForm({ ...emptyForm, isDefault: addresses.length === 0 });
+    setModalOpen(true);
+  };
+
+  const openEdit = (item: SavedAddress) => {
+    const lat = item.latitude != null ? Number(item.latitude) : undefined;
+    const lng = item.longitude != null ? Number(item.longitude) : undefined;
+    setEditingId(item.id);
+    setForm({
+      label: item.label || 'Home',
+      addressLine1: item.addressLine1,
+      addressLine2: item.addressLine2 || '',
+      city: item.city,
+      state: item.state,
+      pinCode: item.pinCode,
+      isDefault: item.isDefault,
+      latitude: lat != null && Number.isFinite(lat) ? lat : undefined,
+      longitude: lng != null && Number.isFinite(lng) ? lng : undefined,
+    });
+    setModalOpen(true);
+  };
+
+  const handleUseCurrentLocation = async () => {
+    if (locating) return;
+    setLocating(true);
+    try {
+      const loc = await locationService.getCurrentLocation({ timeoutMs: 10000, throwOnError: true });
+      if (loc && !loc.isFallback) {
+        let selectedPlace: SelectedMapPlace | null = null;
+        try {
+          selectedPlace = await mapboxService.reverseGeocode(loc.latitude, loc.longitude);
+        } catch {
+          selectedPlace = null;
+        }
+
+        setForm((f) => ({
+          ...f,
+          addressLine1: selectedPlace?.address || loc.formattedAddress || f.addressLine1,
+          city: selectedPlace?.city || f.city,
+          state: selectedPlace?.state || f.state,
+          pinCode: selectedPlace?.pinCode && /^\d{6}$/.test(selectedPlace.pinCode) ? selectedPlace.pinCode : f.pinCode,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+        }));
+      } else {
+        Alert.alert('GPS Notice', 'Could not detect exact location coordinates. Please pick on map or enter manually.');
+      }
+    } catch (err: any) {
+      const msg = err?.message || 'Could not retrieve GPS location';
+      Alert.alert('Location Error', msg);
+    } finally {
+      setLocating(false);
+    }
+  };
+
+  const handlePlaceSelect = (place: SelectedMapPlace) => {
+    setForm((f) => ({
+      ...f,
+      addressLine1: place.address || f.addressLine1,
+      city: place.city || f.city,
+      state: place.state || f.state,
+      pinCode: place.pinCode && /^\d{6}$/.test(place.pinCode) ? place.pinCode : f.pinCode,
+      latitude: place.latitude,
+      longitude: place.longitude,
+    }));
+  };
+
+  const resolveCoordinates = () => {
+    const fromFormLat = form.latitude;
+    const fromFormLng = form.longitude;
+    if (
+      typeof fromFormLat === 'number' &&
+      typeof fromFormLng === 'number' &&
+      Number.isFinite(fromFormLat) &&
+      Number.isFinite(fromFormLng) &&
+      !(fromFormLat === 0 && fromFormLng === 0)
+    ) {
+      return { latitude: fromFormLat, longitude: fromFormLng };
+    }
+
+    // Edit safety net: if the form lost pins, keep whatever was already saved.
+    if (editingId != null) {
+      const existing = addresses.find((a) => a.id === editingId);
+      if (
+        existing &&
+        typeof existing.latitude === 'number' &&
+        typeof existing.longitude === 'number' &&
+        Number.isFinite(existing.latitude) &&
+        Number.isFinite(existing.longitude)
+      ) {
+        return { latitude: existing.latitude, longitude: existing.longitude };
+      }
+    }
+
+    return null;
+  };
+
+  const handleSave = async () => {
+    if (!form.addressLine1.trim() || !form.city.trim() || !form.state.trim() || !form.pinCode.trim()) {
+      Alert.alert('Missing fields', 'Address, city, state and PIN are required.');
+      return;
+    }
+    if (!/^\d{6}$/.test(form.pinCode.trim())) {
+      Alert.alert('Invalid PIN', 'Enter a 6-digit Indian PIN code.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const coords = resolveCoordinates();
+      const body: Record<string, unknown> = {
+        label: form.label,
+        addressLine1: form.addressLine1.trim(),
+        addressLine2: form.addressLine2.trim() || null,
+        city: form.city.trim(),
+        state: form.state.trim(),
+        pinCode: form.pinCode.trim(),
+        isDefault: form.isDefault,
+      };
+      // Only send coordinates when we have a real pin — never send null/undefined
+      // that could clear an existing DB value through a buggy client/server path.
+      if (coords) {
+        body.latitude = coords.latitude;
+        body.longitude = coords.longitude;
+      }
+      if (editingId) {
+        await apiClient.put(ApiEndpoints.common.address(editingId), body);
+      } else {
+        await apiClient.post(ApiEndpoints.common.addresses, body);
+      }
+      setModalOpen(false);
+      await load();
+    } catch (e) {
+      Alert.alert('Could not save', e instanceof ApiError ? e.message : 'Please log in and try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDelete = (item: SavedAddress) => {
+    const run = async () => {
+      try {
+        await apiClient.delete(ApiEndpoints.common.address(item.id));
+        await load();
+      } catch (e) {
+        Alert.alert('Could not delete', e instanceof ApiError ? e.message : 'Try again.');
+      }
+    };
+    Alert.alert('Remove address', 'Remove this saved address?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => void run() },
+    ]);
+  };
+
+  const setDefault = async (item: SavedAddress) => {
+    try {
+      // Dedicated endpoint updates ONLY is_default — do not PUT the full address
+      // payload here (that path previously risked dropping latitude/longitude).
+      await apiClient.put(ApiEndpoints.common.setDefaultAddress(item.id), {});
+      await load();
+    } catch (e) {
+      Alert.alert('Could not update', e instanceof ApiError ? e.message : 'Try again.');
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <MaterialIcons name="chevron-left" size={28} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Saved Addresses</Text>
+        <View style={{ width: 28 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {loading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} /> : null}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {!loading && addresses.length === 0 && !error ? (
+          <Text style={styles.emptyText}>No saved addresses yet. Add Home or Work to use at checkout.</Text>
+        ) : null}
+
+        {addresses.map((item) => (
+          <View key={item.id} style={styles.card}>
+            <View style={styles.cardTop}>
+              <View style={styles.labelPill}>
+                <MaterialIcons
+                  name={item.label === 'Work' ? 'work' : item.label === 'Other' ? 'place' : 'home'}
+                  size={16}
+                  color={colors.yellow}
+                />
+                <Text style={styles.labelText}>{item.label || 'Home'}</Text>
+              </View>
+              {item.isDefault ? <Text style={styles.defaultBadge}>DEFAULT</Text> : null}
+            </View>
+            <Text style={styles.line}>{item.addressLine1}</Text>
+            {item.addressLine2 ? <Text style={styles.lineMuted}>{item.addressLine2}</Text> : null}
+            <Text style={styles.lineMuted}>
+              {item.city}, {item.state} {item.pinCode}
+            </Text>
+            {item.latitude != null && item.longitude != null ? (
+              <Text style={styles.coordsText}>
+                📍 {Number(item.latitude).toFixed(5)}, {Number(item.longitude).toFixed(5)}
+              </Text>
+            ) : (
+              <Text style={styles.coordsMissing}>No map pin saved — edit and pick location</Text>
+            )}
+            <View style={styles.actions}>
+              {!item.isDefault ? (
+                <TouchableOpacity onPress={() => void setDefault(item)}>
+                  <Text style={styles.actionLink}>Set default</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity onPress={() => openEdit(item)}>
+                <Text style={styles.actionLink}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => confirmDelete(item)}>
+                <Text style={[styles.actionLink, { color: colors.error }]}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))}
+
+        <TouchableOpacity style={styles.addBtn} onPress={openAdd} activeOpacity={0.85}>
+          <MaterialIcons name="add" size={20} color="#fff" />
+          <Text style={styles.addBtnText}>Add new address</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <Modal visible={modalOpen} animationType="slide" transparent>
+        <FormKeyboardAvoid>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitle}>{editingId ? 'Edit address' : 'Add address'}</Text>
+              <View style={styles.labelRow}>
+                {LABELS.map((label) => (
+                  <TouchableOpacity
+                    key={label}
+                    style={[styles.chip, form.label === label && styles.chipOn]}
+                    onPress={() => setForm((f) => ({ ...f, label }))}
+                  >
+                    <Text style={[styles.chipText, form.label === label && styles.chipTextOn]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+                            <TouchableOpacity
+                style={styles.currentLocationBtn}
+                onPress={() => void handleUseCurrentLocation()}
+                disabled={locating}
+                activeOpacity={0.8}
+              >
+                {locating ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <MaterialIcons name="my-location" size={20} color={colors.primary} />
+                )}
+                <Text style={styles.currentLocationText}>
+                  {locating ? 'Detecting current location...' : 'Use current location (GPS)'}
+                </Text>
+              </TouchableOpacity>
+              <LocationMapPicker
+                label="Search on Mapbox"
+                initialCoordinate={
+                  form.latitude != null && form.longitude != null
+                    ? { latitude: form.latitude, longitude: form.longitude }
+                    : undefined
+                }
+                initialAddress={form.addressLine1}
+                height={200}
+                onSelect={handlePlaceSelect}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="House / street"
+                placeholderTextColor={colors.textTertiary}
+                value={form.addressLine1}
+                onChangeText={(addressLine1) => setForm((f) => ({ ...f, addressLine1 }))}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Landmark (optional)"
+                placeholderTextColor={colors.textTertiary}
+                value={form.addressLine2}
+                onChangeText={(addressLine2) => setForm((f) => ({ ...f, addressLine2 }))}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="City"
+                placeholderTextColor={colors.textTertiary}
+                value={form.city}
+                onChangeText={(city) => setForm((f) => ({ ...f, city }))}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="State"
+                placeholderTextColor={colors.textTertiary}
+                value={form.state}
+                onChangeText={(state) => setForm((f) => ({ ...f, state }))}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="PIN code"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="number-pad"
+                maxLength={6}
+                value={form.pinCode}
+                onChangeText={(pinCode) => {
+                  const next = pinCode.replace(/\D/g, '').slice(0, 6);
+                  setForm((f) => ({ ...f, pinCode: next }));
+                }}
+              />
+              <TouchableOpacity
+                style={styles.defaultRow}
+                onPress={() => setForm((f) => ({ ...f, isDefault: !f.isDefault }))}
+              >
+                <MaterialIcons
+                  name={form.isDefault ? 'check-box' : 'check-box-outline-blank'}
+                  size={22}
+                  color={colors.primary}
+                />
+                <Text style={styles.defaultRowText}>Use as default delivery address</Text>
+              </TouchableOpacity>
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveBtn} onPress={() => void handleSave()} disabled={saving}>
+                  {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save</Text>}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+        </FormKeyboardAvoid>
+      </Modal>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  backButton: { padding: spacing.xs },
+  headerTitle: { ...typography.h2, color: colors.textPrimary },
+  scroll: { padding: spacing.md, paddingBottom: spacing.xxxl },
+  errorText: { color: colors.error, marginBottom: spacing.md },
+  emptyText: { color: colors.textSecondary, marginBottom: spacing.md, lineHeight: 20 },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  labelPill: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  labelText: { color: colors.textPrimary, fontWeight: '700' },
+  defaultBadge: { color: colors.secondary, fontSize: 11, fontWeight: '700' },
+  line: { color: colors.textPrimary, marginTop: 2 },
+  lineMuted: { color: colors.textSecondary, marginTop: 2 },
+  coordsText: { color: colors.secondary, fontSize: 12, marginTop: 6, fontWeight: '600' },
+  coordsMissing: { color: colors.textTertiary, fontSize: 12, marginTop: 6 },
+  actions: { flexDirection: 'row', gap: 16, marginTop: 12 },
+  actionLink: { color: colors.blue, fontWeight: '600' },
+  addBtn: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '90%',
+  },
+  modalTitle: { ...typography.h2, color: colors.textPrimary, marginBottom: 12 },
+  labelRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { color: colors.textSecondary, fontWeight: '600' },
+  chipTextOn: { color: '#fff' },
+  currentLocationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(25, 118, 210, 0.12)',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  currentLocationText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  input: {
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: colors.textPrimary,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  defaultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
+  defaultRowText: { color: colors.textPrimary },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cancelText: { color: colors.textSecondary, fontWeight: '700' },
+  saveBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+  },
+  saveText: { color: '#fff', fontWeight: '700' },
+});

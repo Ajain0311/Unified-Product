@@ -1,0 +1,249 @@
+import { create } from 'zustand';
+import { User, SendOtpResponse, AuthResponse } from '../models/auth';
+import { storage } from '../services/storage';
+import { apiClient, ApiError } from '../services/apiClient';
+import { ApiEndpoints } from '../constants/api';
+import { signalRService } from '../services/signalr';
+import { notificationService } from '../services/notificationService';
+import { useRoleStore } from './roleStore';
+import { useCartStore } from './cartStore';
+import { useMarketplaceStore } from './marketplaceStore';
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  isFallbackSession: boolean;
+
+  checkAuth: () => Promise<boolean>;
+  sendOtp: (mobileNumber: string) => Promise<SendOtpResponse>;
+  verifyOtp: (mobileNumber: string, otpCode: string, fullName?: string) => Promise<AuthResponse>;
+  adminLogin: (mobileNumber: string, password: string, otpCode: string) => Promise<AuthResponse>;
+  forgotPassword: (mobileNumber: string) => Promise<SendOtpResponse>;
+  resetPassword: (mobileNumber: string, otpCode: string, newPassword: string) => Promise<AuthResponse>;
+  logout: () => Promise<void>;
+  updateUser: (user: Partial<User>) => void;
+  clearError: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  token: null,
+  isAuthenticated: false,
+  isLoading: true,
+  error: null,
+  isFallbackSession: false,
+
+  checkAuth: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = await storage.getToken();
+      if (!token) {
+        set({ user: null, token: null, isAuthenticated: false, isLoading: false, isFallbackSession: false });
+        return false;
+      }
+
+      const cachedUser = await storage.getUserData<User>();
+      if (cachedUser) {
+        set({ user: cachedUser, token, isAuthenticated: true, isLoading: false, isFallbackSession: token.startsWith('dev_') });
+      }
+
+      // Proactively fetch updated profile from backend if reachable
+      try {
+        if (token.startsWith('dev_')) {
+          await storage.clearAll();
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false, isFallbackSession: false });
+          return false;
+        }
+
+        const res = await apiClient.get<{ success: boolean; data: User }>(ApiEndpoints.auth.profile);
+        if (res.success && res.data) {
+          await storage.setUserData(res.data);
+          set({ user: res.data, token, isAuthenticated: true, isLoading: false, isFallbackSession: false });
+        }
+      } catch (err: any) {
+        if (err?.statusCode === 401 || err?.isUnauthorized) {
+          await storage.clearAll();
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false, isFallbackSession: false });
+          return false;
+        }
+        if (cachedUser && !token.startsWith('dev_')) {
+          set({ user: cachedUser, token, isAuthenticated: true, isLoading: false, isFallbackSession: false });
+        } else {
+          await storage.clearAll();
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false, isFallbackSession: false });
+          return false;
+        }
+      }
+
+      const currentUser = get().user;
+      if (currentUser?.roles) {
+        await useRoleStore.getState().syncWithUserRoles(currentUser.roles);
+      }
+
+      return true;
+    } catch {
+      set({ user: null, token: null, isAuthenticated: false, isLoading: false, isFallbackSession: false });
+      return false;
+    }
+  },
+
+  sendOtp: async (mobileNumber: string) => {
+    set({ error: null });
+    try {
+      const response = await apiClient.post<SendOtpResponse>(ApiEndpoints.auth.sendOtp, {
+        mobileNumber,
+      });
+      return response;
+    } catch (e: any) {
+      const msg = e.response?.data?.message || e.message || 'Failed to send OTP';
+      set({ error: msg });
+      throw e;
+    }
+  },
+
+  verifyOtp: async (mobileNumber: string, otpCode: string, fullName?: string) => {
+    set({ error: null });
+    try {
+      const payload: any = { mobileNumber, otpCode };
+      if (fullName && fullName.trim().length > 0) {
+        payload.fullName = fullName.trim();
+      }
+
+      const response = await apiClient.post<AuthResponse>(ApiEndpoints.auth.verifyOtp, payload);
+
+      if (response.success && response.token) {
+        await storage.setToken(response.token);
+        if (response.user) {
+          await storage.setUserData(response.user);
+        }
+        set({
+          user: response.user || null,
+          token: response.token,
+          isAuthenticated: true,
+          error: null,
+          isFallbackSession: false,
+        });
+        if (response.user?.roles) {
+          await useRoleStore.getState().syncWithUserRoles(response.user.roles);
+        }
+        // Register push token with backend after successful authentication
+        notificationService.getExpoPushToken().then((pushToken) => {
+          if (pushToken) {
+            notificationService.registerDeviceTokenWithBackend(pushToken);
+          }
+        }).catch(() => {});
+      }
+
+      return response;
+    } catch (e: any) {
+      const msg = e.response?.data?.message || e.message || 'Verification failed';
+      set({ error: msg });
+      throw e;
+    }
+  },
+
+  adminLogin: async (mobileNumber: string, password: string, otpCode: string) => {
+    set({ error: null });
+    try {
+      const response = await apiClient.post<AuthResponse>(ApiEndpoints.auth.adminLogin, {
+        mobileNumber,
+        password,
+        otpCode,
+      });
+
+      if (response.success && response.token) {
+        await storage.setToken(response.token);
+        if (response.user) {
+          await storage.setUserData(response.user);
+        }
+        set({
+          user: response.user || null,
+          token: response.token,
+          isAuthenticated: true,
+          error: null,
+          isFallbackSession: false,
+        });
+        if (response.user?.roles) {
+          await useRoleStore.getState().syncWithUserRoles(response.user.roles);
+        }
+        notificationService.getExpoPushToken().then((pushToken) => {
+          if (pushToken) {
+            notificationService.registerDeviceTokenWithBackend(pushToken);
+          }
+        }).catch(() => {});
+      }
+
+      return response;
+    } catch (e: any) {
+      const msg = e.response?.data?.message || e.message || 'Admin login failed';
+      set({ error: msg });
+      throw e;
+    }
+  },
+
+  forgotPassword: async (mobileNumber: string) => {
+    set({ error: null });
+    try {
+      const response = await apiClient.post<SendOtpResponse>('/auth/forgot-password', {
+        mobileNumber,
+      });
+      return response;
+    } catch (e: any) {
+      const msg = e.message || 'Failed to send OTP for password reset';
+      set({ error: msg });
+      throw e;
+    }
+  },
+
+  resetPassword: async (mobileNumber: string, otpCode: string, newPassword: string) => {
+    set({ error: null });
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/reset-password', {
+        mobileNumber,
+        otpCode,
+        newPassword
+      });
+      return response;
+    } catch (e: any) {
+      const msg = e.message || 'Password reset failed';
+      set({ error: msg });
+      throw e;
+    }
+  },
+
+  logout: async () => {
+    try {
+      await notificationService.unregisterDeviceToken();
+    } catch {
+      // Ignore unregister errors so logout proceeds
+    }
+    try {
+      await storage.clearAll();
+    } catch {
+      // Token must still be cleared in memory even if storage fails.
+    }
+    try {
+      await signalRService.disconnectAll();
+    } catch {
+      // Ignore hub disconnect errors so logout always completes.
+    }
+    await useRoleStore.getState().resetRoles();
+    useCartStore.getState().clearCart();
+    useMarketplaceStore.getState().resetMarketplace();
+    set({ user: null, token: null, isAuthenticated: false, error: null, isFallbackSession: false });
+  },
+
+  updateUser: (updatedFields: Partial<User>) => {
+    const current = get().user;
+    if (current) {
+      const updated = { ...current, ...updatedFields };
+      storage.setUserData(updated);
+      set({ user: updated });
+    }
+  },
+
+  clearError: () => set({ error: null }),
+}));

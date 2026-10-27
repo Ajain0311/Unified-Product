@@ -1,0 +1,113 @@
+using Microsoft.EntityFrameworkCore;
+using SuperApp.API.Data;
+using SuperApp.API.Models;
+
+namespace SuperApp.API.Services;
+
+/// <summary>
+/// Development OTP service. Generates a random 6-digit OTP and returns it
+/// so the client can display it for testing. Replace with RealOtpService for SMS.
+/// </summary>
+public class MockOtpService : IOtpService
+{
+    private readonly AppDbContext _db;
+    private const int OtpExpiryMinutes = 5;
+    private const int MaxAttempts = 5;
+
+    public MockOtpService(AppDbContext db)
+    {
+        var isProd = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Production", StringComparison.OrdinalIgnoreCase);
+        if (isProd)
+        {
+            throw new InvalidOperationException("MockOtpService is strictly forbidden in Production environment.");
+        }
+        var provider = Environment.GetEnvironmentVariable("OTP_PROVIDER");
+        if (!string.IsNullOrEmpty(provider) && !string.Equals(provider, "Mock", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"MockOtpService is strictly disabled when OTP_PROVIDER is '{provider}'. Production OTP provider must be used.");
+        }
+        _db = db;
+    }
+
+    public async Task<string> GenerateAndSendOtpAsync(string mobileNumber, string purpose = "LOGIN")
+    {
+        var cleanMobile = BigBSmsService.NormalizeMobileNumber(mobileNumber);
+
+        // Invalidate previous unused OTPs for this number
+        var previousOtps = await _db.OtpRequests
+            .Where(o => (o.MobileNumber == mobileNumber || o.MobileNumber == cleanMobile) && !o.IsUsed && o.Purpose == purpose)
+            .ToListAsync();
+        
+        foreach (var otp in previousOtps)
+        {
+            otp.IsUsed = true;
+        }
+
+        var isTestMode = string.Equals(Environment.GetEnvironmentVariable("OTP_TEST_MODE"), "true", StringComparison.OrdinalIgnoreCase);
+        var isProd = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Production", StringComparison.OrdinalIgnoreCase);
+        var testOtp = Environment.GetEnvironmentVariable("TEST_OTP");
+        var otpCode = (!isProd && isTestMode && !string.IsNullOrWhiteSpace(testOtp))
+            ? testOtp
+            : ((!isProd && isTestMode) ? "123456" : Random.Shared.Next(100000, 1000000).ToString());
+
+        var otpRequest = new OtpRequest
+        {
+            MobileNumber = cleanMobile,
+            OtpCode = otpCode,
+            Purpose = purpose,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(OtpExpiryMinutes),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _db.OtpRequests.Add(otpRequest);
+        await _db.SaveChangesAsync();
+
+        // In development / testing, return the OTP directly for testing convenience
+        return otpCode;
+    }
+
+    public async Task<bool> VerifyOtpAsync(string mobileNumber, string otpCode, string purpose = "LOGIN")
+    {
+        var cleanMobile = BigBSmsService.NormalizeMobileNumber(mobileNumber);
+        var cleanInputOtp = otpCode?.Trim() ?? string.Empty;
+        var otpRequest = await _db.OtpRequests
+            .Where(o => (o.MobileNumber == mobileNumber || o.MobileNumber == cleanMobile)
+                     && !o.IsUsed
+                     && o.Purpose == purpose
+                     && o.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(o => o.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (otpRequest == null)
+            return false;
+
+        otpRequest.AttemptCount++;
+
+        if (otpRequest.AttemptCount > MaxAttempts)
+        {
+            otpRequest.IsUsed = true;
+            await _db.SaveChangesAsync();
+            return false;
+        }
+
+        if (otpRequest.OtpCode != cleanInputOtp)
+        {
+            var isTestMode = string.Equals(Environment.GetEnvironmentVariable("OTP_TEST_MODE"), "true", StringComparison.OrdinalIgnoreCase);
+            var isProd = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Production", StringComparison.OrdinalIgnoreCase);
+            var configuredTestOtp = Environment.GetEnvironmentVariable("TEST_OTP");
+            if (!isProd && isTestMode && !string.IsNullOrWhiteSpace(configuredTestOtp) && cleanInputOtp == configuredTestOtp)
+            {
+                otpRequest.IsUsed = true;
+                await _db.SaveChangesAsync();
+                return true;
+            }
+
+            await _db.SaveChangesAsync();
+            return false;
+        }
+
+        otpRequest.IsUsed = true;
+        await _db.SaveChangesAsync();
+        return true;
+    }
+}

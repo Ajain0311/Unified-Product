@@ -1,0 +1,88 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env
+e2e/agents/config.local.json
+e2e/agents/reports/*
+!e2e/agents/reports/.gitkeep
+.env*.local
+.env.development
+.env.production
+.env.staging
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# .NET / C# build outputs
+**/[Bb]in/
+**/[Oo]bj/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+.vs/
+_ReSharper*/
+*.DotSettings.user
+*.nupkg
+TestResults/
+
+# Supabase local state
+.supabase/
+supabase/.branches/
+supabase/.temp/
+
+# E2E test screenshots
+e2e/screenshots/
+
+# Playwright test outputs
+playwright-report/
+test-results/
+e2e/playwright-results.json
+
+# Local infrastructure, credentials and server notes (NEVER COMMIT)
+LOCAL_INFRA_SECRETS.md
+*.secrets.md
+credentials.local.md
+
+
+# Block any test files from being pushed
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+*.Tests/
+*.Tests.*
+

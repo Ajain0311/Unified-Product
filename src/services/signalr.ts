@@ -1,0 +1,397 @@
+import * as signalR from '@microsoft/signalr';
+import { AppEnvironment } from '../config/environment';
+import { storage } from './storage';
+
+export interface DriverLocationEvent {
+  rideId: number;
+  latitude: number;
+  longitude: number;
+  heading?: number;
+  speed?: number;
+  updatedAt: string;
+}
+
+export interface RideStatusEvent {
+  rideId: number;
+  status: string;
+  updatedAt: string;
+}
+
+export interface OrderStatusEvent {
+  orderId: number;
+  status: string;
+  message?: string;
+  estimatedMinutes?: number;
+  updatedAt: string;
+}
+
+export interface ChatMessageEvent {
+  id?: number;
+  conversationId: string;
+  senderId: number;
+  senderName: string;
+  messageText: string;
+  timestamp: string;
+  clientMessageId?: string;
+}
+
+class SignalRService {
+  private rideHubConnection: signalR.HubConnection | null = null;
+  private orderHubConnection: signalR.HubConnection | null = null;
+  private chatHubConnection: signalR.HubConnection | null = null;
+
+  // Track active state for reconnect sync
+  private activeRideId: number | null = null;
+  private inDriversPool: boolean = false;
+  private activeOrderId: number | null = null;
+  private activeRestaurantKitchenId: number | null = null;
+  private activeChatConversationId: string | null = null;
+
+  private createConnection(hubUrl: string): signalR.HubConnection {
+    return new signalR.HubConnectionBuilder()
+      .withUrl(hubUrl, {
+        accessTokenFactory: async () => {
+          const token = await storage.getToken();
+          return token || '';
+        },
+      })
+      .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+      .configureLogging(AppEnvironment.enableLogging ? signalR.LogLevel.Information : signalR.LogLevel.None)
+      .build();
+  }
+
+  // --- Ride Tracking Hub ---
+  async connectRideHub(): Promise<signalR.HubConnection> {
+    if (this.rideHubConnection && this.rideHubConnection.state === signalR.HubConnectionState.Connected) {
+      return this.rideHubConnection;
+    }
+
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+      this.rideHubConnection.onreconnected(async () => {
+        if (AppEnvironment.enableLogging) {
+          console.log('[SignalR] Reconnected to RideTrackingHub. Syncing state...');
+        }
+        if (this.activeRideId !== null) {
+          await this.rideHubConnection?.invoke('JoinRide', this.activeRideId).catch(() => {});
+        }
+        if (this.inDriversPool) {
+          await this.rideHubConnection?.invoke('JoinDriversPool').catch(() => {});
+        }
+      });
+    }
+
+    try {
+      if (this.rideHubConnection.state === signalR.HubConnectionState.Disconnected) {
+        await this.rideHubConnection.start();
+        if (AppEnvironment.enableLogging) {
+          console.log('[SignalR] Connected to RideTrackingHub at', AppEnvironment.rideHubUrl);
+        }
+      }
+    } catch (err) {
+      if (AppEnvironment.enableLogging) {
+        console.warn('[SignalR] RideHub connection error:', err);
+      }
+    }
+    return this.rideHubConnection;
+  }
+
+  async joinRide(rideId: number): Promise<void> {
+    this.activeRideId = rideId;
+    const conn = await this.connectRideHub();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      await conn.invoke('JoinRide', rideId);
+    }
+  }
+
+  async leaveRide(rideId: number): Promise<void> {
+    if (this.activeRideId === rideId) {
+      this.activeRideId = null;
+    }
+    if (this.rideHubConnection && this.rideHubConnection.state === signalR.HubConnectionState.Connected) {
+      await this.rideHubConnection.invoke('LeaveRide', rideId);
+    }
+  }
+
+  onDriverLocationUpdated(callback: (data: DriverLocationEvent) => void): () => void {
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+    }
+    this.rideHubConnection.on('DriverLocationUpdated', callback);
+    return () => this.rideHubConnection?.off('DriverLocationUpdated', callback);
+  }
+
+  onRideStatusChanged(callback: (data: RideStatusEvent) => void): () => void {
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+    }
+    this.rideHubConnection.on('RideStatusChanged', callback);
+    return () => this.rideHubConnection?.off('RideStatusChanged', callback);
+  }
+
+  onDriverAssigned(callback: (driver: any) => void): () => void {
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+    }
+    this.rideHubConnection.on('DriverAssigned', callback);
+    return () => this.rideHubConnection?.off('DriverAssigned', callback);
+  }
+
+  async joinDriversPool(): Promise<void> {
+    this.inDriversPool = true;
+    const conn = await this.connectRideHub();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      await conn.invoke('JoinDriversPool').catch(() => {});
+    }
+  }
+
+  async leaveDriversPool(): Promise<void> {
+    this.inDriversPool = false;
+    if (this.rideHubConnection && this.rideHubConnection.state === signalR.HubConnectionState.Connected) {
+      await this.rideHubConnection.invoke('LeaveDriversPool').catch(() => {});
+    }
+  }
+
+  onRideRequested(callback: (ride: any) => void): () => void {
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+    }
+    this.rideHubConnection.on('RideRequested', callback);
+    return () => this.rideHubConnection?.off('RideRequested', callback);
+  }
+
+  onFoodDeliveryAvailable(callback: (data: any) => void): () => void {
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+    }
+    this.rideHubConnection.on('FoodDeliveryAvailable', callback);
+    return () => this.rideHubConnection?.off('FoodDeliveryAvailable', callback);
+  }
+
+  onFoodDeliveryAccepted(callback: (data: any) => void): () => void {
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+    }
+    this.rideHubConnection.on('FoodDeliveryAccepted', callback);
+    return () => this.rideHubConnection?.off('FoodDeliveryAccepted', callback);
+  }
+
+  onFoodDeliveryStatusChanged(callback: (data: any) => void): () => void {
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+    }
+    this.rideHubConnection.on('FoodDeliveryStatusChanged', callback);
+    return () => this.rideHubConnection?.off('FoodDeliveryStatusChanged', callback);
+  }
+
+  onRideAcceptedByOther(callback: (data: any) => void): () => void {
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+    }
+    this.rideHubConnection.on('RideAcceptedByOther', callback);
+    return () => this.rideHubConnection?.off('RideAcceptedByOther', callback);
+  }
+
+  onRideCancelled(callback: (data: any) => void): () => void {
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+    }
+    this.rideHubConnection.on('RideCancelled', callback);
+    return () => this.rideHubConnection?.off('RideCancelled', callback);
+  }
+
+  onRideExpired(callback: (data: any) => void): () => void {
+    if (!this.rideHubConnection) {
+      this.rideHubConnection = this.createConnection(AppEnvironment.rideHubUrl);
+    }
+    this.rideHubConnection.on('RideExpired', callback);
+    return () => this.rideHubConnection?.off('RideExpired', callback);
+  }
+
+  // --- Order Status Hub ---
+  async connectOrderHub(): Promise<signalR.HubConnection> {
+    if (this.orderHubConnection && this.orderHubConnection.state === signalR.HubConnectionState.Connected) {
+      return this.orderHubConnection;
+    }
+
+    if (!this.orderHubConnection) {
+      this.orderHubConnection = this.createConnection(AppEnvironment.orderHubUrl);
+      this.orderHubConnection.onreconnected(async () => {
+        if (AppEnvironment.enableLogging) {
+          console.log('[SignalR] Reconnected to OrderStatusHub. Syncing state...');
+        }
+        if (this.activeOrderId !== null) {
+          await this.orderHubConnection?.invoke('JoinOrder', this.activeOrderId).catch(() => {});
+        }
+        if (this.activeRestaurantKitchenId !== null) {
+          await this.orderHubConnection?.invoke('JoinRestaurantKitchen', this.activeRestaurantKitchenId).catch(() => {});
+        }
+      });
+    }
+
+    try {
+      if (this.orderHubConnection.state === signalR.HubConnectionState.Disconnected) {
+        await this.orderHubConnection.start();
+        if (AppEnvironment.enableLogging) {
+          console.log('[SignalR] Connected to OrderStatusHub at', AppEnvironment.orderHubUrl);
+        }
+      }
+    } catch (err) {
+      if (AppEnvironment.enableLogging) {
+        console.warn('[SignalR] OrderHub connection error:', err);
+      }
+    }
+    return this.orderHubConnection;
+  }
+
+  async joinOrder(orderId: number): Promise<void> {
+    this.activeOrderId = orderId;
+    const conn = await this.connectOrderHub();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      await conn.invoke('JoinOrder', orderId);
+    }
+  }
+
+  async leaveOrder(orderId: number): Promise<void> {
+    if (this.activeOrderId === orderId) {
+      this.activeOrderId = null;
+    }
+    if (this.orderHubConnection && this.orderHubConnection.state === signalR.HubConnectionState.Connected) {
+      await this.orderHubConnection.invoke('LeaveOrder', orderId);
+    }
+  }
+
+  onOrderStatusUpdated(callback: (data: OrderStatusEvent) => void): () => void {
+    if (!this.orderHubConnection) {
+      this.orderHubConnection = this.createConnection(AppEnvironment.orderHubUrl);
+    }
+    this.orderHubConnection.on('OrderStatusUpdated', callback);
+    return () => this.orderHubConnection?.off('OrderStatusUpdated', callback);
+  }
+
+  async joinRestaurantKitchen(restaurantId: number): Promise<void> {
+    this.activeRestaurantKitchenId = restaurantId;
+    const conn = await this.connectOrderHub();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      await conn.invoke('JoinRestaurantKitchen', restaurantId).catch(() => {});
+    }
+  }
+
+  async leaveRestaurantKitchen(restaurantId: number): Promise<void> {
+    if (this.activeRestaurantKitchenId === restaurantId) {
+      this.activeRestaurantKitchenId = null;
+    }
+    if (this.orderHubConnection && this.orderHubConnection.state === signalR.HubConnectionState.Connected) {
+      await this.orderHubConnection.invoke('LeaveRestaurantKitchen', restaurantId).catch(() => {});
+    }
+  }
+
+  onNewIncomingOrder(callback: (order: any) => void): () => void {
+    if (!this.orderHubConnection) {
+      this.orderHubConnection = this.createConnection(AppEnvironment.orderHubUrl);
+    }
+    this.orderHubConnection.on('NewIncomingOrder', callback);
+    return () => this.orderHubConnection?.off('NewIncomingOrder', callback);
+  }
+
+  onOrderAcceptedByOther(callback: (data: any) => void): () => void {
+    if (!this.orderHubConnection) {
+      this.orderHubConnection = this.createConnection(AppEnvironment.orderHubUrl);
+    }
+    this.orderHubConnection.on('OrderAcceptedByOther', callback);
+    return () => this.orderHubConnection?.off('OrderAcceptedByOther', callback);
+  }
+
+  // --- Chat Hub ---
+  async connectChatHub(): Promise<signalR.HubConnection> {
+    if (this.chatHubConnection && this.chatHubConnection.state === signalR.HubConnectionState.Connected) {
+      return this.chatHubConnection;
+    }
+
+    if (!this.chatHubConnection) {
+      this.chatHubConnection = this.createConnection(AppEnvironment.chatHubUrl);
+      this.chatHubConnection.onreconnected(async () => {
+        if (AppEnvironment.enableLogging) {
+          console.log('[SignalR] Reconnected to ChatHub. Syncing state...');
+        }
+        if (this.activeChatConversationId !== null) {
+          await this.chatHubConnection?.invoke('JoinChat', this.activeChatConversationId).catch(() => {});
+        }
+      });
+    }
+
+    try {
+      if (this.chatHubConnection.state === signalR.HubConnectionState.Disconnected) {
+        await this.chatHubConnection.start();
+        if (AppEnvironment.enableLogging) {
+          console.log('[SignalR] Connected to ChatHub at', AppEnvironment.chatHubUrl);
+        }
+      }
+    } catch (err) {
+      if (AppEnvironment.enableLogging) {
+        console.warn('[SignalR] ChatHub connection error:', err);
+      }
+    }
+    return this.chatHubConnection;
+  }
+
+  async joinChat(conversationId: string): Promise<void> {
+    this.activeChatConversationId = conversationId;
+    const conn = await this.connectChatHub();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      await conn.invoke('JoinChat', conversationId);
+    }
+  }
+
+  async leaveChat(conversationId: string): Promise<void> {
+    if (this.activeChatConversationId === conversationId) {
+      this.activeChatConversationId = null;
+    }
+    if (this.chatHubConnection && this.chatHubConnection.state === signalR.HubConnectionState.Connected) {
+      await this.chatHubConnection.invoke('LeaveChat', conversationId);
+    }
+  }
+
+  async sendMessage(conversationId: string, senderId: number, senderName: string, messageText: string): Promise<void> {
+    const conn = await this.connectChatHub();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      await conn.invoke('SendMessage', conversationId, senderId, senderName, messageText);
+    }
+  }
+
+  onChatMessageReceived(callback: (data: ChatMessageEvent) => void): () => void {
+    if (!this.chatHubConnection) {
+      this.chatHubConnection = this.createConnection(AppEnvironment.chatHubUrl);
+    }
+    this.chatHubConnection.on('MessageReceived', callback);
+    return () => this.chatHubConnection?.off('MessageReceived', callback);
+  }
+
+
+  async reconnectAll(): Promise<void> {
+    try {
+      if (this.rideHubConnection && this.rideHubConnection.state === signalR.HubConnectionState.Disconnected) {
+        await this.rideHubConnection.start().catch(() => {});
+      }
+      if (this.orderHubConnection && this.orderHubConnection.state === signalR.HubConnectionState.Disconnected) {
+        await this.orderHubConnection.start().catch(() => {});
+      }
+      if (this.chatHubConnection && this.chatHubConnection.state === signalR.HubConnectionState.Disconnected) {
+        await this.chatHubConnection.start().catch(() => {});
+      }
+    } catch (e) {
+      // Quiet reconnect failure
+    }
+  }
+
+  async disconnectAll(): Promise<void> {
+    await this.rideHubConnection?.stop();
+    await this.orderHubConnection?.stop();
+    await this.chatHubConnection?.stop();
+    this.rideHubConnection = null;
+    this.orderHubConnection = null;
+    this.chatHubConnection = null;
+  }
+}
+
+export const signalRService = new SignalRService();

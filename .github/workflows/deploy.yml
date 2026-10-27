@@ -1,0 +1,107 @@
+name: Production Auto-Deploy & Rollback
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to execute'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - rollback
+          - status
+          - list
+      tag:
+        description: 'Specific release tag (optional, e.g. v-abc1234)'
+        required: false
+        default: ''
+
+jobs:
+  test:
+    name: Run Full Verification Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: TypeScript Typecheck
+        run: npx tsc --noEmit
+
+      - name: Backend Build (.NET 10)
+        run: dotnet build backend/SuperApp.sln
+
+  deploy:
+    name: Deploy to Azure Production VM
+    needs: test
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Calculate Target Tag & Action
+        id: vars
+        run: |
+          ACTION="${{ github.event.inputs.action || 'deploy' }}"
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="v-${{ github.sha }}"
+          fi
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Execute Deployment on VM via SSH
+        env:
+          SSH_HOST: ${{ secrets.VM_HOST }}
+          SSH_USER: ${{ secrets.VM_USER }}
+          SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          ACTION: ${{ steps.vars.outputs.action }}
+          TAG: ${{ steps.vars.outputs.tag }}
+        run: |
+          set -e
+          if [ -z "$SSH_HOST" ]; then
+            echo "::error::Secret VM_HOST is not set in GitHub repository secrets!"
+            exit 1
+          fi
+          if [ -z "$SSH_USER" ]; then
+            echo "::error::Secret VM_USER is not set in GitHub repository secrets!"
+            exit 1
+          fi
+          if [ -z "$SSH_KEY" ]; then
+            echo "::error::Secret VM_SSH_KEY is not set in GitHub repository secrets!"
+            exit 1
+          fi
+
+          echo "Configuring SSH client..."
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          HOSTS="$SSH_HOST"
+
+          for HOST in $HOSTS; do
+            echo "=========================================================="
+            echo "🚀 Connecting to $SSH_USER@$HOST to trigger $ACTION ($TAG)..."
+            echo "=========================================================="
+            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 -i ~/.ssh/deploy_key "$SSH_USER@$HOST" \
+              "sudo chmod +x /opt/SuperApp_V2/scripts/manage.sh && sudo /opt/SuperApp_V2/scripts/manage.sh '$ACTION' '$TAG'"
+          done
