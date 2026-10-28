@@ -8,6 +8,7 @@ export interface ThemePalette {
   surface: string;
   surfaceLight: string;
   surfaceMuted: string;
+  surfaceHover: string;
   primary: string;
   primaryLight: string;
   primaryDark: string;
@@ -32,6 +33,7 @@ export const lightTheme: ThemePalette = {
   surface: '#FFFFFF',
   surfaceLight: '#F1F5F9',
   surfaceMuted: '#E2E8F0',
+  surfaceHover: '#F1F5F9',
   primary: '#6366F1',
   primaryLight: '#818CF8',
   primaryDark: '#4F46E5',
@@ -56,6 +58,7 @@ export const darkTheme: ThemePalette = {
   surface: '#111827',
   surfaceLight: '#1F2937',
   surfaceMuted: '#1E293B',
+  surfaceHover: '#1F2937',
   primary: '#818CF8',
   primaryLight: '#A5B4FC',
   primaryDark: '#6366F1',
@@ -79,6 +82,7 @@ interface ThemeState {
   mode: ThemeMode;
   isDark: boolean;
   colors: ThemePalette;
+  theme: ThemePalette;
   setMode: (mode: ThemeMode) => Promise<void>;
   toggleTheme: () => Promise<void>;
   initTheme: () => Promise<void>;
@@ -88,13 +92,16 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   mode: 'dark',
   isDark: true,
   colors: darkTheme,
+  theme: darkTheme,
 
   setMode: async (mode: ThemeMode) => {
     await AsyncStorage.setItem('superapp_theme_mode', mode);
+    const chosenColors = mode === 'dark' ? darkTheme : lightTheme;
     set({
       mode,
       isDark: mode === 'dark',
-      colors: mode === 'dark' ? darkTheme : lightTheme,
+      colors: chosenColors,
+      theme: chosenColors,
     });
   },
 
@@ -106,16 +113,18 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   initTheme: async () => {
     const saved = await AsyncStorage.getItem('superapp_theme_mode');
     if (saved === 'light' || saved === 'dark') {
+      const chosenColors = saved === 'dark' ? darkTheme : lightTheme;
       set({
         mode: saved,
         isDark: saved === 'dark',
-        colors: saved === 'dark' ? darkTheme : lightTheme,
+        colors: chosenColors,
+        theme: chosenColors,
       });
     }
   },
 }));
 
 export function useAppTheme() {
-  const { colors, isDark, mode, toggleTheme, setMode } = useThemeStore();
-  return { colors, isDark, mode, toggleTheme, setMode };
+  const { colors, theme, isDark, mode, toggleTheme, setMode } = useThemeStore();
+  return { colors, theme, isDark, mode, toggleTheme, setMode };
 }

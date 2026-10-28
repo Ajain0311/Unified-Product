@@ -11,17 +11,15 @@ import {
   Modal,
   ActivityIndicator,
   FlatList,
-  BackHandler,
   Dimensions,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { AppColors } from '../../theme/colors';
-import { AppRadius, spacing } from '../../theme/spacing';
-import { AppTypography } from '../../theme/typography';
+import { AppRadius } from '../../theme/spacing';
 import { AppSearchBar } from '../../components/common/AppSearchBar';
 import { MarqueeText } from '../../components/common/MarqueeText';
 import { useAuthStore } from '../../store/authStore';
@@ -38,7 +36,6 @@ import { DEFAULT_RESTAURANTS, resolveRestaurantImage } from '../food/FoodHomeScr
 
 const SCREEN_WIDTH = typeof Dimensions !== 'undefined' && Dimensions.get ? (Dimensions.get('window')?.width || 375) : 375;
 
-/** Parse `exp:yyyy-MM-ddTHH:mm:ssZ` from Notification.ReferenceId; null if missing/invalid. */
 function parseBroadcastExpiry(referenceId: unknown): Date | null {
   const raw = String(referenceId ?? '').trim();
   if (!raw.toLowerCase().startsWith('exp:')) return null;
@@ -72,9 +69,9 @@ export function resolveDeliveryAddress(payload: any): string {
   if (items.length > 0) {
     const def = items.find((a: any) => a.isDefault) || items[0];
     const line = [def.addressLine1, def.city].filter(Boolean).join(', ');
-    return line || 'Add delivery address';
+    return line || 'Select Delivery Address';
   }
-  return 'Add delivery address';
+  return 'Select Delivery Address';
 }
 
 interface HomeScreenProps {
@@ -97,12 +94,12 @@ export interface TodayDealItem {
 }
 
 const CUISINE_RECOMMENDATIONS = [
-  { id: 'biryani', name: 'Biryani', icon: 'flame', count: '12+ spots' },
-  { id: 'north_indian', name: 'North Indian', icon: 'restaurant', count: '18+ spots' },
-  { id: 'south_indian', name: 'South Indian', icon: 'leaf', count: '10+ spots' },
-  { id: 'burgers', name: 'Burgers', icon: 'fast-food', count: '8+ spots' },
-  { id: 'desserts', name: 'Desserts', icon: 'ice-cream', count: '14+ spots' },
-  { id: 'rolls', name: 'Rolls & Wraps', icon: 'nutrition', count: '9+ spots' },
+  { id: 'biryani', name: 'Biryani', icon: 'flame', count: '14+ spots', color: '#F97316' },
+  { id: 'north_indian', name: 'North Indian', icon: 'restaurant', count: '22+ spots', color: '#10B981' },
+  { id: 'south_indian', name: 'South Indian', icon: 'leaf', count: '12+ spots', color: '#06B6D4' },
+  { id: 'burgers', name: 'Burgers & Pizza', icon: 'fast-food', count: '18+ spots', color: '#EF4444' },
+  { id: 'desserts', name: 'Sweets & Bakes', icon: 'ice-cream', count: '15+ spots', color: '#EC4899' },
+  { id: 'cafe', name: 'Coffee & Chai', icon: 'cafe', count: '10+ spots', color: '#8B5CF6' },
 ];
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
@@ -111,14 +108,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { theme, isDark, toggleTheme } = useAppTheme();
   const { language, toggleLanguage, t } = useLanguageStore();
 
-
   const [activeRide, setActiveRide] = useState<any>(null);
   const [banners, setBanners] = useState<any[]>([]);
-  const [deliverTo, setDeliverTo] = useState<string>('Add delivery address');
+  const [deliverTo, setDeliverTo] = useState<string>('Select Delivery Address');
   const [restaurants, setRestaurants] = useState<RestaurantSummary[]>(DEFAULT_RESTAURANTS);
   const [todayDeals, setTodayDeals] = useState<TodayDealItem[]>([]);
   const [bazaarListings, setBazaarListings] = useState<ListingSummary[]>([]);
-  const [isLoadingHome, setIsLoadingHome] = useState<boolean>(true);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [homeAnnouncement, setHomeAnnouncement] = useState<{
     id: string;
@@ -136,7 +131,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [bazaarPool, setBazaarPool] = useState<any[]>([]);
 
   const loadHomeData = useCallback(async () => {
-    setIsLoadingHome(true);
     try {
       const [bannersRes, restsRes, listingsRes, ridesRes, notifsRes, supportRes] = await Promise.allSettled([
         apiClient.get<any>(ApiEndpoints.common.banners),
@@ -158,7 +152,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }
       }
 
-      // 0. Admin broadcasts / in-app alerts (home marquee + bell badge)
+      // Announcements / Broadcasts
       if (notifsRes.status === 'fulfilled') {
         const raw = notifsRes.value?.data?.data || notifsRes.value?.data;
         const items = Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [];
@@ -190,7 +184,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }
       }
 
-      // 1. Banners
+      // Banners
       if (bannersRes.status === 'fulfilled') {
         const data = bannersRes.value?.data?.data || bannersRes.value?.data;
         if (Array.isArray(data) && data.length > 0) {
@@ -198,7 +192,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }
       }
 
-      // 2. Restaurants & Food Deals
+      // Restaurants & Deals
       let loadedRests: RestaurantSummary[] = DEFAULT_RESTAURANTS;
       if (restsRes.status === 'fulfilled') {
         const payload = restsRes.value?.data?.data || restsRes.value?.data;
@@ -209,7 +203,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }
       }
 
-      // Extract actual deals/combos from top restaurant detail menus
       if (loadedRests.length > 0) {
         const topRest = loadedRests[0];
         try {
@@ -248,103 +241,83 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 }
               }
             }
-            if (deals.length > 0) {
-              setTodayDeals(deals);
-            }
+            setTodayDeals(deals);
           }
         } catch {
-          // Keep existing or empty deals safely
+          // Keep default fallback
         }
       }
 
-      // 3. Bazaar Listings
+      // Bazaar Listings
       if (listingsRes.status === 'fulfilled') {
-        const payload = listingsRes.value?.data?.data || listingsRes.value?.data;
-        const items = payload?.items || payload;
-        if (Array.isArray(items)) {
-          setBazaarListings(items.slice(0, 6));
+        const raw = listingsRes.value?.data?.data || listingsRes.value?.data;
+        const items = Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [];
+        if (items.length > 0) {
+          setBazaarListings(items.slice(0, 8));
         }
       }
 
-      // 4. Live Ride
+      // Live Ride
       if (ridesRes.status === 'fulfilled') {
-        const data = ridesRes.value?.data?.data || ridesRes.value?.data;
-        if (Array.isArray(data) && data.length > 0) {
-          const live = data.find(
-            (r: any) => r.status === 'PENDING' || r.status === 'ACCEPTED' || r.status === 'STARTED'
-          );
-          setActiveRide(live || null);
-        }
+        const rawRides = ridesRes.value?.data?.data || ridesRes.value?.data;
+        const ridesList = Array.isArray(rawRides) ? rawRides : [];
+        const live = ridesList.find(
+          (r: any) =>
+            r.status === 'REQUESTED' ||
+            r.status === 'SEARCHING' ||
+            r.status === 'ACCEPTED' ||
+            r.status === 'ARRIVED' ||
+            r.status === 'STARTED',
+        );
+        setActiveRide(live || null);
       }
-    } finally {
-      setIsLoadingHome(false);
+    } catch {
+      // Quiet background fallback
     }
   }, [dismissedAnnouncementId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      apiClient
-        .get<any>(ApiEndpoints.common.addresses)
-        .then((res) => {
-          const payload = res?.data?.data ?? res?.data ?? res;
-          setDeliverTo(resolveDeliveryAddress(payload));
-        })
-        .catch(() => {
-          setDeliverTo('Add delivery address');
-        });
+  useEffect(() => {
+    loadHomeData();
+    // Fetch Saved Addresses
+    apiClient
+      .get<any>(ApiEndpoints.common.addresses)
+      .then((res) => {
+        const payload = res.data?.data || res.data;
+        setDeliverTo(resolveDeliveryAddress(payload));
+      })
+      .catch(() => {});
+  }, [loadHomeData]);
 
-      loadHomeData();
-
-      const onBackPress = () => {
-        if (isSearchOpen) {
-          setIsSearchOpen(false);
-          return true;
-        }
-        return false;
-      };
-
-      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => subscription.remove();
-    }, [isSearchOpen, loadHomeData])
-  );
-
-  const openSearch = () => {
+  const openSearch = async () => {
     setIsSearchOpen(true);
     if (foodPool.length === 0 || bazaarPool.length === 0) {
       setSearchLoading(true);
-      Promise.all([
-        apiClient
-          .get<any>(ApiEndpoints.food.restaurants)
-          .then((res) => {
-            const payload = res.data?.data || res.data;
-            const items = payload?.items || payload;
-            if (Array.isArray(items)) setFoodPool(items);
-          })
-          .catch(() => {}),
-        apiClient
-          .get<any>(ApiEndpoints.marketplace.listings)
-          .then((res) => {
-            const payload = res.data?.data || res.data;
-            const items = payload?.items || payload;
-            if (Array.isArray(items)) setBazaarPool(items);
-          })
-          .catch(() => {}),
-      ]).finally(() => {
+      try {
+        const [rRes, lRes] = await Promise.allSettled([
+          apiClient.get<any>(ApiEndpoints.food.restaurants),
+          apiClient.get<any>(ApiEndpoints.marketplace.listings),
+        ]);
+        if (rRes.status === 'fulfilled') {
+          const raw = rRes.value?.data?.data || rRes.value?.data;
+          setFoodPool(Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : []);
+        }
+        if (lRes.status === 'fulfilled') {
+          const raw = lRes.value?.data?.data || lRes.value?.data;
+          setBazaarPool(Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : []);
+        }
+      } finally {
         setSearchLoading(false);
-      });
+      }
     }
   };
 
   const openBanner = async (banner: any) => {
-    if (!banner) return;
-    const targetType = String(banner.targetType || '').toUpperCase().trim();
-    const targetId = banner.targetId != null ? String(banner.targetId).trim() : '';
-    const moduleName = String(banner.module || '').toUpperCase().trim();
-    const ctaUrl = String(banner.ctaUrl || banner.url || banner.link || '').trim();
+    const targetType = (banner.targetType || banner.TargetType || '').toUpperCase();
+    const targetId = String(banner.targetId || banner.TargetId || '');
+    const moduleName = (banner.module || banner.Module || '').toUpperCase();
 
-    // 1. External URL banner
-    if (targetType === 'URL' || targetType === 'EXTERNAL' || ctaUrl.startsWith('http://') || ctaUrl.startsWith('https://')) {
-      const urlToOpen = ctaUrl || (targetId.startsWith('http') ? targetId : '');
+    if (targetType === 'URL' || targetType === 'EXTERNAL' || targetId.startsWith('http')) {
+      const urlToOpen = targetId.startsWith('http') ? targetId : banner.linkUrl || banner.LinkUrl;
       if (urlToOpen) {
         try {
           const supported = await Linking.canOpenURL(urlToOpen);
@@ -354,29 +327,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           }
         } catch {}
       }
-      if (targetType === 'URL' || targetType === 'EXTERNAL') {
-        Alert.alert('Link Unavailable', 'This promotional link is currently not available.');
-        return;
-      }
     }
 
-    // 2. Marketplace Product / Listing advertisement
-    if (
-      targetType === 'LISTING' ||
-      targetType === 'PRODUCT' ||
-      targetType === 'MARKETPLACE_ITEM' ||
-      targetType === 'BAZAAR_ITEM'
-    ) {
-      if (targetId) {
-        navigation.navigate('ListingDetail', { listingId: targetId });
-        return;
-      }
-      navigation.navigate('Bazaar');
-      return;
-    }
-
-    // 3. Food / Restaurant advertisement
-    if (targetType === 'RESTAURANT' || targetType === 'FOOD_ITEM' || targetType === 'FOOD') {
+    if (targetType === 'RESTAURANT' || targetType === 'FOOD_ITEM' || moduleName === 'FOOD') {
       if (targetId) {
         navigation.navigate('RestaurantDetail', { restaurantId: targetId });
         return;
@@ -385,56 +338,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       return;
     }
 
-    // 4. Category advertisement
-    if (targetType === 'CATEGORY') {
-      if (moduleName === 'FOOD' || targetId.toLowerCase().includes('food') || targetId.toLowerCase().includes('restaurant')) {
-        navigation.navigate('Food');
-        return;
-      }
-      if (moduleName === 'MARKETPLACE' || moduleName === 'BAZAAR') {
-        navigation.navigate('Bazaar');
-        return;
-      }
-      if (moduleName === 'RIDE' || moduleName === 'RIDES') {
-        navigation.navigate('Rides');
-        return;
-      }
-    }
-
-    // 5. Ride advertisement
-    if (targetType === 'RIDE' || targetType === 'RIDE_PROMO') {
+    if (targetType === 'RIDE' || targetType === 'RIDE_PROMO' || moduleName === 'RIDE') {
       navigation.navigate('Rides');
       return;
     }
 
-    // 6. Fallback based on banner placement module
-    if (moduleName === 'FOOD') {
-      navigation.navigate('Food');
-      return;
-    }
-    if (moduleName === 'RIDE' || moduleName === 'RIDES') {
-      navigation.navigate('Rides');
-      return;
-    }
-    if (moduleName === 'MARKETPLACE' || moduleName === 'BAZAAR') {
+    if (targetType === 'LISTING' || moduleName === 'MARKETPLACE' || moduleName === 'BAZAAR') {
+      if (targetId) {
+        navigation.navigate('ListingDetail', { listingId: targetId });
+        return;
+      }
       navigation.navigate('Bazaar');
       return;
     }
 
-    // 7. General / Unconfigured banner fallback
     if (banner.title) {
-      Alert.alert(banner.title, banner.subtitle || 'Offer available on SuperApp services.');
+      Alert.alert(banner.title, banner.subtitle || 'Special offer available on SuperApp services.');
     }
   };
 
   const handleAddDealToCart = (deal: TodayDealItem) => {
     if (deal.isCustomizable) {
-      // Navigate to Restaurant Detail so user can customize variants and addons safely
       navigation.navigate('RestaurantDetail', { restaurantId: deal.restaurantId.toString() });
       return;
     }
-
-    // Guard against silent mixed restaurant cart corruption
     addItemToCart(deal.restaurantId, deal.restaurantName, {
       id: Date.now(),
       foodItemId: deal.id,
@@ -444,147 +371,168 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       addons: [],
       totalPrice: deal.discountedPrice,
     });
-    Alert.alert('Added to Cart', `${deal.name} added to your cart.`);
+    Alert.alert('Added to Cart', `${deal.name} added to your food cart.`);
   };
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const results: Array<{
-      type: 'FOOD' | 'BAZAAR';
-      id: string | number;
-      title: string;
-      subtitle: string;
-      price?: number;
-    }> = [];
-
-    // Food Results
+    if (!q) return [];
+    const results: any[] = [];
     if (searchFilter === 'ALL' || searchFilter === 'FOOD') {
-      foodPool.forEach((item) => {
-        const name = (item.name || '').toLowerCase();
-        const cuisines = (item.cuisines || item.description || '').toLowerCase();
-        if (!q || name.includes(q) || cuisines.includes(q)) {
+      for (const r of foodPool) {
+        if (
+          r.name?.toLowerCase().includes(q) ||
+          r.cuisines?.toLowerCase().includes(q) ||
+          r.description?.toLowerCase().includes(q)
+        ) {
           results.push({
             type: 'FOOD',
-            id: item.id,
-            title: item.name,
-            subtitle: item.cuisines || item.addressLine || 'Restaurant',
+            id: String(r.id),
+            title: r.name,
+            subtitle: r.cuisines || r.description || 'Restaurant & Fast Food',
           });
         }
-      });
+      }
     }
-
-    // Bazaar Results
     if (searchFilter === 'ALL' || searchFilter === 'BAZAAR') {
-      bazaarPool.forEach((item) => {
-        const title = (item.title || '').toLowerCase();
-        const category = (item.categoryName || '').toLowerCase();
-        const location = (item.location || '').toLowerCase();
-        if (!q || title.includes(q) || category.includes(q) || location.includes(q)) {
+      for (const b of bazaarPool) {
+        if (
+          b.title?.toLowerCase().includes(q) ||
+          b.categoryName?.toLowerCase().includes(q) ||
+          b.description?.toLowerCase().includes(q)
+        ) {
           results.push({
             type: 'BAZAAR',
-            id: item.id,
-            title: item.title,
-            subtitle: `${item.categoryName || 'General'} • ${item.location || 'Local'}`,
-            price: item.price,
+            id: String(b.id),
+            title: b.title,
+            subtitle: `${b.categoryName || 'General'} • ${b.location || 'Local'}`,
+            price: b.price,
           });
         }
-      });
+      }
     }
-
-    return results;
+    return results.slice(0, 20);
   }, [searchQuery, searchFilter, foodPool, bazaarPool]);
 
   const getInitials = () => {
-    if (!user?.fullName) return 'JD';
-    const parts = user.fullName.split(' ');
+    if (!user || !user.fullName) return 'U';
+    const parts = user.fullName.trim().split(' ');
     if (parts.length >= 2) {
       return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
     return user.fullName.substring(0, 2).toUpperCase();
   };
 
+  const isDarkUi = isDark;
+  const currentColors = isDarkUi
+    ? {
+        bg: '#0A0E21',
+        card: '#141829',
+        cardBorder: '#232946',
+        textMain: '#FFFFFF',
+        textMuted: '#94A3B8',
+        surfaceChip: '#1E243D',
+      }
+    : {
+        bg: '#F8FAFC',
+        card: '#FFFFFF',
+        cardBorder: '#E2E8F0',
+        textMain: '#0F172A',
+        textMuted: '#64748B',
+        surfaceChip: '#F1F5F9',
+      };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentColors.bg }]}>
+      <StatusBar barStyle={isDarkUi ? 'light-content' : 'dark-content'} />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. TOP HEADER: Address, Notification Button & Profile */}
+        {/* 1. TOP PREMIUM HEADER */}
         <View style={styles.topBar}>
           <TouchableOpacity
-            style={styles.locationGroup}
+            style={[styles.locationGroup, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}
             onPress={() => navigation.navigate('SavedAddresses')}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Select delivery address"
+            activeOpacity={0.8}
           >
-            <View style={styles.locationIconBox}>
-              <Ionicons name="location-sharp" size={18} color={AppColors.primary} />
-            </View>
+            <LinearGradient
+              colors={['#FF6B35', '#FF8A5C']}
+              style={styles.locationIconBox}
+            >
+              <Ionicons name="location-sharp" size={16} color="#FFFFFF" />
+            </LinearGradient>
             <View style={styles.locationTextColumn}>
-              <Text style={styles.deliverToCaption}>DELIVER TO</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.deliverToCaption}>{language === 'hi' ? 'डिलीवरी पता' : 'DELIVER TO'}</Text>
+                <View style={styles.livePulseDot} />
+              </View>
               <View style={styles.cityRow}>
-                <Text style={styles.cityName} numberOfLines={1}>{deliverTo}</Text>
-                <Ionicons name="chevron-down" size={15} color={AppColors.textSecondary} />
+                <Text style={[styles.cityName, { color: currentColors.textMain }]} numberOfLines={1}>
+                  {deliverTo}
+                </Text>
+                <Ionicons name="chevron-down" size={14} color={currentColors.textMuted} />
               </View>
             </View>
           </TouchableOpacity>
 
           <View style={styles.headerRightActions}>
-            {/* Language Switcher (Hindi / English) */}
+            {/* Language Switcher */}
             <TouchableOpacity
-              style={[styles.headerIconButton, { marginRight: 6 }]}
+              style={[styles.headerIconButton, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}
               onPress={toggleLanguage}
               activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Switch Language"
             >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: AppColors.primary }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: AppColors.primary }}>
                 {language === 'hi' ? 'EN' : 'हि'}
               </Text>
             </TouchableOpacity>
 
-            {/* Dark / Light Theme Switcher */}
+            {/* Dark/Light Mode */}
             <TouchableOpacity
-              style={[styles.headerIconButton, { marginRight: 6 }]}
+              style={[styles.headerIconButton, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}
               onPress={toggleTheme}
               activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Toggle Dark/Light Mode"
             >
               <Ionicons
-                name={isDark ? 'sunny' : 'moon'}
+                name={isDarkUi ? 'sunny' : 'moon'}
                 size={18}
-                color={isDark ? '#F59E0B' : AppColors.textPrimary}
+                color={isDarkUi ? '#F59E0B' : '#475569'}
               />
             </TouchableOpacity>
 
+            {/* Notifications */}
             <TouchableOpacity
-              style={styles.headerIconButton}
+              style={[styles.headerIconButton, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}
               onPress={() => {
                 setUnreadNotifCount(0);
                 navigation.navigate('Notifications');
               }}
               activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="View notifications"
             >
-              <Ionicons name="notifications-outline" size={20} color={AppColors.textPrimary} />
-              {unreadNotifCount > 0 ? (
+              <Ionicons name="notifications-outline" size={19} color={currentColors.textMain} />
+              {unreadNotifCount > 0 && (
                 <View style={styles.notifBadge}>
                   <Text style={styles.notifBadgeText}>
                     {unreadNotifCount > 99 ? '99+' : String(unreadNotifCount)}
                   </Text>
                 </View>
-              ) : null}
+              )}
             </TouchableOpacity>
 
+            {/* User Avatar */}
             <TouchableOpacity
               style={styles.profileAvatar}
               onPress={() => navigation.navigate('Profile')}
               activeOpacity={0.8}
             >
-              <Text style={styles.avatarInitials}>{getInitials()}</Text>
+              <LinearGradient
+                colors={['#6366F1', '#8B5CF6']}
+                style={styles.profileGradient}
+              >
+                <Text style={styles.avatarInitials}>{getInitials()}</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
@@ -592,21 +540,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* 2. UNIFIED SEARCH BAR */}
         <View style={styles.searchWrapper}>
           <AppSearchBar
-            placeholder="Search food, restaurants, dishes & marketplace..."
+            placeholder={
+              language === 'hi'
+                ? 'होटल, खाना, कैब एवं बाज़ार सर्च करें...'
+                : 'Search stays, food dishes, rides & bazaar...'
+            }
             editable={false}
             onPress={openSearch}
           />
         </View>
 
-        {/* Admin broadcast marquee (glass strip; duration from admin DisplayHours / default) */}
+        {/* 3. BROADCAST MARQUEE */}
         {homeAnnouncement ? (
           <View style={styles.announcementCard}>
             <TouchableOpacity
               style={styles.announcementTapArea}
               activeOpacity={0.85}
               onPress={() => navigation.navigate('Notifications')}
-              accessibilityRole="button"
-              accessibilityLabel="Open broadcast announcement"
             >
               <View style={styles.announcementIconWrap}>
                 <Ionicons name="megaphone" size={14} color="#BE185D" />
@@ -629,27 +579,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 setDismissedAnnouncementId(homeAnnouncement.id);
                 setHomeAnnouncement(null);
               }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel="Dismiss announcement"
             >
               <Ionicons name="close" size={16} color="#9F1239" />
             </TouchableOpacity>
           </View>
         ) : null}
 
-        {/* 3. ACTIVE RIDE STATUS CARD (If user has a live ride in transit) */}
+        {/* 4. ACTIVE RIDE STATUS CARD */}
         {activeRide ? (
-          <View style={styles.liveRideCard}>
+          <View style={[styles.liveRideCard, { backgroundColor: currentColors.card, borderColor: '#10B98155' }]}>
             <View style={styles.liveRideHeader}>
               <View style={styles.liveRideIndicatorGroup}>
-                <View style={styles.livePulseDot} />
+                <View style={[styles.livePulseDot, { backgroundColor: '#10B981' }]} />
                 <Text style={styles.liveRideStatusText}>
-                  LIVE RIDE • {activeRide.status === 'STARTED' ? 'IN TRANSIT' : 'DRIVER ASSIGNED'}
+                  LIVE TRIP • {activeRide.status === 'STARTED' ? 'IN TRANSIT' : 'CAPTAIN ASSIGNED'}
                 </Text>
               </View>
               <View style={styles.etaPill}>
-                <Text style={styles.etaPillText}>Active</Text>
+                <Text style={styles.etaPillText}>Track Live</Text>
               </View>
             </View>
 
@@ -658,15 +605,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 <Ionicons
                   name={activeRide.vehicleType === 'CAB' ? 'car' : 'bicycle'}
                   size={24}
-                  color={AppColors.secondary}
+                  color="#10B981"
                 />
               </View>
               <View style={styles.liveRideDetails}>
-                <Text style={styles.liveRideTitle}>
-                  {activeRide.vehicleType || 'Ride'} ({activeRide.rideNumber})
+                <Text style={[styles.liveRideTitle, { color: currentColors.textMain }]}>
+                  {activeRide.vehicleType || 'Trip'} ({activeRide.rideNumber})
                 </Text>
                 <View style={styles.driverOtpRow}>
-                  <Text style={styles.driverText}>
+                  <Text style={[styles.driverText, { color: currentColors.textMuted }]}>
                     {activeRide.driver?.fullName ? `Captain: ${activeRide.driver.fullName} • ` : ''}OTP:{' '}
                   </Text>
                   <Text style={styles.otpHighlight}>{activeRide.otpCode || '----'}</Text>
@@ -682,14 +629,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 }
                 activeOpacity={0.8}
               >
-                <Text style={styles.trackButtonText}>Track</Text>
+                <Text style={styles.trackButtonText}>View</Text>
                 <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           </View>
         ) : null}
 
-        {/* 4. PROMOTIONAL BANNERS CAROUSEL */}
+        {/* 5. PROMOTIONAL HERO BANNERS */}
         {banners.length > 0 && (
           <View style={styles.bannerSection}>
             <ScrollView
@@ -697,13 +644,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.bannersScroll}
               decelerationRate="fast"
-              snapToInterval={SCREEN_WIDTH - 48}
+              snapToInterval={SCREEN_WIDTH - 44}
             >
               {banners.map((banner) => (
                 <TouchableOpacity
                   key={String(banner.id)}
                   style={styles.bannerCard}
-                  activeOpacity={0.9}
+                  activeOpacity={0.92}
                   onPress={() => openBanner(banner)}
                 >
                   {banner.imageUrl ? (
@@ -713,12 +660,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                       resizeMode="cover"
                     />
                   ) : (
-                    <View style={styles.bannerImagePlaceholder}>
-                      <Ionicons name="sparkles" size={28} color={AppColors.primary} />
-                    </View>
+                    <LinearGradient
+                      colors={['#3B82F6', '#8B5CF6']}
+                      style={styles.bannerImagePlaceholder}
+                    >
+                      <Ionicons name="sparkles" size={36} color="#FFFFFF" />
+                    </LinearGradient>
                   )}
                   <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.8)']}
+                    colors={['transparent', 'rgba(10, 14, 33, 0.9)']}
                     style={styles.bannerOverlay}
                   >
                     <Text style={styles.bannerTitle} numberOfLines={1}>{banner.title}</Text>
@@ -737,131 +687,110 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </View>
         )}
 
-        {/* 5. ECOSYSTEM BUSINESS MODULES GRID (Hotel, Food, Rides, Bazaar, Bars, Beverages) */}
-        <View style={{ marginHorizontal: 16, marginTop: 16, marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <View>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#FFFFFF' : AppColors.textPrimary }}>
-                {language === 'hi' ? 'सेवाएं और व्यवसाय' : 'Ecosystem Modules'}
-              </Text>
-              <Text style={{ fontSize: 12, color: isDark ? '#94A3B8' : AppColors.textSecondary, marginTop: 2 }}>
-                {language === 'hi' ? 'होटल, खाना, राइड्स, नाइटलाइफ़ एवं बाज़ार' : 'Explore all on-demand services & stays'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-            {BUSINESS_MODULES.map((mod) => (
-              <TouchableOpacity
-                key={mod.id}
-                activeOpacity={0.85}
-                onPress={() => {
-                  if (mod.route === 'Food' || mod.route === 'Rides' || mod.route === 'Bazaar') {
-                    navigation.navigate(mod.route);
-                  } else {
-                    navigation.navigate(mod.route as any);
-                  }
-                }}
-                style={{
-                  width: '48%',
-                  backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                  borderRadius: 16,
-                  padding: 14,
-                  marginBottom: 12,
-                  borderWidth: 1,
-                  borderColor: isDark ? '#334155' : '#F1F5F9',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.2 : 0.05,
-                  shadowRadius: 4,
-                  elevation: 2,
-                }}
-              >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <LinearGradient
-                    colors={mod.gradient}
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Ionicons name={mod.icon as any} size={22} color="#FFFFFF" />
-                  </LinearGradient>
-                  {mod.badgeEn && (
-                    <View
-                      style={{
-                        backgroundColor: isDark ? '#334155' : '#F1F5F9',
-                        paddingHorizontal: 8,
-                        paddingVertical: 2,
-                        borderRadius: 6,
-                      }}
-                    >
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: mod.gradient[0] }}>
-                        {language === 'hi' ? mod.badgeHi : mod.badgeEn}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: '700',
-                    color: isDark ? '#FFFFFF' : AppColors.textPrimary,
-                    marginTop: 10,
-                    marginBottom: 2,
-                  }}
-                  numberOfLines={1}
-                >
-                  {language === 'hi' ? mod.nameHi : mod.nameEn}
-                </Text>
-
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: isDark ? '#94A3B8' : AppColors.textSecondary,
-                    lineHeight: 15,
-                  }}
-                  numberOfLines={2}
-                >
-                  {language === 'hi' ? mod.descriptionHi : mod.descriptionEn}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {/* 6. ECOSYSTEM BUSINESS MODULES GRID */}
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={[styles.sectionHeading, { color: currentColors.textMain }]}>
+              {language === 'hi' ? 'सेवाएं और स्टे' : 'Explore Ecosystem'}
+            </Text>
+            <Text style={[styles.sectionSubheading, { color: currentColors.textMuted }]}>
+              {language === 'hi' ? 'होटल, खाना, कैब, बाज़ार एवं पेय' : 'Curated services, stays & local commerce'}
+            </Text>
           </View>
         </View>
 
-        {/* 5. QUICK RIDE SHORTCUT STRIP */}
+        <View style={styles.moduleGridContainer}>
+          {BUSINESS_MODULES.map((mod) => (
+            <TouchableOpacity
+              key={mod.id}
+              activeOpacity={0.88}
+              onPress={() => {
+                if (mod.route === 'Food' || mod.route === 'Rides' || mod.route === 'Bazaar') {
+                  navigation.navigate(mod.route);
+                } else {
+                  navigation.navigate(mod.route as any);
+                }
+              }}
+              style={[
+                styles.moduleCard,
+                {
+                  backgroundColor: currentColors.card,
+                  borderColor: currentColors.cardBorder,
+                },
+              ]}
+            >
+              <View style={styles.moduleCardTop}>
+                <LinearGradient
+                  colors={mod.gradient}
+                  style={styles.moduleIconBox}
+                >
+                  <Ionicons name={mod.icon as any} size={22} color="#FFFFFF" />
+                </LinearGradient>
+                {mod.badgeEn && (
+                  <View style={[styles.moduleBadge, { backgroundColor: currentColors.surfaceChip }]}>
+                    <Text style={[styles.moduleBadgeText, { color: mod.gradient[0] }]}>
+                      {language === 'hi' ? mod.badgeHi : mod.badgeEn}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <Text
+                style={[styles.moduleName, { color: currentColors.textMain }]}
+                numberOfLines={1}
+              >
+                {language === 'hi' ? mod.nameHi : mod.nameEn}
+              </Text>
+
+              <Text
+                style={[styles.moduleDesc, { color: currentColors.textMuted }]}
+                numberOfLines={2}
+              >
+                {language === 'hi' ? mod.descriptionHi : mod.descriptionEn}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* 7. QUICK RIDE SHORTCUT STRIP */}
         <TouchableOpacity
-          style={styles.rideShortcutStrip}
-          activeOpacity={0.85}
+          style={[styles.rideShortcutStrip, { backgroundColor: currentColors.card, borderColor: '#3B82F644' }]}
+          activeOpacity={0.88}
           onPress={() => navigation.navigate('Rides')}
         >
           <View style={styles.rideShortcutLeft}>
-            <View style={styles.rideShortcutIconBox}>
+            <LinearGradient
+              colors={['#2563EB', '#3B82F6']}
+              style={styles.rideShortcutIconBox}
+            >
               <Ionicons name="car-sport" size={20} color="#FFFFFF" />
-            </View>
+            </LinearGradient>
             <View style={styles.rideShortcutTextCol}>
-              <Text style={styles.rideShortcutTitle}>Need a quick ride?</Text>
-              <Text style={styles.rideShortcutSubtitle}>Bike, Auto & Cabs nearby • Tap to book</Text>
+              <Text style={[styles.rideShortcutTitle, { color: currentColors.textMain }]}>
+                {language === 'hi' ? 'तुरंत कैब या बाइक चाहिए?' : 'Need an instant ride?'}
+              </Text>
+              <Text style={[styles.rideShortcutSubtitle, { color: currentColors.textMuted }]}>
+                {language === 'hi' ? 'बाइक, ऑटो व कैब नजदीकी उपलब्ध' : 'Verified captains nearby • Transparent fares'}
+              </Text>
             </View>
           </View>
           <View style={styles.rideShortcutActionBtn}>
-            <Text style={styles.rideShortcutActionText}>Book Ride</Text>
-            <Ionicons name="arrow-forward" size={14} color={AppColors.primary} />
+            <Text style={styles.rideShortcutActionText}>Book Now</Text>
+            <Ionicons name="arrow-forward" size={13} color="#2563EB" />
           </View>
         </TouchableOpacity>
 
-        {/* 6. TODAY'S DEALS & COMBOS SECTION */}
+        {/* 8. TODAY'S DEALS & COMBOS SECTION */}
         {todayDeals.length > 0 && (
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Text style={styles.sectionHeading}>Today's Deals & Combos</Text>
-                <Text style={styles.sectionSubheading}>Freshly discounted items from verified restaurants</Text>
+                <Text style={[styles.sectionHeading, { color: currentColors.textMain }]}>
+                  {language === 'hi' ? 'आज के विशेष ऑफर्स एवं थाली' : "Today's Deals & Combos"}
+                </Text>
+                <Text style={[styles.sectionSubheading, { color: currentColors.textMuted }]}>
+                  {language === 'hi' ? 'ताज़ा भोजन सीधे शीर्ष रेस्तरां से' : 'Fresh discounts from verified kitchens'}
+                </Text>
               </View>
               <TouchableOpacity onPress={() => navigation.navigate('Food')}>
                 <Text style={styles.seeAllText}>See all</Text>
@@ -874,7 +803,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               contentContainerStyle={styles.horizontalCardList}
             >
               {todayDeals.map((deal) => (
-                <View key={deal.id} style={styles.dealCard}>
+                <View
+                  key={deal.id}
+                  style={[
+                    styles.dealCard,
+                    {
+                      backgroundColor: currentColors.card,
+                      borderColor: currentColors.cardBorder,
+                    },
+                  ]}
+                >
                   <TouchableOpacity
                     activeOpacity={0.9}
                     onPress={() => navigation.navigate('RestaurantDetail', { restaurantId: deal.restaurantId.toString() })}
@@ -890,13 +828,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   </TouchableOpacity>
 
                   <View style={styles.dealCardContent}>
-                    <Text style={styles.dealRestName} numberOfLines={1}>{deal.restaurantName}</Text>
-                    <Text style={styles.dealItemName} numberOfLines={1}>{deal.name}</Text>
+                    <Text style={[styles.dealRestName, { color: currentColors.textMuted }]} numberOfLines={1}>
+                      {deal.restaurantName}
+                    </Text>
+                    <Text style={[styles.dealItemName, { color: currentColors.textMain }]} numberOfLines={1}>
+                      {deal.name}
+                    </Text>
 
                     <View style={styles.dealPriceRow}>
-                      <Text style={styles.dealPrice}>₹{deal.discountedPrice.toFixed(0)}</Text>
+                      <Text style={[styles.dealPrice, { color: currentColors.textMain }]}>
+                        ₹{deal.discountedPrice.toFixed(0)}
+                      </Text>
                       {deal.basePrice > deal.discountedPrice && (
-                        <Text style={styles.dealBasePrice}>₹{deal.basePrice.toFixed(0)}</Text>
+                        <Text style={[styles.dealBasePrice, { color: currentColors.textMuted }]}>
+                          ₹{deal.basePrice.toFixed(0)}
+                        </Text>
                       )}
                     </View>
 
@@ -905,7 +851,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                       activeOpacity={0.8}
                       onPress={() => handleAddDealToCart(deal)}
                     >
-                      <Ionicons name="add" size={16} color="#FFFFFF" />
+                      <Ionicons name="add" size={15} color="#FFFFFF" />
                       <Text style={styles.addDealBtnText}>ADD</Text>
                     </TouchableOpacity>
                   </View>
@@ -915,15 +861,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </View>
         )}
 
-        {/* 7. FOOD DISCOVERY CUISINES */}
+        {/* 9. FOOD DISCOVERY CUISINES */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
             <View>
-              <Text style={styles.sectionHeading}>Explore Cuisines</Text>
-              <Text style={styles.sectionSubheading}>Curated culinary selections</Text>
+              <Text style={[styles.sectionHeading, { color: currentColors.textMain }]}>
+                {language === 'hi' ? 'स्वादिष्ट श्रेणियां' : 'Cuisine Discovery'}
+              </Text>
+              <Text style={[styles.sectionSubheading, { color: currentColors.textMuted }]}>
+                {language === 'hi' ? 'लोकप्रिय भोजन विकल्प' : 'Curated dishes & beverage delights'}
+              </Text>
             </View>
             <TouchableOpacity onPress={() => navigation.navigate('Food')}>
-              <Text style={styles.seeAllText}>Explore Menu</Text>
+              <Text style={styles.seeAllText}>Explore</Text>
             </TouchableOpacity>
           </View>
 
@@ -935,26 +885,36 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             {CUISINE_RECOMMENDATIONS.map((c) => (
               <TouchableOpacity
                 key={c.id}
-                style={styles.cuisinePill}
+                style={[
+                  styles.cuisinePill,
+                  {
+                    backgroundColor: currentColors.card,
+                    borderColor: currentColors.cardBorder,
+                  },
+                ]}
                 activeOpacity={0.8}
                 onPress={() => navigation.navigate('Food')}
               >
-                <View style={styles.cuisineIconCircle}>
-                  <Ionicons name={c.icon as any} size={20} color={AppColors.primary} />
+                <View style={[styles.cuisineIconCircle, { backgroundColor: `${c.color}1E` }]}>
+                  <Ionicons name={c.icon as any} size={20} color={c.color} />
                 </View>
-                <Text style={styles.cuisineName}>{c.name}</Text>
-                <Text style={styles.cuisineCount}>{c.count}</Text>
+                <Text style={[styles.cuisineName, { color: currentColors.textMain }]}>{c.name}</Text>
+                <Text style={[styles.cuisineCount, { color: currentColors.textMuted }]}>{c.count}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-        {/* 8. POPULAR RESTAURANTS NEAR YOU */}
+        {/* 10. POPULAR RESTAURANTS */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
             <View>
-              <Text style={styles.sectionHeading}>Popular Near You</Text>
-              <Text style={styles.sectionSubheading}>Top-rated restaurants delivered to your doorstep</Text>
+              <Text style={[styles.sectionHeading, { color: currentColors.textMain }]}>
+                {language === 'hi' ? 'नजदीकी लोकप्रिय रेस्तरां' : 'Top Restaurants Near You'}
+              </Text>
+              <Text style={[styles.sectionSubheading, { color: currentColors.textMuted }]}>
+                {language === 'hi' ? 'रेटेड भोजन एवं तेज़ डिलीवरी' : 'Fast doorstep drop with live tracking'}
+              </Text>
             </View>
             <TouchableOpacity onPress={() => navigation.navigate('Food')}>
               <Text style={styles.seeAllText}>View all ({restaurants.length})</Text>
@@ -964,7 +924,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           {restaurants.slice(0, 4).map((restaurant) => (
             <TouchableOpacity
               key={restaurant.id}
-              style={styles.restCard}
+              style={[
+                styles.restCard,
+                {
+                  backgroundColor: currentColors.card,
+                  borderColor: currentColors.cardBorder,
+                },
+              ]}
               activeOpacity={0.9}
               onPress={() =>
                 navigation.navigate('RestaurantDetail', {
@@ -979,28 +945,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               />
               <View style={styles.restInfo}>
                 <View style={styles.restTitleRow}>
-                  <Text style={styles.restName} numberOfLines={1}>{restaurant.name}</Text>
+                  <Text style={[styles.restName, { color: currentColors.textMain }]} numberOfLines={1}>
+                    {restaurant.name}
+                  </Text>
                   <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={11} color="#FFFFFF" />
+                    <Ionicons name="star" size={10} color="#FFFFFF" />
                     <Text style={styles.ratingText}>{Number(restaurant.rating || 4.5).toFixed(1)}</Text>
                   </View>
                 </View>
 
-                <Text style={styles.restCuisines} numberOfLines={1}>
+                <Text style={[styles.restCuisines, { color: currentColors.textMuted }]} numberOfLines={1}>
                   {restaurant.cuisines || restaurant.description || 'Multi-cuisine • Fast Food'}
                 </Text>
 
                 <View style={styles.restMetaRow}>
                   <View style={styles.restMetaItem}>
-                    <Ionicons name="time-outline" size={13} color={AppColors.textSecondary} />
-                    <Text style={styles.restMetaText}>
+                    <Ionicons name="time-outline" size={13} color={currentColors.textMuted} />
+                    <Text style={[styles.restMetaText, { color: currentColors.textMuted }]}>
                       {restaurant.avgDeliveryTimeMinutes || 25} mins
                     </Text>
                   </View>
-                  <Text style={styles.metaDot}>•</Text>
+                  <Text style={[styles.metaDot, { color: currentColors.textMuted }]}>•</Text>
                   <View style={styles.restMetaItem}>
-                    <Ionicons name="bicycle-outline" size={13} color={AppColors.textSecondary} />
-                    <Text style={styles.restMetaText}>
+                    <Ionicons name="bicycle-outline" size={13} color={currentColors.textMuted} />
+                    <Text style={[styles.restMetaText, { color: currentColors.textMuted }]}>
                       {restaurant.deliveryFee === 0 ? 'Free Delivery' : `₹${restaurant.deliveryFee} drop`}
                     </Text>
                   </View>
@@ -1010,16 +978,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           ))}
         </View>
 
-        {/* 9. COMPACT BAZAAR PICKS */}
+        {/* 11. BAZAAR PICKS */}
         {bazaarListings.length > 0 && (
-          <View style={[styles.sectionContainer, { marginBottom: 16 }]}>
+          <View style={[styles.sectionContainer, { marginBottom: 20 }]}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Text style={styles.sectionHeading}>Community Bazaar</Text>
-                <Text style={styles.sectionSubheading}>Fresh pre-loved items from verified local sellers</Text>
+                <Text style={[styles.sectionHeading, { color: currentColors.textMain }]}>
+                  {language === 'hi' ? 'स्थानीय कम्युनिटी बाज़ार' : 'Community Bazaar Finds'}
+                </Text>
+                <Text style={[styles.sectionSubheading, { color: currentColors.textMuted }]}>
+                  {language === 'hi' ? 'सत्यापित स्थानीय विक्रेताओं से' : 'Pre-loved & local verified listings'}
+                </Text>
               </View>
               <TouchableOpacity onPress={() => navigation.navigate('Bazaar')}>
-                <Text style={styles.seeAllText}>Browse Bazaar</Text>
+                <Text style={styles.seeAllText}>Browse</Text>
               </TouchableOpacity>
             </View>
 
@@ -1031,8 +1003,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               {bazaarListings.map((listing) => (
                 <TouchableOpacity
                   key={listing.id}
-                  style={styles.bazaarCard}
-                  activeOpacity={0.85}
+                  style={[
+                    styles.bazaarCard,
+                    {
+                      backgroundColor: currentColors.card,
+                      borderColor: currentColors.cardBorder,
+                    },
+                  ]}
+                  activeOpacity={0.88}
                   onPress={() => navigation.navigate('ListingDetail', { listingId: String(listing.id) })}
                 >
                   <Image
@@ -1045,9 +1023,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                     resizeMode="cover"
                   />
                   <View style={styles.bazaarCardContent}>
-                    <Text style={styles.bazaarPrice}>₹{Number(listing.price || 0).toFixed(0)}</Text>
-                    <Text style={styles.bazaarTitle} numberOfLines={1}>{listing.title}</Text>
-                    <Text style={styles.bazaarCategory} numberOfLines={1}>
+                    <Text style={[styles.bazaarPrice, { color: currentColors.textMain }]}>
+                      ₹{Number(listing.price || 0).toFixed(0)}
+                    </Text>
+                    <Text style={[styles.bazaarTitle, { color: currentColors.textMain }]} numberOfLines={1}>
+                      {listing.title}
+                    </Text>
+                    <Text style={[styles.bazaarCategory, { color: currentColors.textMuted }]} numberOfLines={1}>
                       {listing.categoryName || 'General'} • {listing.location || 'Local'}
                     </Text>
                   </View>
@@ -1060,14 +1042,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
       {/* GLOBAL SEARCH OVERLAY MODAL */}
       <Modal visible={isSearchOpen} animationType="slide" onRequestClose={() => setIsSearchOpen(false)}>
-        <SafeAreaView style={styles.searchModalContainer}>
-          <View style={styles.searchModalHeader}>
+        <SafeAreaView style={[styles.searchModalContainer, { backgroundColor: currentColors.bg }]}>
+          <View style={[styles.searchModalHeader, { borderBottomColor: currentColors.cardBorder }]}>
             <TouchableOpacity onPress={() => setIsSearchOpen(false)} style={styles.searchBackBtn}>
-              <Ionicons name="arrow-back" size={24} color={AppColors.textPrimary} />
+              <Ionicons name="arrow-back" size={24} color={currentColors.textMain} />
             </TouchableOpacity>
             <View style={styles.searchModalInputWrapper}>
               <AppSearchBar
-                placeholder="Search food, dishes, marketplace ads..."
+                placeholder="Search food, stays, products..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 onClear={() => setSearchQuery('')}
@@ -1076,19 +1058,29 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Search Category Filter Tabs */}
-          <View style={styles.searchFilterRow}>
+          <View style={[styles.searchFilterRow, { borderBottomColor: currentColors.cardBorder }]}>
             {(['ALL', 'FOOD', 'BAZAAR'] as const).map((filter) => {
               const active = searchFilter === filter;
               return (
                 <TouchableOpacity
                   key={filter}
-                  style={[styles.searchFilterChip, active ? styles.searchFilterChipActive : null]}
+                  style={[
+                    styles.searchFilterChip,
+                    {
+                      backgroundColor: active ? AppColors.primary : currentColors.card,
+                      borderColor: active ? AppColors.primary : currentColors.cardBorder,
+                    },
+                  ]}
                   onPress={() => setSearchFilter(filter)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.searchFilterText, active ? styles.searchFilterTextActive : null]}>
-                    {filter === 'ALL' ? 'All Results' : filter === 'FOOD' ? 'Food & Restaurants' : 'Marketplace'}
+                  <Text
+                    style={[
+                      styles.searchFilterText,
+                      { color: active ? '#FFFFFF' : currentColors.textMuted },
+                    ]}
+                  >
+                    {filter === 'ALL' ? 'All Results' : filter === 'FOOD' ? 'Food & Restaurants' : 'Bazaar Products'}
                   </Text>
                 </TouchableOpacity>
               );
@@ -1098,7 +1090,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           {searchLoading ? (
             <View style={styles.searchLoaderContainer}>
               <ActivityIndicator size="large" color={AppColors.primary} />
-              <Text style={styles.searchLoaderText}>Loading searchable catalog...</Text>
+              <Text style={[styles.searchLoaderText, { color: currentColors.textMuted }]}>
+                Loading live catalog...
+              </Text>
             </View>
           ) : (
             <FlatList
@@ -1108,7 +1102,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               contentContainerStyle={styles.searchResultsList}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.searchResultCard}
+                  style={[
+                    styles.searchResultCard,
+                    {
+                      backgroundColor: currentColors.card,
+                      borderColor: currentColors.cardBorder,
+                    },
+                  ]}
                   activeOpacity={0.7}
                   onPress={() => {
                     setIsSearchOpen(false);
@@ -1122,7 +1122,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   <View style={styles.searchResultBadge}>
                     <Ionicons
                       name={item.type === 'FOOD' ? 'restaurant' : 'pricetag'}
-                      size={14}
+                      size={13}
                       color={item.type === 'FOOD' ? '#EA580C' : '#2563EB'}
                     />
                     <Text
@@ -1134,8 +1134,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                       {item.type === 'FOOD' ? 'RESTAURANT' : 'MARKETPLACE'}
                     </Text>
                   </View>
-                  <Text style={styles.searchResultTitle}>{item.title}</Text>
-                  {item.subtitle ? <Text style={styles.searchResultSubtitle}>{item.subtitle}</Text> : null}
+                  <Text style={[styles.searchResultTitle, { color: currentColors.textMain }]}>{item.title}</Text>
+                  {item.subtitle ? (
+                    <Text style={[styles.searchResultSubtitle, { color: currentColors.textMuted }]}>
+                      {item.subtitle}
+                    </Text>
+                  ) : null}
                   {item.price != null ? (
                     <Text style={styles.searchResultPrice}>₹{Number(item.price).toFixed(0)}</Text>
                   ) : null}
@@ -1143,14 +1147,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               )}
               ListEmptyComponent={
                 <View style={styles.searchEmptyBox}>
-                  <Ionicons name="search-outline" size={48} color={AppColors.textTertiary} />
-                  <Text style={styles.searchEmptyTitle}>
-                    {searchQuery.trim().length > 0 ? 'No matching items found' : 'Type to search SuperApp'}
+                  <Ionicons name="search-outline" size={44} color={currentColors.textMuted} />
+                  <Text style={[styles.searchEmptyTitle, { color: currentColors.textMain }]}>
+                    {searchQuery.trim().length > 0 ? 'No matching items' : 'Type to search everything'}
                   </Text>
-                  <Text style={styles.searchEmptySubtitle}>
-                    {searchQuery.trim().length > 0
-                      ? 'Try searching for dishes like Biryani or marketplace products'
-                      : 'Search across live restaurants, food menus, and verified local listings'}
+                  <Text style={[styles.searchEmptySubtitle, { color: currentColors.textMuted }]}>
+                    Find verified restaurants, dishes, luxury hotel stays and community bazaar listings.
                   </Text>
                 </View>
               }
@@ -1165,203 +1167,198 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: AppColors.background,
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 32,
+    paddingTop: 10,
+    paddingBottom: 36,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   locationGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 12,
+    marginRight: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: AppRadius.lg,
+    borderWidth: 1,
   },
   locationIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: `${AppColors.primary}22`,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   locationTextColumn: {
     flex: 1,
     justifyContent: 'center',
   },
   deliverToCaption: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
-    color: AppColors.textTertiary,
-    letterSpacing: 1.1,
+    color: '#FF6B35',
+    letterSpacing: 0.8,
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+    marginLeft: 6,
   },
   cityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
   cityName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    color: AppColors.textPrimary,
-    marginRight: 4,
+    marginRight: 3,
     maxWidth: '85%',
   },
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 7,
   },
   headerIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: AppColors.surface,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: AppColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   notifBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    top: -3,
+    right: -3,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 8.5,
     backgroundColor: '#EF4444',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
     borderWidth: 1.5,
-    borderColor: AppColors.surface,
+    borderColor: '#0A0E21',
   },
   notifBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
   },
   profileAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: AppColors.surfaceLight,
-    borderWidth: 1,
-    borderColor: AppColors.border,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  profileGradient: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
-    color: AppColors.textPrimary,
+    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
   },
   searchWrapper: {
-    marginBottom: 18,
+    marginBottom: 14,
   },
   announcementCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(236, 72, 153, 0.10)',
-    borderRadius: AppRadius.md,
+    backgroundColor: 'rgba(236, 72, 153, 0.12)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(244, 114, 182, 0.28)',
-    paddingVertical: 8,
+    borderColor: 'rgba(244, 114, 182, 0.35)',
+    paddingVertical: 7,
     paddingLeft: 10,
     paddingRight: 6,
     marginBottom: 14,
-    minHeight: 36,
   },
   announcementTapArea: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 0,
   },
   announcementIconWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: 'rgba(236, 72, 153, 0.16)',
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: 'rgba(236, 72, 153, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
   announcementMarquee: {
     flex: 1,
-    height: 22,
-    minWidth: 0,
+    height: 20,
   },
   announcementMarqueeText: {
-    color: '#9F1239',
-    fontSize: 13,
+    color: '#BE185D',
+    fontSize: 12,
     fontWeight: '600',
-    letterSpacing: 0.1,
   },
   announcementClose: {
     padding: 4,
     marginLeft: 2,
   },
   liveRideCard: {
-    backgroundColor: AppColors.surface,
-    borderRadius: AppRadius.lg,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: `${AppColors.secondary}4D`,
     padding: 14,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   liveRideHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   liveRideIndicatorGroup: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  livePulseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: AppColors.secondary,
-    marginRight: 6,
-  },
   liveRideStatusText: {
-    color: AppColors.secondary,
+    color: '#10B981',
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   etaPill: {
-    backgroundColor: `${AppColors.secondary}26`,
+    backgroundColor: '#10B98122',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   etaPillText: {
-    color: AppColors.secondary,
+    color: '#10B981',
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   liveRideBody: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   vehicleIconCircle: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 12,
-    backgroundColor: `${AppColors.secondary}26`,
+    backgroundColor: '#10B98120',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1370,53 +1367,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   liveRideTitle: {
-    color: AppColors.textPrimary,
     fontSize: 14,
     fontWeight: '700',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   driverOtpRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   driverText: {
-    color: AppColors.textSecondary,
     fontSize: 12,
   },
   otpHighlight: {
-    color: AppColors.secondary,
+    color: '#10B981',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   trackButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: AppColors.surfaceLight,
+    backgroundColor: '#10B981',
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: AppColors.border,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
+    gap: 3,
   },
   trackButtonText: {
-    color: AppColors.textPrimary,
-    fontSize: 13,
-    fontWeight: '600',
-    marginRight: 2,
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   bannerSection: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   bannersScroll: {
-    paddingRight: 16,
     gap: 12,
   },
   bannerCard: {
-    width: SCREEN_WIDTH - 64,
-    height: 140,
-    borderRadius: AppRadius.md,
+    width: SCREEN_WIDTH - 52,
+    height: 145,
+    borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: AppColors.surface,
   },
   bannerImage: {
     width: '100%',
@@ -1425,7 +1416,6 @@ const styles = StyleSheet.create({
   bannerImagePlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: `${AppColors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1460,16 +1450,85 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
   },
+  sectionContainer: {
+    marginBottom: 20,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sectionHeading: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  sectionSubheading: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  seeAllText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: AppColors.primary,
+  },
+  moduleGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  moduleCard: {
+    width: '48.5%',
+    borderRadius: 16,
+    padding: 13,
+    marginBottom: 11,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  moduleCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  moduleIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moduleBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  moduleBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  moduleName: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 10,
+    marginBottom: 2,
+  },
+  moduleDesc: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
   rideShortcutStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: AppColors.surface,
     borderWidth: 1,
-    borderColor: `${AppColors.primary}33`,
-    borderRadius: AppRadius.md,
-    padding: 14,
-    marginBottom: 24,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 20,
   },
   rideShortcutLeft: {
     flexDirection: 'row',
@@ -1480,22 +1539,19 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: AppColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   rideShortcutTextCol: {
     flex: 1,
   },
   rideShortcutTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    color: AppColors.textPrimary,
   },
   rideShortcutSubtitle: {
     fontSize: 11,
-    color: AppColors.textSecondary,
     marginTop: 2,
   },
   rideShortcutActionBtn: {
@@ -1505,48 +1561,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: `${AppColors.primary}1A`,
+    backgroundColor: '#2563EB18',
   },
   rideShortcutActionText: {
     fontSize: 12,
     fontWeight: '700',
-    color: AppColors.primary,
-  },
-  sectionContainer: {
-    marginBottom: 24,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  sectionHeading: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: AppColors.textPrimary,
-  },
-  sectionSubheading: {
-    fontSize: 12,
-    color: AppColors.textTertiary,
-    marginTop: 2,
-  },
-  seeAllText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: AppColors.primary,
-    marginTop: 2,
+    color: '#2563EB',
   },
   horizontalCardList: {
-    paddingRight: 16,
     gap: 12,
   },
   dealCard: {
-    width: 170,
-    backgroundColor: AppColors.surface,
-    borderRadius: AppRadius.md,
+    width: 165,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: AppColors.border,
     overflow: 'hidden',
   },
   dealCardImage: {
@@ -1557,8 +1585,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: AppColors.primary,
-    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
@@ -1572,14 +1600,12 @@ const styles = StyleSheet.create({
   },
   dealRestName: {
     fontSize: 10,
-    color: AppColors.textSecondary,
     fontWeight: '600',
     marginBottom: 2,
   },
   dealItemName: {
     fontSize: 13,
     fontWeight: '700',
-    color: AppColors.textPrimary,
     marginBottom: 6,
   },
   dealPriceRow: {
@@ -1591,11 +1617,9 @@ const styles = StyleSheet.create({
   dealPrice: {
     fontSize: 14,
     fontWeight: '800',
-    color: AppColors.textPrimary,
   },
   dealBasePrice: {
     fontSize: 11,
-    color: AppColors.textTertiary,
     textDecorationLine: 'line-through',
   },
   addDealBtn: {
@@ -1603,7 +1627,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: AppColors.primary,
-    borderRadius: 6,
+    borderRadius: 8,
     paddingVertical: 5,
     gap: 4,
   },
@@ -1613,23 +1637,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   cuisinesScroll: {
-    paddingRight: 16,
     gap: 10,
   },
   cuisinePill: {
     alignItems: 'center',
-    width: 82,
+    width: 86,
     paddingVertical: 10,
-    backgroundColor: AppColors.surface,
-    borderRadius: AppRadius.md,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: AppColors.border,
   },
   cuisineIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: `${AppColors.primary}18`,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
@@ -1637,28 +1657,24 @@ const styles = StyleSheet.create({
   cuisineName: {
     fontSize: 11,
     fontWeight: '700',
-    color: AppColors.textPrimary,
     textAlign: 'center',
   },
   cuisineCount: {
     fontSize: 9,
-    color: AppColors.textTertiary,
     marginTop: 2,
   },
   restCard: {
     flexDirection: 'row',
-    backgroundColor: AppColors.surface,
-    borderRadius: AppRadius.md,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: AppColors.border,
     padding: 12,
     marginBottom: 10,
     alignItems: 'center',
   },
   restImage: {
-    width: 74,
-    height: 74,
-    borderRadius: 10,
+    width: 76,
+    height: 76,
+    borderRadius: 12,
     marginRight: 12,
   },
   restInfo: {
@@ -1673,7 +1689,6 @@ const styles = StyleSheet.create({
   restName: {
     fontSize: 14,
     fontWeight: '700',
-    color: AppColors.textPrimary,
     flex: 1,
     marginRight: 6,
   },
@@ -1681,8 +1696,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#16A34A',
-    borderRadius: 4,
-    paddingHorizontal: 5,
+    borderRadius: 5,
+    paddingHorizontal: 6,
     paddingVertical: 2,
     gap: 3,
   },
@@ -1693,7 +1708,6 @@ const styles = StyleSheet.create({
   },
   restCuisines: {
     fontSize: 11,
-    color: AppColors.textSecondary,
     marginBottom: 6,
   },
   restMetaRow: {
@@ -1707,20 +1721,16 @@ const styles = StyleSheet.create({
   },
   restMetaText: {
     fontSize: 11,
-    color: AppColors.textSecondary,
     fontWeight: '500',
   },
   metaDot: {
     marginHorizontal: 6,
-    color: AppColors.textTertiary,
     fontSize: 11,
   },
   bazaarCard: {
     width: 140,
-    backgroundColor: AppColors.surface,
-    borderRadius: AppRadius.md,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: AppColors.border,
     overflow: 'hidden',
   },
   bazaarCardImage: {
@@ -1733,22 +1743,18 @@ const styles = StyleSheet.create({
   bazaarPrice: {
     fontSize: 13,
     fontWeight: '800',
-    color: AppColors.textPrimary,
   },
   bazaarTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: AppColors.textSecondary,
     marginTop: 2,
   },
   bazaarCategory: {
     fontSize: 10,
-    color: AppColors.textTertiary,
     marginTop: 3,
   },
   searchModalContainer: {
     flex: 1,
-    backgroundColor: AppColors.background,
   },
   searchModalHeader: {
     flexDirection: 'row',
@@ -1756,6 +1762,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 4,
+    borderBottomWidth: 1,
   },
   searchBackBtn: {
     padding: 8,
@@ -1770,27 +1777,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: `${AppColors.border}55`,
   },
   searchFilterChip: {
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: AppColors.surface,
     borderWidth: 1,
-    borderColor: AppColors.border,
-  },
-  searchFilterChipActive: {
-    backgroundColor: AppColors.primary,
-    borderColor: AppColors.primary,
   },
   searchFilterText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: AppColors.textSecondary,
-  },
-  searchFilterTextActive: {
-    color: '#FFFFFF',
     fontWeight: '700',
   },
   searchResultsList: {
@@ -1798,11 +1793,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   searchResultCard: {
-    backgroundColor: AppColors.surface,
-    borderRadius: AppRadius.md,
+    borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: `${AppColors.border}88`,
   },
   searchResultBadge: {
     flexDirection: 'row',
@@ -1818,17 +1811,15 @@ const styles = StyleSheet.create({
   searchResultTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: AppColors.textPrimary,
     marginBottom: 2,
   },
   searchResultSubtitle: {
     fontSize: 12,
-    color: AppColors.textSecondary,
   },
   searchResultPrice: {
     fontSize: 14,
     fontWeight: '800',
-    color: AppColors.secondary,
+    color: '#10B981',
     marginTop: 6,
   },
   searchLoaderContainer: {
@@ -1839,7 +1830,6 @@ const styles = StyleSheet.create({
   searchLoaderText: {
     marginTop: 12,
     fontSize: 13,
-    color: AppColors.textSecondary,
   },
   searchEmptyBox: {
     alignItems: 'center',
@@ -1850,13 +1840,11 @@ const styles = StyleSheet.create({
   searchEmptyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: AppColors.textPrimary,
     marginTop: 14,
     marginBottom: 6,
   },
   searchEmptySubtitle: {
     fontSize: 13,
-    color: AppColors.textTertiary,
     textAlign: 'center',
     lineHeight: 18,
   },

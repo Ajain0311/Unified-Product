@@ -63,20 +63,20 @@ export const DEFAULT_HOTELS: Hotel[] = [
     featuredPhoto: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&auto=format&fit=crop',
     photos: [
       'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&auto=format&fit=crop',
     ],
-    amenities: ['Airport Shuttle', 'High-Speed WiFi', 'Business Center', 'Rooftop Bar', 'Air Conditioned', 'Breakfast Buffet'],
+    amenities: ['24/7 Airport Shuttle', 'High-Speed WiFi', 'Business Center', 'Rooftop Bar', 'Fitness Center'],
     startingPricePerNight: 3499,
     cancellationPolicy: {
       type: 'MODERATE',
-      title: 'Moderate Policy (48 Hours)',
-      description: 'Full refund 48 hours prior to check-in. Non-refundable within 24 hours.',
+      title: 'Free Cancellation up to 48 Hours',
+      description: 'Full refund 48 hours prior to check-in. Non-refundable thereafter.',
       freeCancellationHoursBeforeCheckIn: 48,
       refundPercentageWithin24Hours: 0,
       nonRefundable: false,
     },
     payAtHotelPolicy: {
-      allowPayAtHotel: false,
+      allowPayAtHotel: true,
       holdCutoffHour: 18,
       requireTokenDeposit: false,
       tokenDepositAmount: 0,
@@ -84,34 +84,50 @@ export const DEFAULT_HOTELS: Hotel[] = [
     },
     isVerified: true,
     isActive: true,
-    contactPhone: '+91 98110 54321',
-    contactEmail: 'contact@metropolitanhotel.in',
+    contactPhone: '+91 11 4567 8900',
+    contactEmail: 'info@metropolitanhotel.com',
   },
 ];
 
 export const DEFAULT_ROOMS: HotelRoom[] = [
   {
-    id: 'room-001',
+    id: 'room-001-a',
     hotelId: 'hotel-001',
-    name: 'Deluxe Heritage King Suite',
-    description: 'Spacious 420 sq ft suite featuring a hand-crafted plush King bed, marble bathroom, private courtyard view, and luxury toiletries.',
-    bedType: '1 Extra-Large King Bed',
-    maxGuests: 2,
-    roomSizeSqFt: 420,
+    name: 'Royal Heritage Deluxe Room',
+    description: 'Spacious 450 sq.ft room with king-size bed, marble bathroom, bathtub, and city skyline view.',
+    bedType: '1 King Bed',
+    maxGuests: 3,
+    roomSizeSqFt: 450,
     basePricePerNight: 4999,
-    taxPercentage: 12,
-    photos: ['https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop'],
-    amenities: ['Courtyard View', 'Free Breakfast Included', 'Smart 55" TV', 'Mini Bar'],
+    taxPercentage: 18,
+    photos: ['https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&auto=format&fit=crop'],
+    amenities: ['King Bed', 'City View', 'Bathtub', 'Balcony', 'Mini Bar', 'Breakfast Included'],
     totalInventory: 10,
     availableInventory: 8,
     isAvailable: true,
   },
   {
-    id: 'room-002',
+    id: 'room-001-b',
+    hotelId: 'hotel-001',
+    name: 'Presidential Royal Suite',
+    description: 'Opulent 900 sq.ft suite featuring private living salon, butler service, jacuzzi, and private balcony.',
+    bedType: '1 Super King Bed + 1 Sofa Bed',
+    maxGuests: 4,
+    roomSizeSqFt: 900,
+    basePricePerNight: 9999,
+    taxPercentage: 18,
+    photos: ['https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop'],
+    amenities: ['Jacuzzi', 'Butler Service', 'Private Terrace', 'Complimentary Champagne', 'VIP Lounge Access'],
+    totalInventory: 4,
+    availableInventory: 3,
+    isAvailable: true,
+  },
+  {
+    id: 'room-002-a',
     hotelId: 'hotel-002',
-    name: 'Executive Business Twin Room',
-    description: 'Sleek sound-proofed room with dual ergonomic workspaces, high-speed USB-C charging stations, and twin orthopaedic beds.',
-    bedType: '2 Twin Single Beds',
+    name: 'Executive Business Suite',
+    description: 'Designed for the corporate traveler with dedicated workstation, ergonomic chair, and plush queen bed.',
+    bedType: '1 Queen Bed',
     maxGuests: 2,
     roomSizeSqFt: 350,
     basePricePerNight: 3499,
@@ -144,6 +160,10 @@ class HotelService {
     const raw = await AsyncStorage.getItem(STORAGE_KEY_ROOMS);
     const rooms: HotelRoom[] = raw ? JSON.parse(raw) : DEFAULT_ROOMS;
     return rooms.filter(r => r.hotelId === hotelId);
+  }
+
+  async getRoomsByHotel(hotelId: string): Promise<HotelRoom[]> {
+    return this.getRoomsForHotel(hotelId);
   }
 
   async registerHotel(newHotel: Omit<Hotel, 'id' | 'isVerified' | 'isActive'>): Promise<Hotel> {
@@ -189,6 +209,10 @@ class HotelService {
       bookings = bookings.filter(b => b.userId === userId);
     }
     return bookings;
+  }
+
+  async getMyBookings(userId?: string): Promise<HotelBooking[]> {
+    return this.getBookings(userId);
   }
 
   async createBooking(bookingData: Omit<HotelBooking, 'id' | 'bookingCode' | 'createdAt' | 'updatedAt'>): Promise<HotelBooking> {

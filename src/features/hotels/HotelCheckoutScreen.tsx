@@ -36,8 +36,8 @@ export const HotelCheckoutScreen: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Booking form state
-  const [guestName, setGuestName] = useState(user?.fullName || user?.name || '');
-  const [guestPhone, setGuestPhone] = useState(user?.mobileNumber || user?.phone || '');
+  const [guestName, setGuestName] = useState(user?.fullName || '');
+  const [guestPhone, setGuestPhone] = useState(user?.mobileNumber || '');
   const [guestEmail, setGuestEmail] = useState(user?.email || '');
   const [nights, setNights] = useState(1);
   const [numRooms, setNumRooms] = useState(1);
@@ -49,7 +49,7 @@ export const HotelCheckoutScreen: React.FC = () => {
       try {
         const h = await hotelService.getHotelById(hotelId);
         const r = await hotelService.getRoomsByHotel(hotelId);
-        const targetRoom = r.find((x) => x.id === roomId) || r[0];
+        const targetRoom = r.find((x: HotelRoom) => x.id === roomId) || r[0];
         setHotel(h);
         setRoom(targetRoom);
       } catch {
@@ -121,6 +121,9 @@ export const HotelCheckoutScreen: React.FC = () => {
         taxesAndFees: taxes,
         totalAmount: total,
         paymentMethod: bookingMethod,
+        paymentStatus: paymentOption === 'PAY_NOW' ? 'PAID' : paymentOption === 'TOKEN' ? 'TOKEN_PAID_BALANCE_DUE' : 'PENDING',
+        status: 'CONFIRMED',
+        cancellationPolicyApplied: hotel.cancellationPolicy,
         tokenAmountPaid: paymentOption === 'TOKEN' ? tokenDeposit : 0,
         balanceDueAtCheckIn:
           paymentOption === 'TOKEN'
@@ -158,7 +161,6 @@ export const HotelCheckoutScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -167,218 +169,274 @@ export const HotelCheckoutScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={20} color={theme.textPrimary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-          {language === 'hi' ? 'बुकिंग समीक्षा और चेकआउट' : 'Review & Checkout'}
+          {language === 'hi' ? 'बुकिंग की पुष्टि' : 'Confirm Reservation'}
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Summary Card */}
-        <View style={[styles.summaryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {/* Hotel & Room Banner */}
+        <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
           <Text style={[styles.hotelName, { color: theme.textPrimary }]}>{hotel.name}</Text>
-          <Text style={[styles.roomName, { color: theme.primary }]}>{room.name}</Text>
           <Text style={[styles.hotelAddress, { color: theme.textSecondary }]}>
-            {hotel.address}, {hotel.city}
-          </Text>
-        </View>
-
-        {/* Stay Configurations */}
-        <View style={[styles.configCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-            {language === 'hi' ? 'स्टे विवरण' : 'Stay Details'}
+            <Ionicons name="location-sharp" size={14} color={theme.primary} /> {hotel.address}
           </Text>
 
-          <View style={styles.counterRow}>
-            <Text style={[styles.counterLabel, { color: theme.textPrimary }]}>
-              {language === 'hi' ? 'रातों की संख्या (Nights)' : 'Number of Nights'}
-            </Text>
-            <View style={styles.counterControl}>
-              <TouchableOpacity
-                onPress={() => setNights(Math.max(1, nights - 1))}
-                style={[styles.counterBtn, { backgroundColor: theme.surfaceHover }]}
-              >
-                <Ionicons name="remove" size={16} color={theme.textPrimary} />
-              </TouchableOpacity>
-              <Text style={[styles.counterValue, { color: theme.textPrimary }]}>{nights}</Text>
-              <TouchableOpacity
-                onPress={() => setNights(nights + 1)}
-                style={[styles.counterBtn, { backgroundColor: theme.surfaceHover }]}
-              >
-                <Ionicons name="add" size={16} color={theme.textPrimary} />
-              </TouchableOpacity>
-            </View>
-          </View>
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
-          <View style={styles.counterRow}>
-            <Text style={[styles.counterLabel, { color: theme.textPrimary }]}>
-              {language === 'hi' ? 'कमरे (Rooms)' : 'Number of Rooms'}
-            </Text>
-            <View style={styles.counterControl}>
-              <TouchableOpacity
-                onPress={() => setNumRooms(Math.max(1, numRooms - 1))}
-                style={[styles.counterBtn, { backgroundColor: theme.surfaceHover }]}
-              >
-                <Ionicons name="remove" size={16} color={theme.textPrimary} />
-              </TouchableOpacity>
-              <Text style={[styles.counterValue, { color: theme.textPrimary }]}>{numRooms}</Text>
-              <TouchableOpacity
-                onPress={() => setNumRooms(numRooms + 1)}
-                style={[styles.counterBtn, { backgroundColor: theme.surfaceHover }]}
-              >
-                <Ionicons name="add" size={16} color={theme.textPrimary} />
-              </TouchableOpacity>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={[styles.roomName, { color: theme.textPrimary }]}>{room.name}</Text>
+              <Text style={{ fontSize: 12, color: theme.textTertiary, marginTop: 2 }}>{room.bedType} • Max {room.maxGuests} Guests</Text>
             </View>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: theme.primary }}>
+              ₹{room.basePricePerNight}
+              <Text style={{ fontSize: 11, fontWeight: '400', color: theme.textTertiary }}>/night</Text>
+            </Text>
           </View>
         </View>
 
-        {/* Guest Details */}
-        <View style={[styles.configCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {/* Guest Details Form */}
+        <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-            {language === 'hi' ? 'अतिथि जानकारी' : 'Guest Information'}
+            {language === 'hi' ? 'अतिथि जानकारी' : 'Guest Details'}
           </Text>
 
-          <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
-            {language === 'hi' ? 'पूरा नाम' : 'Primary Guest Name'} *
-          </Text>
+          <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Full Name *</Text>
           <TextInput
+            style={[styles.input, { backgroundColor: theme.surfaceLight, color: theme.textPrimary, borderColor: theme.border }]}
             value={guestName}
             onChangeText={setGuestName}
-            placeholder="e.g. Aditya Sharma"
+            placeholder="John Doe"
             placeholderTextColor={theme.textTertiary}
-            style={[styles.inputBox, { backgroundColor: theme.background, borderColor: theme.border, color: theme.textPrimary }]}
           />
 
-          <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
-            {language === 'hi' ? 'मोबाइल नंबर' : 'Phone Number'} *
-          </Text>
+          <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 12 }]}>Mobile Number *</Text>
           <TextInput
+            style={[styles.input, { backgroundColor: theme.surfaceLight, color: theme.textPrimary, borderColor: theme.border }]}
             value={guestPhone}
             onChangeText={setGuestPhone}
+            placeholder="9876543210"
             keyboardType="phone-pad"
-            placeholder="e.g. 9876543210"
             placeholderTextColor={theme.textTertiary}
-            style={[styles.inputBox, { backgroundColor: theme.background, borderColor: theme.border, color: theme.textPrimary }]}
           />
 
-          <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Email</Text>
+          <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 12 }]}>Email (Optional)</Text>
           <TextInput
+            style={[styles.input, { backgroundColor: theme.surfaceLight, color: theme.textPrimary, borderColor: theme.border }]}
             value={guestEmail}
             onChangeText={setGuestEmail}
+            placeholder="john@example.com"
             keyboardType="email-address"
-            placeholder="e.g. aditya@example.com"
             placeholderTextColor={theme.textTertiary}
-            style={[styles.inputBox, { backgroundColor: theme.background, borderColor: theme.border, color: theme.textPrimary }]}
           />
         </View>
 
-        {/* Payment Policy Selection */}
-        <View style={[styles.configCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {/* Stay Parameters */}
+        <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-            {language === 'hi' ? 'भुगतान विकल्प (Anti No-Show Safe)' : 'Payment & Anti-No-Show Safeguard'}
+            {language === 'hi' ? 'ठहरने का विवरण' : 'Stay Summary'}
           </Text>
 
+          <View style={styles.counterRow}>
+            <Text style={{ color: theme.textPrimary, fontSize: 14, fontWeight: '600' }}>Number of Nights</Text>
+            <View style={styles.counterControls}>
+              <TouchableOpacity
+                onPress={() => setNights(Math.max(1, nights - 1))}
+                style={[styles.counterBtn, { backgroundColor: theme.surfaceLight }]}
+              >
+                <Ionicons name="remove" size={16} color={theme.textPrimary} />
+              </TouchableOpacity>
+              <Text style={{ marginHorizontal: 12, fontWeight: '800', color: theme.textPrimary }}>{nights}</Text>
+              <TouchableOpacity
+                onPress={() => setNights(nights + 1)}
+                style={[styles.counterBtn, { backgroundColor: theme.surfaceLight }]}
+              >
+                <Ionicons name="add" size={16} color={theme.textPrimary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={[styles.counterRow, { marginTop: 14 }]}>
+            <Text style={{ color: theme.textPrimary, fontSize: 14, fontWeight: '600' }}>Number of Rooms</Text>
+            <View style={styles.counterControls}>
+              <TouchableOpacity
+                onPress={() => setNumRooms(Math.max(1, numRooms - 1))}
+                style={[styles.counterBtn, { backgroundColor: theme.surfaceLight }]}
+              >
+                <Ionicons name="remove" size={16} color={theme.textPrimary} />
+              </TouchableOpacity>
+              <Text style={{ marginHorizontal: 12, fontWeight: '800', color: theme.textPrimary }}>{numRooms}</Text>
+              <TouchableOpacity
+                onPress={() => setNumRooms(numRooms + 1)}
+                style={[styles.counterBtn, { backgroundColor: theme.surfaceLight }]}
+              >
+                <Ionicons name="add" size={16} color={theme.textPrimary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Anti-No-Show Payment Options */}
+        <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
+            {language === 'hi' ? 'भुगतान विकल्प एवं एंटी-नो-शो गारंटी' : 'Payment & Anti-No-Show Safeguard'}
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.textTertiary, marginBottom: 14 }}>
+            Hotels release unpaid holds after 6:00 PM. Select your preferred confirmation mode:
+          </Text>
+
+          {/* Option 1: Pay 100% Online */}
           <TouchableOpacity
+            activeOpacity={0.8}
             onPress={() => setPaymentOption('PAY_NOW')}
             style={[
-              styles.paymentOption,
-              { borderColor: paymentOption === 'PAY_NOW' ? theme.primary : theme.border },
+              styles.optionCard,
+              {
+                borderColor: paymentOption === 'PAY_NOW' ? theme.primary : theme.border,
+                backgroundColor: paymentOption === 'PAY_NOW' ? `${theme.primary}12` : theme.surfaceLight,
+              },
             ]}
           >
-            <View style={styles.optionRadio}>
-              <View
-                style={[
-                  styles.radioDot,
-                  { backgroundColor: paymentOption === 'PAY_NOW' ? theme.primary : 'transparent' },
-                ]}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons
+                name={paymentOption === 'PAY_NOW' ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+                color={paymentOption === 'PAY_NOW' ? theme.primary : theme.textTertiary}
               />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.optTitle, { color: theme.textPrimary }]}>
-                {language === 'hi' ? '100% ऑनलाइन भुगतान' : 'Pay Full Online (Guaranteed Stay)'}
-              </Text>
-              <Text style={[styles.optSubtitle, { color: theme.textSecondary }]}>
-                Instant confirmation. Protected under full cancellation policy.
-              </Text>
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: theme.textPrimary }}>
+                  {language === 'hi' ? '100% ऑनलाइन भुगतान (सर्वश्रेष्ठ छूट)' : 'Pay Full Amount Online'}
+                </Text>
+                <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>
+                  Guaranteed room reservation with Instant Check-in & priority upgrades.
+                </Text>
+              </View>
             </View>
           </TouchableOpacity>
 
-          {hotel.payAtHotelPolicy.allowPayAtHotel && (
+          {/* Option 2: Pay Token to Hold */}
+          {hotel.payAtHotelPolicy.requireTokenDeposit && (
             <TouchableOpacity
-              onPress={() => setPaymentOption('PAY_AT_HOTEL')}
+              activeOpacity={0.8}
+              onPress={() => setPaymentOption('TOKEN')}
               style={[
-                styles.paymentOption,
-                { borderColor: paymentOption === 'PAY_AT_HOTEL' ? theme.primary : theme.border },
+                styles.optionCard,
+                {
+                  marginTop: 10,
+                  borderColor: paymentOption === 'TOKEN' ? theme.primary : theme.border,
+                  backgroundColor: paymentOption === 'TOKEN' ? `${theme.primary}12` : theme.surfaceLight,
+                },
               ]}
             >
-              <View style={styles.optionRadio}>
-                <View
-                  style={[
-                    styles.radioDot,
-                    { backgroundColor: paymentOption === 'PAY_AT_HOTEL' ? theme.primary : 'transparent' },
-                  ]}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons
+                  name={paymentOption === 'TOKEN' ? 'radio-button-on' : 'radio-button-off'}
+                  size={20}
+                  color={paymentOption === 'TOKEN' ? theme.primary : theme.textTertiary}
                 />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.optTitle, { color: theme.textPrimary }]}>
-                  {language === 'hi' ? 'होटल पर भुगतान (Pay at Hotel)' : 'Pay at Hotel (6:00 PM Hold Cutoff)'}
-                </Text>
-                <Text style={[styles.optSubtitle, { color: theme.textSecondary }]}>
-                  Hold guaranteed till 6:00 PM check-in day. Free cancellation anytime before cutoff.
-                </Text>
+                <View style={{ marginLeft: 10, flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: theme.textPrimary }}>
+                    {language === 'hi'
+                      ? `₹${tokenDeposit} टोकन देकर रूम सुरक्षित करें`
+                      : `Pay ₹${tokenDeposit} Token Deposit to Lock Room`}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>
+                    Locks room overnight past 6 PM. Pay remaining ₹{total - tokenDeposit} during check-in.
+                  </Text>
+                </View>
               </View>
             </TouchableOpacity>
           )}
 
-          {hotel.payAtHotelPolicy.requireTokenDeposit && (
+          {/* Option 3: Pay at Hotel with 6 PM Cutoff */}
+          {hotel.payAtHotelPolicy.allowPayAtHotel && (
             <TouchableOpacity
-              onPress={() => setPaymentOption('TOKEN')}
+              activeOpacity={0.8}
+              onPress={() => setPaymentOption('PAY_AT_HOTEL')}
               style={[
-                styles.paymentOption,
-                { borderColor: paymentOption === 'TOKEN' ? theme.primary : theme.border },
+                styles.optionCard,
+                {
+                  marginTop: 10,
+                  borderColor: paymentOption === 'PAY_AT_HOTEL' ? '#F59E0B' : theme.border,
+                  backgroundColor: paymentOption === 'PAY_AT_HOTEL' ? '#F59E0B12' : theme.surfaceLight,
+                },
               ]}
             >
-              <View style={styles.optionRadio}>
-                <View
-                  style={[
-                    styles.radioDot,
-                    { backgroundColor: paymentOption === 'TOKEN' ? theme.primary : 'transparent' },
-                  ]}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons
+                  name={paymentOption === 'PAY_AT_HOTEL' ? 'radio-button-on' : 'radio-button-off'}
+                  size={20}
+                  color={paymentOption === 'PAY_AT_HOTEL' ? '#F59E0B' : theme.textTertiary}
                 />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.optTitle, { color: theme.textPrimary }]}>
-                  {language === 'hi' ? `टोकन डिपॉजिट (₹${tokenDeposit})` : `Token Deposit Only (₹${tokenDeposit})`}
-                </Text>
-                <Text style={[styles.optSubtitle, { color: theme.textSecondary }]}>
-                  Locks room all night. Remaining ₹{total - tokenDeposit} payable upon arrival.
-                </Text>
+                <View style={{ marginLeft: 10, flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: theme.textPrimary }}>
+                    {language === 'hi' ? 'होटल पर नकद/कार्ड भुगतान (शाम 6 बजे कटऑफ)' : 'Pay at Hotel (6:00 PM Release Window)'}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>
+                    ⚠️ Reservation automatically expires at 6:00 PM if check-in is unconfirmed.
+                  </Text>
+                </View>
               </View>
             </TouchableOpacity>
           )}
+        </View>
+
+        {/* Cancellation Policy Banner */}
+        <View style={[styles.card, { backgroundColor: '#10B98115', borderColor: '#10B98144' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Ionicons name="shield-checkmark" size={18} color="#10B981" />
+            <Text style={{ marginLeft: 8, fontSize: 13, fontWeight: '700', color: '#10B981' }}>
+              {hotel.cancellationPolicy.title}
+            </Text>
+          </View>
+          <Text style={{ fontSize: 12, color: theme.textSecondary, lineHeight: 16 }}>
+            {hotel.cancellationPolicy.description}
+          </Text>
         </View>
 
         {/* Price Breakdown */}
-        <View style={[styles.configCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-            {language === 'hi' ? 'मूल्य विवरण' : 'Price Summary'}
+            {language === 'hi' ? 'मूल्य विवरण' : 'Price Breakdown'}
           </Text>
-          <View style={styles.priceRow}>
-            <Text style={[styles.priceLabel, { color: theme.textSecondary }]}>
-              ₹{room.basePricePerNight} x {nights} nights ({numRooms} room)
-            </Text>
-            <Text style={[styles.priceValue, { color: theme.textPrimary }]}>₹{subtotal}</Text>
+
+          <View style={styles.breakdownRow}>
+            <Text style={{ color: theme.textSecondary, fontSize: 13 }}>Room Charge ({nights} night x {numRooms} room)</Text>
+            <Text style={{ color: theme.textPrimary, fontWeight: '600' }}>₹{subtotal}</Text>
           </View>
-          <View style={styles.priceRow}>
-            <Text style={[styles.priceLabel, { color: theme.textSecondary }]}>Taxes & Hotel Fees</Text>
-            <Text style={[styles.priceValue, { color: theme.textPrimary }]}>₹{taxes}</Text>
+
+          <View style={[styles.breakdownRow, { marginTop: 8 }]}>
+            <Text style={{ color: theme.textSecondary, fontSize: 13 }}>Taxes & GST ({room.taxPercentage}%)</Text>
+            <Text style={{ color: theme.textPrimary, fontWeight: '600' }}>₹{taxes}</Text>
           </View>
+
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
-          <View style={styles.priceRow}>
-            <Text style={[styles.totalLabel, { color: theme.textPrimary }]}>Total Payable</Text>
-            <Text style={[styles.totalValue, { color: theme.primary }]}>₹{total}</Text>
+
+          <View style={styles.breakdownRow}>
+            <Text style={{ color: theme.textPrimary, fontSize: 16, fontWeight: '800' }}>Total Amount</Text>
+            <Text style={{ color: theme.primary, fontSize: 18, fontWeight: '800' }}>₹{total}</Text>
           </View>
+
+          {paymentOption === 'TOKEN' && (
+            <View style={[styles.breakdownRow, { marginTop: 10, padding: 8, backgroundColor: `${theme.primary}15`, borderRadius: 8 }]}>
+              <Text style={{ color: theme.primary, fontSize: 13, fontWeight: '700' }}>Pay Today (Token Deposit)</Text>
+              <Text style={{ color: theme.primary, fontSize: 15, fontWeight: '800' }}>₹{tokenDeposit}</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Floating Bottom Action */}
+      <View style={[styles.bottomBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+        <View>
+          <Text style={{ fontSize: 11, color: theme.textTertiary, textTransform: 'uppercase', fontWeight: '700' }}>
+            {paymentOption === 'TOKEN' ? 'Due Today' : 'Total Payable'}
+          </Text>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: theme.primary }}>
+            ₹{paymentOption === 'TOKEN' ? tokenDeposit : paymentOption === 'PAY_AT_HOTEL' ? 0 : total}
+          </Text>
         </View>
 
-        {/* Confirm Button */}
         <TouchableOpacity
           onPress={handleConfirmBooking}
           disabled={submitting}
@@ -389,14 +447,14 @@ export const HotelCheckoutScreen: React.FC = () => {
           ) : (
             <Text style={styles.confirmBtnText}>
               {paymentOption === 'PAY_NOW'
-                ? `Pay ₹${total} & Confirm`
+                ? 'Pay & Confirm'
                 : paymentOption === 'TOKEN'
-                ? `Pay ₹${tokenDeposit} Token & Confirm`
-                : 'Confirm Pay-at-Hotel Reservation'}
+                ? 'Pay ₹500 & Hold'
+                : 'Confirm Reservation'}
             </Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 };
@@ -408,7 +466,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
   },
   backBtn: {
@@ -420,21 +478,35 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   headerTitle: { fontSize: 17, fontWeight: '700' },
-  scrollContent: { padding: 16, paddingBottom: 40 },
-  summaryCard: { padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 14 },
-  hotelName: { fontSize: 18, fontWeight: '800', marginBottom: 2 },
-  roomName: { fontSize: 14, fontWeight: '600', marginBottom: 6 },
-  hotelAddress: { fontSize: 12 },
-  configCard: { padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 14 },
+  scrollContent: { padding: 16, paddingBottom: 100 },
+  card: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  hotelName: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
+  hotelAddress: { fontSize: 12, marginBottom: 12 },
+  roomName: { fontSize: 15, fontWeight: '700' },
+  divider: { height: 1, marginVertical: 12 },
   sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  inputLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6 },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
   counterRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  counterLabel: { fontSize: 14, fontWeight: '500' },
-  counterControl: { flexDirection: 'row', alignItems: 'center' },
+  counterControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   counterBtn: {
     width: 32,
     height: 32,
@@ -442,50 +514,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  counterValue: { marginHorizontal: 14, fontSize: 16, fontWeight: '700' },
-  inputLabel: { fontSize: 12, fontWeight: '600', marginBottom: 4, marginTop: 8 },
-  inputBox: {
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  paymentOption: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    marginBottom: 10,
-  },
-  optionRadio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#94A3B8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    marginTop: 2,
-  },
-  radioDot: { width: 10, height: 10, borderRadius: 5 },
-  optTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
-  optSubtitle: { fontSize: 11, lineHeight: 15 },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  priceLabel: { fontSize: 13 },
-  priceValue: { fontSize: 13, fontWeight: '600' },
-  divider: { height: 1, marginVertical: 8 },
-  totalLabel: { fontSize: 15, fontWeight: '700' },
-  totalValue: { fontSize: 17, fontWeight: '800' },
-  confirmBtn: {
-    paddingVertical: 14,
+  optionCard: {
     borderRadius: 12,
+    borderWidth: 1.5,
+    padding: 12,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+  },
+  confirmBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    minWidth: 170,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
   },
-  confirmBtnText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  confirmBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
 });

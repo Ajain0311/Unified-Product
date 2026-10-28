@@ -4,37 +4,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export type LanguageCode = 'en' | 'hi';
 
 export interface Translations {
-  explore: string;
-  hotels: string;
-  food: string;
-  rides: string;
-  bazaar: string;
-  bars: string;
-  beverages: string;
-  profile: string;
-  bookings: string;
-  searchPlaceholder: string;
-  lightMode: string;
-  darkMode: string;
-  languageName: string;
-  switchLanguage: string;
-  hotelDiscoveryTitle: string;
-  hotelDiscoverySub: string;
-  checkIn: string;
-  checkOut: string;
-  reserveRoom: string;
-  payToken: string;
-  payAtHotel: string;
-  payOnline: string;
-  adminRestaurantComm: string;
-  adminHotelComm: string;
-  registerBusiness: string;
-  applyAsHotelier: string;
-  applyAsDriver: string;
-  applyAsRestaurant: string;
+  [key: string]: string;
 }
 
-export const TRANSLATIONS: Record<LanguageCode, Translations> = {
+export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   en: {
     explore: 'Explore',
     hotels: 'Hotels & Stays',
@@ -97,32 +70,54 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
 };
 
-interface LanguageState {
+export interface LanguageState {
   currentLanguage: LanguageCode;
-  t: Translations;
+  language: LanguageCode;
+  t: (key: string, fallback?: string) => string;
+  translations: Record<string, string>;
   setLanguage: (lang: LanguageCode) => Promise<void>;
   toggleLanguage: () => Promise<void>;
   initLanguage: () => Promise<void>;
 }
 
-export const useLanguageStore = create<LanguageState>((set, get) => ({
-  currentLanguage: 'en',
-  t: TRANSLATIONS.en,
+export const useLanguageStore = create<LanguageState>((set, get) => {
+  const getTranslator = (lang: LanguageCode) => {
+    return (key: string, fallback?: string): string => {
+      return TRANSLATIONS[lang]?.[key] || fallback || key;
+    };
+  };
 
-  setLanguage: async (lang: LanguageCode) => {
-    await AsyncStorage.setItem('superapp_language', lang);
-    set({ currentLanguage: lang, t: TRANSLATIONS[lang] });
-  },
+  return {
+    currentLanguage: 'en',
+    language: 'en',
+    translations: TRANSLATIONS.en,
+    t: getTranslator('en'),
 
-  toggleLanguage: async () => {
-    const next: LanguageCode = get().currentLanguage === 'en' ? 'hi' : 'en';
-    await get().setLanguage(next);
-  },
+    setLanguage: async (lang: LanguageCode) => {
+      await AsyncStorage.setItem('superapp_language', lang);
+      set({
+        currentLanguage: lang,
+        language: lang,
+        translations: TRANSLATIONS[lang] || TRANSLATIONS.en,
+        t: getTranslator(lang),
+      });
+    },
 
-  initLanguage: async () => {
-    const saved = await AsyncStorage.getItem('superapp_language');
-    if (saved === 'hi' || saved === 'en') {
-      set({ currentLanguage: saved, t: TRANSLATIONS[saved] });
-    }
-  },
-}));
+    toggleLanguage: async () => {
+      const next: LanguageCode = get().currentLanguage === 'en' ? 'hi' : 'en';
+      await get().setLanguage(next);
+    },
+
+    initLanguage: async () => {
+      const saved = await AsyncStorage.getItem('superapp_language');
+      if (saved === 'hi' || saved === 'en') {
+        set({
+          currentLanguage: saved,
+          language: saved,
+          translations: TRANSLATIONS[saved] || TRANSLATIONS.en,
+          t: getTranslator(saved),
+        });
+      }
+    },
+  };
+});
