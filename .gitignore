@@ -89,3 +89,6 @@ credentials.local.md
 
 tools/jenkins.war
 
+
+tools/.jenkins/
+

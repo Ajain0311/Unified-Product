@@ -125,4 +125,5 @@ export type AdminStackParamList = {
   AdminRideFares: undefined;
   AdminRoleApplications: undefined;
   AdminListings: undefined;
+  AdminFreeDevManager: undefined;
 };
