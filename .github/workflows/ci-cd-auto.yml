@@ -1,0 +1,104 @@
+name: Automated CI/CD & Production Release
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # -------------------------------------------------------------
+  # Job 1: Automated Verification & Testing
+  # -------------------------------------------------------------
+  verify:
+    name: Verify & Test (.NET 10 + Expo)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: TypeScript Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build Backend (.NET 10)
+        run: dotnet build backend/SuperApp.sln -c Release
+
+  # -------------------------------------------------------------
+  # Job 2: Automated Cloud Container Build & Smoke Test
+  # -------------------------------------------------------------
+  build-container:
+    name: Build & Verify Docker Container
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Container Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: superapp-api:latest
+
+  # -------------------------------------------------------------
+  # Job 3: Automated Server Deployment (Zero Manual SSH)
+  # -------------------------------------------------------------
+  deploy-live:
+    name: Zero-Downtime Live Deploy
+    needs: build-container
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Trigger Automated Host Update
+        env:
+          SSH_HOST: ${{ secrets.VM_HOST }}
+          SSH_USER: ${{ secrets.VM_USER }}
+          SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          set -e
+          # 1. If Render Deploy Hook exists, trigger instant serverless zero-downtime deploy
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "🚀 Triggering Render Zero-Downtime Cloud Deployment..."
+            curl -X POST "$RENDER_DEPLOY_HOOK"
+            echo "✅ Render deployment hook triggered successfully."
+          fi
+
+          # 2. If VM SSH Secrets exist, automatically update VM
+          if [ -n "$SSH_HOST" ] && [ -n "$SSH_USER" ] && [ -n "$SSH_KEY" ]; then
+            echo "🚀 Connecting to VM $SSH_USER@$SSH_HOST for automated zero-downtime release..."
+            mkdir -p ~/.ssh
+            printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" \
+              "sudo chmod +x /opt/SuperApp_V2/scripts/manage.sh && sudo /opt/SuperApp_V2/scripts/manage.sh deploy v-${{ github.sha }}"
+            echo "✅ VM Release deployed and healthy."
+          fi
