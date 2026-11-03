@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: superapp-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DATABASE_PROVIDER
+        value: Postgres
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OTP_TEST_MODE
+        value: "false"
