@@ -86,3 +86,6 @@ credentials.local.md
 *.Tests/
 *.Tests.*
 
+
+tools/jenkins.war
+
