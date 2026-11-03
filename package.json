@@ -48,7 +48,8 @@
     "tunnel:backend": "npx cloudflared tunnel --url http://localhost:5000",
     "tunnel:frontend": "npx cloudflared tunnel --url http://localhost:8081",
     "tunnel:short": "npx localtunnel --port 5000 --subdomain mmt-api",
-    "tunnel:short:web": "npx localtunnel --port 8081 --subdomain mmt-web"
+    "tunnel:short:web": "npx localtunnel --port 8081 --subdomain mmt-web",
+    "jenkins": "java -jar tools/jenkins.war --httpPort=8080"
   },
   "expo": {
     "install": {
