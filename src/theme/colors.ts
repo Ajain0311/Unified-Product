@@ -1,54 +1,54 @@
 export const AppColors = {
-  // Backgrounds
-  background: '#0A0E21',
-  surface: '#141829',
-  surfaceLight: '#1C2039',
-  surfaceSecondary: '#1C2039',
-  cardDark: '#141829',
-  cardLight: '#1E2235',
+  // Backgrounds - Modern Clean Light Palette
+  background: '#F8FAFC',
+  surface: '#FFFFFF',
+  surfaceLight: '#F1F5F9',
+  surfaceSecondary: '#E2E8F0',
+  cardDark: '#FFFFFF',
+  cardLight: '#FFFFFF',
 
-  // Primary (Orange)
+  // Primary (Modern Vibrant Orange / Coral)
   primary: '#FF6B35',
   primaryLight: '#FF8A5C',
   primaryDark: '#E55A2B',
 
-  // Secondary (Green)
-  secondary: '#00C853',
-  secondaryLight: '#5EFC82',
-  secondaryDark: '#009624',
+  // Secondary (Emerald Green)
+  secondary: '#10B981',
+  secondaryLight: '#34D399',
+  secondaryDark: '#059669',
 
   // Accent Colors
-  blue: '#2196F3',
-  blueLight: '#64B5F6',
-  purple: '#7C4DFF',
-  red: '#FF5252',
-  yellow: '#FFD740',
+  blue: '#3B82F6',
+  blueLight: '#60A5FA',
+  purple: '#8B5CF6',
+  red: '#EF4444',
+  yellow: '#F59E0B',
 
   // Module Colors
-  foodModule: '#00C853',
-  rideModule: '#2196F3',
+  foodModule: '#10B981',
+  rideModule: '#3B82F6',
   marketplaceModule: '#FF6B35',
 
-  // Typography Colors
-  textPrimary: '#FFFFFF',
-  textSecondary: '#8E8E93',
-  textTertiary: '#6C6C70',
-  textHint: '#48485A',
+  // Typography Colors - High Contrast Clean Light
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textTertiary: '#64748B',
+  textHint: '#94A3B8',
 
   // Status
-  success: '#00C853',
-  warning: '#FFD740',
-  error: '#FF5252',
-  info: '#2196F3',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#3B82F6',
 
   // UI Elements
-  divider: '#2A2A3A',
-  border: '#2A2D3E',
-  shimmerBase: '#1C2039',
-  shimmerHighlight: '#2A2D3E',
-  overlay: 'rgba(0, 0, 0, 0.5)',
-  vegBadge: '#00C853',
-  nonVegBadge: '#FF5252',
+  divider: '#E2E8F0',
+  border: '#E2E8F0',
+  shimmerBase: '#E2E8F0',
+  shimmerHighlight: '#F1F5F9',
+  overlay: 'rgba(15, 23, 42, 0.45)',
+  vegBadge: '#10B981',
+  nonVegBadge: '#EF4444',
 } as const;
 
 export type AppColorKey = keyof typeof AppColors;

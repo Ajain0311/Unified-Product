@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { navigationRef } from './src/navigation/navigationRef';
 import { colors } from './src/theme/colors';
@@ -16,10 +16,10 @@ import { polyfillAlert } from './src/utils/alertPolyfill';
 polyfillAlert();
 import { useAppUpdateChecker } from './src/hooks/useAppUpdateChecker';
 
-const CustomDarkTheme = {
-  ...DarkTheme,
+const CustomLightTheme = {
+  ...DefaultTheme,
   colors: {
-    ...DarkTheme.colors,
+    ...DefaultTheme.colors,
     primary: colors.primary,
     background: colors.background,
     card: colors.surface,
@@ -88,10 +88,10 @@ export default function App() {
     <SafeAreaProvider>
       <NavigationContainer
         ref={navigationRef}
-        theme={CustomDarkTheme}
+        theme={CustomLightTheme}
         linking={{ enabled: false, prefixes: [] }}
       >
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <RootNavigator />
       </NavigationContainer>
       <AppAlert />

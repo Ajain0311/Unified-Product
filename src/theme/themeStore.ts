@@ -33,10 +33,10 @@ export const lightTheme: ThemePalette = {
   surface: '#FFFFFF',
   surfaceLight: '#F1F5F9',
   surfaceMuted: '#E2E8F0',
-  surfaceHover: '#F1F5F9',
-  primary: '#6366F1',
-  primaryLight: '#818CF8',
-  primaryDark: '#4F46E5',
+  surfaceHover: '#F8FAFC',
+  primary: '#FF6B35',
+  primaryLight: '#FF8A5C',
+  primaryDark: '#E55A2B',
   secondary: '#10B981',
   accent: '#F59E0B',
   textPrimary: '#0F172A',
@@ -89,10 +89,10 @@ interface ThemeState {
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: 'dark',
-  isDark: true,
-  colors: darkTheme,
-  theme: darkTheme,
+  mode: 'light',
+  isDark: false,
+  colors: lightTheme,
+  theme: lightTheme,
 
   setMode: async (mode: ThemeMode) => {
     await AsyncStorage.setItem('superapp_theme_mode', mode);
