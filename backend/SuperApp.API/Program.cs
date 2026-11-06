@@ -370,7 +370,7 @@ builder.Services.AddSwaggerGen(c =>
 
 // --- CORS (Compatible with Web SignalR credentials & Mobile) ---
 var configuredOrigins = builder.Configuration.GetSection("AppSettings:CorsAllowedOrigins").Get<string[]>()
-    ?? new[] { "https://api.mmt.dev", "http://localhost:8081", "http://127.0.0.1:8081" };
+    ?? new[] { "https://makemyfree.duckdns.org", "http://localhost:8081", "http://127.0.0.1:8081" };
 
 builder.Services.AddCors(options =>
 {
@@ -568,6 +568,29 @@ CREATE TABLE IF NOT EXISTS hotel_commission_ledgers (
 );
 CREATE INDEX IF NOT EXISTS idx_commission_restaurant ON hotel_commission_ledgers (restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_commission_status ON hotel_commission_ledgers (status);
+CREATE TABLE IF NOT EXISTS app_settings (
+    id SERIAL PRIMARY KEY,
+    setting_key VARCHAR(100) NOT NULL UNIQUE,
+    setting_value VARCHAR(1000) NULL,
+    description VARCHAR(255) NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NULL
+);
+CREATE TABLE IF NOT EXISTS marketplace_commission_ledgers (
+    id BIGSERIAL PRIMARY KEY,
+    listing_id BIGINT NOT NULL REFERENCES marketplace_listings(id) ON DELETE CASCADE,
+    seller_id BIGINT NOT NULL REFERENCES users(id),
+    sold_price DECIMAL(12,2) NOT NULL,
+    commission_rate_percent DECIMAL(5,2) NOT NULL DEFAULT 2.0,
+    commission_amount DECIMAL(12,2) NOT NULL DEFAULT 0.0,
+    net_seller_proceeds DECIMAL(12,2) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    settlement_batch_id BIGINT NULL,
+    reference_proof VARCHAR(100) NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    settled_at TIMESTAMP WITH TIME ZONE NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mkt_commission_seller ON marketplace_commission_ledgers (seller_id);
+CREATE INDEX IF NOT EXISTS idx_mkt_commission_status ON marketplace_commission_ledgers (status);
 ALTER TABLE banners ADD COLUMN IF NOT EXISTS subtitle VARCHAR(300) NULL;
 ALTER TABLE banners ADD COLUMN IF NOT EXISTS cta_text VARCHAR(80) NULL;
 ALTER TABLE coupons DROP CONSTRAINT IF EXISTS chk_coupons_module;
@@ -683,6 +706,20 @@ END $$;");
 
 // --- Middleware Pipeline ---
 app.UseMiddleware<ExceptionMiddleware>();
+
+// Security Headers Middleware (OWASP / Cloudflare Edge Standard)
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    if (context.Request.IsHttps || string.Equals(context.Request.Headers["X-Forwarded-Proto"], "https", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+    }
+    await next();
+});
 
 if (app.Environment.IsDevelopment())
 {

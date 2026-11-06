@@ -1328,6 +1328,39 @@ public class AdminController : ControllerBase
             await _db.SaveChangesAsync();
         }
 
+        // Ensure default commission and platform settings exist
+        var requiredKeys = new (string Key, string Val, string Desc)[]
+        {
+            ("platform_commission_percent", "15", "Default platform commission on hotel/restaurant orders (%)"),
+            ("driver_commission_percent", "10", "Default platform cut on ride fares (%)"),
+            ("marketplace_commission_percent", "2", "Platform success fee on sold Bazaar listings (%)"),
+            ("marketplace_min_fee", "10", "Minimum platform fee on sold Bazaar listings (INR)"),
+            ("surge_pricing_multiplier", "1.0", "Global ride surge multiplier"),
+            ("free_delivery_threshold", "500", "Order value for free delivery in INR"),
+            ("maintenance_mode", "false", "App maintenance downtime mode (true/false)")
+        };
+
+        var existingKeys = await _db.AppSettings
+            .Where(s => requiredKeys.Select(r => r.Key).Contains(s.SettingKey))
+            .Select(s => s.SettingKey)
+            .ToListAsync();
+
+        var missingDefaults = requiredKeys.Where(r => !existingKeys.Contains(r.Key)).ToList();
+        if (missingDefaults.Count > 0)
+        {
+            foreach (var m in missingDefaults)
+            {
+                _db.AppSettings.Add(new AppSetting
+                {
+                    SettingKey = m.Key,
+                    SettingValue = m.Val,
+                    Description = m.Desc,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+            await _db.SaveChangesAsync();
+        }
+
         // Always ensure Help & Support keys exist (even when other settings already seeded).
         await SupportSettings.EnsureDefaultsAsync(_db);
 
@@ -1632,24 +1665,6 @@ public class AdminController : ControllerBase
             var settledAmount = rLedgers.Where(l => l.Status == "SETTLED").Sum(l => l.CommissionAmount);
             var pendingBalance = rLedgers.Where(l => l.Status == "PENDING").Sum(l => l.CommissionAmount);
 
-            // Separate Online Orders vs COD Orders
-            var onlineOrders = rOrders.Where(o => string.Equals(o.PaymentMethod, "ONLINE", StringComparison.OrdinalIgnoreCase)).ToList();
-            var codOrders = rOrders.Where(o => !string.Equals(o.PaymentMethod, "ONLINE", StringComparison.OrdinalIgnoreCase)).ToList();
-
-            var onlineSales = onlineOrders.Sum(o => o.GrandTotal);
-            var codSales = codOrders.Sum(o => o.GrandTotal);
-
-            // Online orders: Admin collects online payments; Admin owes partner (onlineSales - onlineCommission)
-            var onlineCommission = onlineSales * (rate / 100m);
-            var adminPayable = Math.Max(0m, onlineSales - onlineCommission);
-
-            // COD orders: Partner collects cash at delivery; Partner owes Admin the platform commission
-            var codCommission = codSales * (rate / 100m);
-            var partnerPayable = codCommission;
-
-            // Net Settlement: Positive = Admin pays partner; Negative = Admin collects cash commission from partner
-            var netBalance = adminPayable - partnerPayable;
-
             summaries.Add(new HotelCommissionSummaryDto
             {
                 RestaurantId = r.Id,
@@ -1659,12 +1674,7 @@ public class AdminController : ControllerBase
                 TotalCommissionEarned = totalCommission,
                 PendingCommissionBalance = pendingBalance,
                 SettledCommissionAmount = settledAmount,
-                DeliveredOrdersCount = rOrders.Count,
-                OnlineSalesAmount = onlineSales,
-                CodSalesAmount = codSales,
-                AdminPayableToPartner = Math.Round(adminPayable, 2),
-                PartnerPayableToAdmin = Math.Round(partnerPayable, 2),
-                NetSettlementBalance = Math.Round(netBalance, 2)
+                DeliveredOrdersCount = rOrders.Count
             });
         }
 
