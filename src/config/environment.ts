@@ -33,7 +33,7 @@ export class AppEnvironment {
     }
 
     // 2. Default to production Azure / DuckDNS hosted domain
-    return 'https://api.mmt.dev/api';
+    return 'https://makemyfree.duckdns.org/api';
   }
 
   /**
