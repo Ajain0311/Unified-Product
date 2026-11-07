@@ -39,6 +39,12 @@ import {
 import { BarHubScreen } from '../features/bars/BarHubScreen';
 import { BeverageHubScreen } from '../features/beverages/BeverageHubScreen';
 import { B2BWaterSuppliesScreen } from '../features/supplies/B2BWaterSuppliesScreen';
+import { ModuleCatalogScreen } from '../features/modules/ModuleCatalogScreen';
+import { GrowWithSuperAppScreen } from '../features/grow/GrowWithSuperAppScreen';
+import { SubmitBusinessRequestScreen } from '../features/grow/SubmitBusinessRequestScreen';
+import { MyBusinessRequestsScreen } from '../features/grow/MyBusinessRequestsScreen';
+import { AdminBusinessRequestsScreen } from '../features/admin/AdminBusinessRequestsScreen';
+import { LazyScreen } from '../components/LazyScreen';
 import { useAppTheme } from '../theme/themeStore';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -93,6 +99,11 @@ const RootNavigatorComponent: React.FC = () => {
       <Stack.Screen name="BarHub" component={BarHubScreen} />
       <Stack.Screen name="BeverageHub" component={BeverageHubScreen} />
       <Stack.Screen name="B2BWaterSupplies" component={B2BWaterSuppliesScreen} />
+      <Stack.Screen name="ModuleCatalog" component={ModuleCatalogScreen} />
+      <Stack.Screen name="GrowWithSuperApp" component={GrowWithSuperAppScreen} />
+      <Stack.Screen name="SubmitBusinessRequest" component={SubmitBusinessRequestScreen} />
+      <Stack.Screen name="MyBusinessRequests" component={MyBusinessRequestsScreen} />
+      <Stack.Screen name="AdminBusinessRequests" component={AdminBusinessRequestsScreen} />
     </Stack.Navigator>
   );
 };

@@ -45,6 +45,7 @@ public class AppDbContext : DbContext
     public DbSet<HotelSettlementBatch> HotelSettlementBatches => Set<HotelSettlementBatch>();
     public DbSet<MarketplaceCommissionLedger> MarketplaceCommissionLedgers => Set<MarketplaceCommissionLedger>();
     public DbSet<RoleApplication> RoleApplications => Set<RoleApplication>();
+    public DbSet<BusinessRequest> BusinessRequests => Set<BusinessRequest>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -458,6 +459,18 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction);
         });
         
+        // BusinessRequest
+        modelBuilder.Entity<BusinessRequest>(entity =>
+        {
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.RequestType);
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Seed Roles
         modelBuilder.Entity<Role>().HasData(
             new Role { Id = 1, Name = RoleNames.Customer, Description = "Regular customer", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },

@@ -87,4 +87,13 @@ export type RootStackParamList = {
   BarHub: undefined;
   BeverageHub: undefined;
   B2BWaterSupplies: undefined;
+  ModuleCatalog: undefined;
+  GrowWithSuperApp: undefined;
+  SubmitBusinessRequest: {
+    defaultType?: string;
+    defaultTitle?: string;
+    defaultCategory?: string;
+  } | undefined;
+  MyBusinessRequests: undefined;
+  AdminBusinessRequests: undefined;
 };

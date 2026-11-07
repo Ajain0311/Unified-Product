@@ -604,6 +604,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               ? 'होटल, खाना, कैब, बाज़ार एवं पेय'
               : 'Curated stays, fast delivery & local commerce'
           }
+          actionText={language === 'hi' ? 'सभी मॉड्यूल' : 'All Modules'}
+          onAction={() => navigation.navigate('ModuleCatalog' as any)}
         />
 
         <View style={styles.moduleSection}>
@@ -648,6 +650,38 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <View style={styles.rideShortcutActionBtn}>
             <Text style={styles.rideShortcutActionText}>Book Now</Text>
             <Ionicons name="arrow-forward" size={12} color="#2563EB" />
+          </View>
+        </TouchableOpacity>
+
+        {/* 7b. GROW WITH SUPERAPP ENTRY STRIP */}
+        <TouchableOpacity
+          style={[
+            styles.rideShortcutStrip,
+            { backgroundColor: isDark ? '#1C1917' : '#FFFBEB', borderColor: isDark ? '#78350F' : '#FDE68A' },
+            AppShadows.subtle,
+          ]}
+          activeOpacity={0.88}
+          onPress={() => navigation.navigate('GrowWithSuperApp' as any)}
+        >
+          <View style={styles.rideShortcutLeft}>
+            <LinearGradient
+              colors={['#D97706', '#F59E0B']}
+              style={styles.rideShortcutIconBox}
+            >
+              <Ionicons name="rocket" size={18} color="#FFFFFF" />
+            </LinearGradient>
+            <View style={styles.rideShortcutTextCol}>
+              <Text style={[styles.rideShortcutTitle, { color: theme.textPrimary }]}>
+                {language === 'hi' ? 'सुपरऐप के साथ बिज़नेस बढ़ाएं' : 'Grow with SuperApp'}
+              </Text>
+              <Text style={[styles.rideShortcutSubtitle, { color: theme.textSecondary }]}>
+                {language === 'hi' ? 'पार्टनर ऑनबोर्डिंग व न्यू प्रोडक्ट/सर्विस रिक्वेस्ट' : 'Partner onboarding, new product & category requests'}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.rideShortcutActionBtn, { backgroundColor: isDark ? '#292524' : '#FEF3C7' }]}>
+            <Text style={[styles.rideShortcutActionText, { color: '#D97706' }]}>Explore</Text>
+            <Ionicons name="arrow-forward" size={12} color="#D97706" />
           </View>
         </TouchableOpacity>
 

@@ -340,6 +340,23 @@ export const AdminDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
           <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.quickNavCard}
+          onPress={() => navigation.navigate('AdminBusinessRequests')}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.quickNavIcon, { backgroundColor: '#F59E0B20' }]}>
+            <Ionicons name="rocket-outline" size={22} color="#F59E0B" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.quickNavTitle}>Grow with SuperApp Requests</Text>
+            <Text style={styles.quickNavSub}>
+              Review new product, category & partner onboarding proposals
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+        </TouchableOpacity>
+
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Finance & Pricing</Text>
         <TouchableOpacity
           style={styles.quickNavCard}

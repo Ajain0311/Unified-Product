@@ -379,6 +379,22 @@ export const ProfileScreen: React.FC = () => {
               )
             }
           />
+          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
+          <MenuItem
+            icon="rocket-launch"
+            title="Grow with SuperApp"
+            subtitle="New product, category, module & partner onboarding"
+            color="#D97706"
+            onPress={() => navigation.navigate('GrowWithSuperApp')}
+          />
+          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
+          <MenuItem
+            icon="layers"
+            title="Modules & Storage Manager"
+            subtitle="On-demand delivery, Wi-Fi downloads & cache manager"
+            color="#059669"
+            onPress={() => navigation.navigate('ModuleCatalog')}
+          />
         </View>
 
         {/* Section 2: Account Settings */}

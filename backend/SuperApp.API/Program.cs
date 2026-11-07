@@ -642,6 +642,31 @@ CREATE TABLE IF NOT EXISTS role_applications (
 );
 CREATE INDEX IF NOT EXISTS ix_role_applications_user_id ON role_applications(user_id);
 CREATE INDEX IF NOT EXISTS ix_role_applications_status ON role_applications(status);
+CREATE TABLE IF NOT EXISTS business_requests (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    request_type VARCHAR(40) NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    category VARCHAR(100) NULL,
+    description VARCHAR(2000) NOT NULL,
+    business_name VARCHAR(150) NOT NULL,
+    contact_phone VARCHAR(20) NOT NULL,
+    contact_email VARCHAR(100) NULL,
+    location VARCHAR(200) NULL,
+    estimated_volume VARCHAR(100) NULL,
+    attachment_urls VARCHAR(2000) NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'SUBMITTED',
+    admin_notes VARCHAR(1000) NULL,
+    reviewed_by_admin_id BIGINT NULL REFERENCES users(id),
+    reviewed_by_admin_name VARCHAR(100) NULL,
+    reviewed_at TIMESTAMP WITH TIME ZONE NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NULL
+);
+CREATE INDEX IF NOT EXISTS ix_business_requests_user_id ON business_requests(user_id);
+CREATE INDEX IF NOT EXISTS ix_business_requests_status ON business_requests(status);
+CREATE INDEX IF NOT EXISTS ix_business_requests_type ON business_requests(request_type);
+GRANT ALL PRIVILEGES ON TABLE business_requests TO CURRENT_USER;
 -- App DB user must own/read this table (table may have been created earlier as postgres)
 GRANT ALL PRIVILEGES ON TABLE role_applications TO CURRENT_USER;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO CURRENT_USER;
