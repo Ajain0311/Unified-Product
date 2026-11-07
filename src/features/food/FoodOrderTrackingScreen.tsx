@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AppColors } from '../../theme/colors';
+import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 import { AppRadius } from '../../theme/spacing';
 import { AppButton } from '../../components/common/AppButton';
 import { ScreenBackButton } from '../../components/common/ScreenBackButton';
@@ -36,6 +36,9 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
   route,
   navigation,
 }) => {
+  const { theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const initialOrderId = route.params?.orderId;
   const initialOrderNumericId = route.params?.orderNumericId;
 
@@ -277,7 +280,7 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
           <Text style={styles.appBarTitle}>Live Order Tracker</Text>
         </View>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={AppColors.primary} />
+          <ActivityIndicator size="large" color={theme.primary} />
           <Text style={styles.loadingText}>Fetching real-time order data...</Text>
         </View>
       </SafeAreaView>
@@ -295,7 +298,7 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
           <Text style={styles.appBarTitle}>Order Tracker</Text>
         </View>
         <View style={styles.emptyContainer}>
-          <Ionicons name="fast-food-outline" size={64} color={AppColors.textTertiary} />
+          <Ionicons name="fast-food-outline" size={64} color={theme.textTertiary} />
           <Text style={styles.emptyTitle}>No Active Orders</Text>
           <Text style={styles.emptySubtitle}>
             You do not have any active food orders in progress. Order your favorite dishes from top restaurants!
@@ -367,14 +370,14 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
         <View style={styles.restaurantCard}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.sectionBadge}>
-              <Ionicons name="restaurant" size={13} color={AppColors.primary} />
+              <Ionicons name="restaurant" size={13} color={theme.primary} />
               <Text style={styles.sectionBadgeText}>RESTAURANT & OWNER CONTACT</Text>
             </View>
           </View>
 
           <View style={styles.restaurantBody}>
             <View style={styles.restaurantAvatar}>
-              <Ionicons name="storefront" size={26} color={AppColors.primary} />
+              <Ionicons name="storefront" size={26} color={theme.primary} />
             </View>
             <View style={styles.restaurantInfoCol}>
               <Text style={styles.restaurantTitleText} numberOfLines={1}>
@@ -386,7 +389,7 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
                 </Text>
               ) : null}
               <View style={styles.phoneRow}>
-                <Ionicons name="call-outline" size={14} color={AppColors.secondary} />
+                <Ionicons name="call-outline" size={14} color={theme.secondary} />
                 <Text style={styles.phoneHighlightText}>
                   Owner Phone: {restaurantPhone ? restaurantPhone : 'Not Available'}
                 </Text>
@@ -418,10 +421,10 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
               {steps.map((step, idx) => {
                 const isLast = idx === steps.length - 1;
                 const iconColor = step.isCurrent
-                  ? AppColors.primary
+                  ? theme.primary
                   : step.isCompleted
-                  ? AppColors.secondary
-                  : AppColors.textTertiary;
+                  ? theme.secondary
+                  : theme.textTertiary;
 
                 return (
                   <View key={idx}>
@@ -449,8 +452,8 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
                             {
                               color:
                                 step.isCurrent || step.isCompleted
-                                  ? AppColors.textPrimary
-                                  : AppColors.textSecondary,
+                                  ? theme.textPrimary
+                                  : theme.textSecondary,
                               fontWeight: step.isCurrent ? '800' : '600',
                             },
                           ]}
@@ -467,8 +470,8 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
                           styles.stepConnector,
                           {
                             backgroundColor: step.isCompleted
-                              ? AppColors.secondary
-                              : AppColors.border,
+                              ? theme.secondary
+                              : theme.cardBorder,
                           },
                         ]}
                       />
@@ -484,7 +487,7 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
         {deliveryAddress ? (
           <View style={styles.addressCard}>
             <View style={styles.addressIconBox}>
-              <Ionicons name="location" size={22} color={AppColors.secondary} />
+              <Ionicons name="location" size={22} color={theme.secondary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.addressKicker}>DELIVERY DESTINATION</Text>
@@ -524,8 +527,8 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
             </View>
             {couponDiscount > 0 ? (
               <View style={styles.billRow}>
-                <Text style={[styles.billLabel, { color: AppColors.secondary }]}>Coupon Discount</Text>
-                <Text style={[styles.billValue, { color: AppColors.secondary }]}>-₹{couponDiscount.toFixed(0)}</Text>
+                <Text style={[styles.billLabel, { color: theme.secondary }]}>Coupon Discount</Text>
+                <Text style={[styles.billValue, { color: theme.secondary }]}>-₹{couponDiscount.toFixed(0)}</Text>
               </View>
             ) : null}
             <View style={styles.billRow}>
@@ -594,10 +597,11 @@ export const FoodOrderTrackingScreen: React.FC<FoodOrderTrackingScreenProps> = (
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: ThemePalette, isDark: boolean) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: AppColors.background,
+    backgroundColor: theme.background,
   },
   appBar: {
     flexDirection: 'row',
@@ -605,28 +609,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: AppColors.border,
-    backgroundColor: AppColors.surface,
+    borderBottomColor: theme.cardBorder,
+    backgroundColor: theme.surface,
     gap: 12,
   },
   appBarTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: AppColors.textPrimary,
+    color: theme.textPrimary,
   },
   appBarSubtitle: {
     fontSize: 12,
-    color: AppColors.textTertiary,
+    color: theme.textTertiary,
     marginTop: 1,
   },
   statusChip: {
-    backgroundColor: `${AppColors.primary}26`,
+    backgroundColor: isDark ? 'rgba(255, 90, 31, 0.2)' : '#FFF3EE',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
   statusChipText: {
-    color: AppColors.primary,
+    color: theme.primary,
     fontSize: 11,
     fontWeight: '800',
   },
@@ -642,7 +646,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   loadingText: {
-    color: AppColors.textSecondary,
+    color: theme.textSecondary,
     fontSize: 14,
     marginTop: 12,
   },
@@ -653,13 +657,13 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   emptyTitle: {
-    color: AppColors.textPrimary,
+    color: theme.textPrimary,
     fontSize: 20,
     fontWeight: '800',
     marginTop: 16,
   },
   emptySubtitle: {
-    color: AppColors.textSecondary,
+    color: theme.textSecondary,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
@@ -708,10 +712,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   restaurantCard: {
-    backgroundColor: AppColors.surface,
+    backgroundColor: theme.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: AppColors.border,
+    borderColor: theme.cardBorder,
     padding: 16,
     marginBottom: 16,
   },
@@ -729,7 +733,7 @@ const styles = StyleSheet.create({
   sectionBadgeText: {
     fontSize: 11,
     fontWeight: '800',
-    color: AppColors.primary,
+    color: theme.primary,
     letterSpacing: 0.5,
   },
   restaurantBody: {
@@ -741,7 +745,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 14,
-    backgroundColor: `${AppColors.primary}22`,
+    backgroundColor: isDark ? 'rgba(255, 90, 31, 0.2)' : '#FFF3EE',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -752,11 +756,11 @@ const styles = StyleSheet.create({
   restaurantTitleText: {
     fontSize: 16,
     fontWeight: '800',
-    color: AppColors.textPrimary,
+    color: theme.textPrimary,
   },
   restaurantAddressText: {
     fontSize: 12,
-    color: AppColors.textSecondary,
+    color: theme.textSecondary,
     marginTop: 2,
     lineHeight: 16,
   },
@@ -769,7 +773,7 @@ const styles = StyleSheet.create({
   phoneHighlightText: {
     fontSize: 13,
     fontWeight: '700',
-    color: AppColors.secondary,
+    color: theme.secondary,
   },
   callOwnerButton: {
     flexDirection: 'row',
@@ -793,17 +797,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   progressCard: {
-    backgroundColor: AppColors.surface,
+    backgroundColor: theme.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: AppColors.border,
+    borderColor: theme.cardBorder,
     padding: 20,
     marginBottom: 16,
   },
   cardHeaderTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: AppColors.textPrimary,
+    color: theme.textPrimary,
     marginBottom: 16,
   },
   stepperContainer: {
@@ -835,7 +839,7 @@ const styles = StyleSheet.create({
   },
   stepSubtitle: {
     fontSize: 12,
-    color: AppColors.textTertiary,
+    color: theme.textTertiary,
     marginTop: 2,
   },
   stepConnector: {
@@ -847,10 +851,10 @@ const styles = StyleSheet.create({
   addressCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: AppColors.surface,
+    backgroundColor: theme.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: AppColors.border,
+    borderColor: theme.cardBorder,
     padding: 14,
     marginBottom: 16,
     gap: 12,
@@ -859,27 +863,27 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: `${AppColors.secondary}22`,
+    backgroundColor: `${theme.secondary}22`,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addressKicker: {
     fontSize: 10,
     fontWeight: '800',
-    color: AppColors.secondary,
+    color: theme.secondary,
     letterSpacing: 0.5,
   },
   addressBodyText: {
     fontSize: 13,
-    color: AppColors.textPrimary,
+    color: theme.textPrimary,
     marginTop: 2,
     lineHeight: 18,
   },
   orderSummaryCard: {
-    backgroundColor: AppColors.surface,
+    backgroundColor: theme.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: AppColors.border,
+    borderColor: theme.cardBorder,
     padding: 18,
     marginBottom: 16,
   },
@@ -890,7 +894,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   itemQuantityBadge: {
-    backgroundColor: `${AppColors.primary}22`,
+    backgroundColor: `${theme.primary}22`,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -898,31 +902,31 @@ const styles = StyleSheet.create({
   itemQuantityText: {
     fontSize: 12,
     fontWeight: '800',
-    color: AppColors.primary,
+    color: theme.primary,
   },
   itemNameText: {
     fontSize: 14,
     fontWeight: '700',
-    color: AppColors.textPrimary,
+    color: theme.textPrimary,
   },
   itemVariantText: {
     fontSize: 12,
-    color: AppColors.textSecondary,
+    color: theme.textSecondary,
     marginTop: 1,
   },
   itemAddonsText: {
     fontSize: 11,
-    color: AppColors.textTertiary,
+    color: theme.textTertiary,
     marginTop: 1,
   },
   itemPriceText: {
     fontSize: 14,
     fontWeight: '800',
-    color: AppColors.textPrimary,
+    color: theme.textPrimary,
   },
   divider: {
     height: 1,
-    backgroundColor: AppColors.border,
+    backgroundColor: theme.cardBorder,
     marginVertical: 8,
   },
   billRow: {
@@ -932,26 +936,26 @@ const styles = StyleSheet.create({
   },
   billLabel: {
     fontSize: 13,
-    color: AppColors.textSecondary,
+    color: theme.textSecondary,
   },
   billValue: {
     fontSize: 13,
     fontWeight: '700',
-    color: AppColors.textPrimary,
+    color: theme.textPrimary,
   },
   grandTotalLabel: {
     fontSize: 15,
     fontWeight: '900',
-    color: AppColors.textPrimary,
+    color: theme.textPrimary,
   },
   grandTotalValue: {
     fontSize: 17,
     fontWeight: '900',
-    color: AppColors.primary,
+    color: theme.primary,
   },
   paymentMethodCaption: {
     fontSize: 11,
-    color: AppColors.textTertiary,
+    color: theme.textTertiary,
     marginTop: 4,
     fontStyle: 'italic',
   },

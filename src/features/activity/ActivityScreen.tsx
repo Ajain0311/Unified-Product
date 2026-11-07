@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
+import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 
@@ -22,6 +23,8 @@ const TABS = ['Food Orders', 'Rides', 'Marketplace'];
 
 export const ActivityScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const route = useRoute<RouteProp<RootStackParamList, 'Activity'>>();
   const initialTab = route.params?.initialTab ?? 0;
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -113,12 +116,12 @@ export const ActivityScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background} />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialIcons name="chevron-left" size={28} color={colors.textPrimary} />
+          <MaterialIcons name="chevron-left" size={28} color={theme.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Activity</Text>
         <View style={{ width: 28 }} />
@@ -294,148 +297,149 @@ export const ActivityScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  backButton: {
-    padding: spacing.xs,
-  },
-  headerTitle: {
-    ...typography.h2,
-    color: colors.textPrimary,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingHorizontal: spacing.md,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-  },
-  tabButtonActive: {
-    borderBottomColor: colors.primary,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textTertiary,
-  },
-  tabTextActive: {
-    color: colors.primary,
-  },
-  tabContentContainer: {
-    flex: 1,
-  },
-  listContent: {
-    padding: spacing.md,
-    gap: 12,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '700',
-  },
-  cardSubtitle: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginTop: 6,
-  },
-  cardDistance: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    marginTop: 4,
-  },
-  cardPrice: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: colors.primary,
-    marginTop: 8,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  cardDate: {
-    fontSize: 12,
-    color: colors.textTertiary,
-  },
-  cardAmount: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  cardViews: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  cardActionRow: {
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  cardActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    marginTop: 8,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  emptyButton: {
-    marginTop: 20,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  emptyButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-});
+const createStyles = (theme: ThemePalette, isDark: boolean) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    backButton: {
+      padding: spacing.xs,
+    },
+    headerTitle: {
+      ...typography.h2,
+      color: theme.textPrimary,
+    },
+    tabBar: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: theme.cardBorder,
+      paddingHorizontal: spacing.md,
+    },
+    tabButton: {
+      flex: 1,
+      paddingVertical: 12,
+      alignItems: 'center',
+      borderBottomWidth: 3,
+      borderBottomColor: 'transparent',
+    },
+    tabButtonActive: {
+      borderBottomColor: theme.primary,
+    },
+    tabText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.textTertiary,
+    },
+    tabTextActive: {
+      color: theme.primary,
+    },
+    tabContentContainer: {
+      flex: 1,
+    },
+    listContent: {
+      padding: spacing.md,
+      gap: 12,
+    },
+    card: {
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    cardTitle: {
+      ...typography.bodyMedium,
+      color: theme.textPrimary,
+      fontWeight: '700',
+    },
+    cardSubtitle: {
+      ...typography.bodySmall,
+      color: theme.textSecondary,
+      marginTop: 6,
+    },
+    cardDistance: {
+      fontSize: 12,
+      color: theme.textTertiary,
+      marginTop: 4,
+    },
+    cardPrice: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: theme.primary,
+      marginTop: 8,
+    },
+    cardFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    cardDate: {
+      fontSize: 12,
+      color: theme.textTertiary,
+    },
+    cardAmount: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: theme.textPrimary,
+    },
+    cardViews: {
+      fontSize: 12,
+      color: theme.textSecondary,
+    },
+    cardActionRow: {
+      marginTop: 10,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: theme.cardBorder,
+    },
+    cardActionText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: theme.primary,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 48,
+      paddingHorizontal: 24,
+    },
+    emptyTitle: {
+      ...typography.h3,
+      color: theme.textPrimary,
+      marginTop: 16,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      ...typography.bodyMedium,
+      color: theme.textSecondary,
+      marginTop: 8,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    emptyButton: {
+      marginTop: 20,
+      backgroundColor: theme.primary,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    emptyButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: 14,
+    },
+  });

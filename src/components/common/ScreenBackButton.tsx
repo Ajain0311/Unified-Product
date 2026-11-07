@@ -2,7 +2,7 @@ import React from 'react';
 import { TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 
 type Props = {
   onPress?: () => void;
@@ -23,13 +23,15 @@ type Props = {
 export const ScreenBackButton: React.FC<Props> = ({
   onPress,
   fallback,
-  color = colors.textPrimary,
+  color,
   size = 24,
   style,
   testID = 'screen-back-btn',
   accessibilityLabel = 'Go back',
 }) => {
   const navigation = useNavigation<any>();
+  const { theme } = useAppTheme();
+  const iconColor = color || theme.textPrimary;
 
   const handlePress = () => {
     if (onPress) {
@@ -53,7 +55,7 @@ export const ScreenBackButton: React.FC<Props> = ({
       accessibilityLabel={accessibilityLabel}
       testID={testID}
     >
-      <MaterialIcons name="arrow-back" size={size} color={color} />
+      <MaterialIcons name="arrow-back" size={size} color={iconColor} />
     </TouchableOpacity>
   );
 };

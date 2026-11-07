@@ -39,6 +39,7 @@ export const MainTabNavigator: React.FC = () => {
       safeAreaInsets={{ bottom: 0 }}
       screenOptions={{
         headerShown: false,
+        sceneStyle: { backgroundColor: theme.background },
         tabBarStyle: {
           backgroundColor: theme.tabBarBg,
           borderTopColor: theme.cardBorder,

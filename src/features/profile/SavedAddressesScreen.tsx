@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
+import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 import { apiClient, ApiError } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { LocationMapPicker } from '../../components/maps/LocationMapPicker';
@@ -55,6 +56,8 @@ const emptyForm = {
 
 export const SavedAddressesScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -254,17 +257,17 @@ export const SavedAddressesScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialIcons name="chevron-left" size={28} color={colors.textPrimary} />
+          <MaterialIcons name="chevron-left" size={28} color={theme.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Saved Addresses</Text>
         <View style={{ width: 28 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {loading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} /> : null}
+        {loading ? <ActivityIndicator color={theme.primary} style={{ marginTop: 24 }} /> : null}
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {!loading && addresses.length === 0 && !error ? (
           <Text style={styles.emptyText}>No saved addresses yet. Add Home or Work to use at checkout.</Text>
@@ -428,118 +431,120 @@ export const SavedAddressesScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  backButton: { padding: spacing.xs },
-  headerTitle: { ...typography.h2, color: colors.textPrimary },
-  scroll: { padding: spacing.md, paddingBottom: spacing.xxxl },
-  errorText: { color: colors.error, marginBottom: spacing.md },
-  emptyText: { color: colors.textSecondary, marginBottom: spacing.md, lineHeight: 20 },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-  },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  labelPill: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  labelText: { color: colors.textPrimary, fontWeight: '700' },
-  defaultBadge: { color: colors.secondary, fontSize: 11, fontWeight: '700' },
-  line: { color: colors.textPrimary, marginTop: 2 },
-  lineMuted: { color: colors.textSecondary, marginTop: 2 },
-  coordsText: { color: colors.secondary, fontSize: 12, marginTop: 6, fontWeight: '600' },
-  coordsMissing: { color: colors.textTertiary, fontSize: 12, marginTop: 6 },
-  actions: { flexDirection: 'row', gap: 16, marginTop: 12 },
-  actionLink: { color: colors.blue, fontWeight: '600' },
-  addBtn: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '90%',
-  },
-  modalTitle: { ...typography.h2, color: colors.textPrimary, marginBottom: 12 },
-  labelRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.textSecondary, fontWeight: '600' },
-  chipTextOn: { color: '#fff' },
-  currentLocationBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(25, 118, 210, 0.12)',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 12,
-  },
-  currentLocationText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  input: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: colors.textPrimary,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  defaultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
-  defaultRowText: { color: colors.textPrimary },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cancelText: { color: colors.textSecondary, fontWeight: '700' },
-  saveBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-  },
-  saveText: { color: '#fff', fontWeight: '700' },
-});
+const createStyles = (theme: ThemePalette, isDark: boolean) =>
+  StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.background },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    backButton: { padding: spacing.xs },
+    headerTitle: { ...typography.h2, color: theme.textPrimary },
+    scroll: { padding: spacing.md, paddingBottom: spacing.xxxl },
+    errorText: { color: theme.error, marginBottom: spacing.md },
+    emptyText: { color: theme.textSecondary, marginBottom: spacing.md, lineHeight: 20 },
+    card: {
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      marginBottom: spacing.md,
+    },
+    cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+    labelPill: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    labelText: { color: theme.textPrimary, fontWeight: '700' },
+    defaultBadge: { color: theme.secondary, fontSize: 11, fontWeight: '700' },
+    line: { color: theme.textPrimary, marginTop: 2 },
+    lineMuted: { color: theme.textSecondary, marginTop: 2 },
+    coordsText: { color: theme.secondary, fontSize: 12, marginTop: 6, fontWeight: '600' },
+    coordsMissing: { color: theme.textTertiary, fontSize: 12, marginTop: 6 },
+    actions: { flexDirection: 'row', gap: 16, marginTop: 12 },
+    actionLink: { color: theme.primary, fontWeight: '600' },
+    addBtn: {
+      marginTop: spacing.sm,
+      backgroundColor: theme.primary,
+      borderRadius: 14,
+      paddingVertical: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    addBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'flex-end',
+    },
+    modalCard: {
+      backgroundColor: theme.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      maxHeight: '90%',
+    },
+    modalTitle: { ...typography.h2, color: theme.textPrimary, marginBottom: 12 },
+    labelRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      backgroundColor: theme.chipBg,
+    },
+    chipOn: { backgroundColor: theme.primary, borderColor: theme.primary },
+    chipText: { color: theme.textSecondary, fontWeight: '600' },
+    chipTextOn: { color: '#fff' },
+    currentLocationBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: isDark ? 'rgba(255, 90, 31, 0.15)' : 'rgba(25, 118, 210, 0.12)',
+      borderWidth: 1,
+      borderColor: theme.primary,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      marginBottom: 12,
+    },
+    currentLocationText: {
+      color: theme.primary,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    input: {
+      backgroundColor: theme.inputBg,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      color: theme.textPrimary,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    defaultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
+    defaultRowText: { color: theme.textPrimary },
+    modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
+    cancelBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    cancelText: { color: theme.textSecondary, fontWeight: '700' },
+    saveBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      backgroundColor: theme.primary,
+    },
+    saveText: { color: '#fff', fontWeight: '700' },
+  });

@@ -39,16 +39,20 @@ import {
 import { BarHubScreen } from '../features/bars/BarHubScreen';
 import { BeverageHubScreen } from '../features/beverages/BeverageHubScreen';
 import { B2BWaterSuppliesScreen } from '../features/supplies/B2BWaterSuppliesScreen';
+import { useAppTheme } from '../theme/themeStore';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator: React.FC = () => {
+  const { theme } = useAppTheme();
+
   return (
     <Stack.Navigator
       initialRouteName="Splash"
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
+        contentStyle: { backgroundColor: theme.background },
       }}
     >
       <Stack.Screen name="Splash" component={SplashScreen} />

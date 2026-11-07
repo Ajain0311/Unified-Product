@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Keyboard,
   TouchableWithoutFeedback,
+  Switch,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -120,7 +121,7 @@ function roleAppBadge(status: string | null): { label: string; color: string; su
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { theme, isDark } = useAppTheme();
+  const { theme, isDark, toggleTheme } = useAppTheme();
   const { user, logout, updateUser } = useAuthStore();
   const { activeRole, hasMultipleRoles } = useRoleStore();
   const [roleModalVisible, setRoleModalVisible] = useState(false);
@@ -414,6 +415,33 @@ export const ProfileScreen: React.FC = () => {
             color={colors.purple}
             onPress={() => navigation.navigate('HelpSupport')}
           />
+          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
+          <View style={styles.menuItem}>
+            <View
+              style={[
+                styles.menuIconContainer,
+                { backgroundColor: isDark ? 'rgba(251, 191, 36, 0.18)' : 'rgba(99, 102, 241, 0.12)' },
+              ]}
+            >
+              <Ionicons
+                name={isDark ? 'moon' : 'sunny'}
+                size={22}
+                color={isDark ? '#FBBF24' : '#6366F1'}
+              />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={[styles.menuTitle, { color: theme.textPrimary }]}>Dark Mode</Text>
+              <Text style={[styles.menuSubtitle, { color: theme.textSecondary }]}>
+                {isDark ? 'Dark theme active' : 'Light theme active'}
+              </Text>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: theme.border, true: theme.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
         </View>
 
         {/* Logout Button */}

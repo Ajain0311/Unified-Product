@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AppColors } from '../../theme/colors';
+import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 import { AppRadius } from '../../theme/spacing';
 import { AppConstants } from '../../constants/app';
 import { RatingBadge } from '../../components/common/RatingBadge';
@@ -63,6 +63,9 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   route,
   navigation,
 }) => {
+  const { theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const parsedParamId = Number(route.params?.restaurantId);
   const restaurantNumericId = Number.isInteger(parsedParamId) && parsedParamId > 0 ? parsedParamId : null;
   const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(0);
@@ -387,11 +390,11 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
         >
           {/* Real Search Dishes Input */}
           <View style={styles.searchBarBox}>
-            <Ionicons name="search-outline" size={18} color={AppColors.textTertiary} style={styles.searchIcon} />
+            <Ionicons name="search-outline" size={18} color={theme.textTertiary} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search dishes or categories..."
-              placeholderTextColor={AppColors.textHint}
+              placeholderTextColor={theme.textTertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoCapitalize="none"
@@ -400,7 +403,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={18} color={AppColors.textTertiary} />
+                <Ionicons name="close-circle" size={18} color={theme.textTertiary} />
               </TouchableOpacity>
             )}
           </View>
@@ -408,8 +411,8 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
           {/* Loading / Error States */}
           {isLoadingMenu && (
             <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
-              <ActivityIndicator size="small" color={AppColors.primary} />
-              <Text style={{ ...styles.dishDesc, marginTop: 8, color: AppColors.textSecondary }}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={{ ...styles.dishDesc, marginTop: 8, color: theme.textSecondary }}>
                 Loading fresh menu...
               </Text>
             </View>
@@ -417,8 +420,8 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
 
           {loadError && !isLoadingMenu && (
             <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 32, paddingHorizontal: 20 }}>
-              <Ionicons name="alert-circle-outline" size={40} color={AppColors.error} />
-              <Text style={{ ...styles.dishName, color: AppColors.error, marginTop: 8, textAlign: 'center' }}>
+              <Ionicons name="alert-circle-outline" size={40} color={theme.error} />
+              <Text style={{ ...styles.dishName, color: theme.error, marginTop: 8, textAlign: 'center' }}>
                 {loadError}
               </Text>
               <TouchableOpacity
@@ -470,8 +473,8 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
                     </View>
                   )}
                   {item.isAvailable === false && (
-                    <View style={[styles.bestsellerTag, { backgroundColor: AppColors.surfaceLight, borderWidth: 1, borderColor: AppColors.error }]}>
-                      <Text style={[styles.bestsellerText, { color: AppColors.error }]}>SOLD OUT</Text>
+                    <View style={[styles.bestsellerTag, { backgroundColor: theme.surfaceLight, borderWidth: 1, borderColor: theme.error }]}>
+                      <Text style={[styles.bestsellerText, { color: theme.error }]}>SOLD OUT</Text>
                     </View>
                   )}
                 </View>
@@ -492,8 +495,8 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
                 {(() => {
                   if (item.isAvailable === false) {
                     return (
-                      <View style={[styles.addButton, { backgroundColor: AppColors.surfaceLight, borderColor: AppColors.border }]}>
-                        <Text style={[styles.addButtonText, { color: AppColors.textTertiary }]}>OUT</Text>
+                      <View style={[styles.addButton, { backgroundColor: theme.surfaceLight, borderColor: theme.cardBorder }]}>
+                        <Text style={[styles.addButtonText, { color: theme.textTertiary }]}>OUT</Text>
                       </View>
                     );
                   }
@@ -506,7 +509,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
                           onPress={() => updateQuantity(item.id, -1)}
                           activeOpacity={0.7}
                         >
-                          <Ionicons name="remove" size={16} color={AppColors.primary} />
+                          <Ionicons name="remove" size={16} color={theme.primary} />
                         </TouchableOpacity>
                         <Text style={styles.stepperQtyText}>{qty}</Text>
                         <TouchableOpacity
@@ -524,7 +527,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
                           }}
                           activeOpacity={0.7}
                         >
-                          <Ionicons name="add" size={16} color={AppColors.primary} />
+                          <Ionicons name="add" size={16} color={theme.primary} />
                         </TouchableOpacity>
                       </View>
                     );
@@ -550,11 +553,11 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
           ))}
           {!isLoadingMenu && !loadError && filteredItems.length === 0 && (
             <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: 24 }}>
-              <Ionicons name="fast-food-outline" size={48} color={AppColors.textTertiary} />
-              <Text style={{ ...styles.dishName, marginTop: 12, color: AppColors.textSecondary, textAlign: 'center' }}>
+              <Ionicons name="fast-food-outline" size={48} color={theme.textTertiary} />
+              <Text style={{ ...styles.dishName, marginTop: 12, color: theme.textSecondary, textAlign: 'center' }}>
                 No dishes found
               </Text>
-              <Text style={{ fontSize: 13, color: AppColors.textTertiary, marginTop: 4, textAlign: 'center' }}>
+              <Text style={{ fontSize: 13, color: theme.textTertiary, marginTop: 4, textAlign: 'center' }}>
                 {searchQuery ? `No results matching "${searchQuery}"` : 'Please select another category or check back later.'}
               </Text>
             </View>
@@ -573,7 +576,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
               style={styles.floatingCartTouch}
             >
               <LinearGradient
-                colors={[AppColors.primary, AppColors.primaryDark]}
+                colors={[theme.primary, theme.primaryDark]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.floatingCartGradient}
@@ -627,239 +630,240 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: AppColors.background,
-  },
-  appBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: AppColors.border,
-    backgroundColor: AppColors.background,
-    zIndex: 2,
-  },
-  titleCol: {
-    flex: 1,
-    marginRight: 10,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: AppColors.textPrimary,
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: AppColors.textSecondary,
-    marginTop: 2,
-  },
-  contentContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  searchBarBox: {
-    height: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: AppColors.surfaceLight,
-    borderRadius: AppRadius.md,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-    paddingHorizontal: 14,
-    marginBottom: 14,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    color: AppColors.textPrimary,
-    fontSize: 14,
-    paddingVertical: 0,
-  },
-  searchPlaceholder: {
-    color: AppColors.textHint,
-    fontSize: 13,
-  },
-  categoriesRow: {
-    paddingRight: 16,
-    marginBottom: 18,
-  },
-  categoryPill: {
-    backgroundColor: AppColors.surfaceLight,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-  },
-  categoryPillActive: {
-    backgroundColor: AppColors.primary,
-    borderColor: AppColors.primary,
-  },
-  categoryText: {
-    color: AppColors.textSecondary,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  categoryTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  dishCard: {
-    flexDirection: 'row',
-    backgroundColor: AppColors.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-    padding: 16,
-    marginBottom: 14,
-  },
-  dishDetails: {
-    flex: 1,
-    marginRight: 14,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  bestsellerTag: {
-    backgroundColor: `${AppColors.yellow}33`,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  bestsellerText: {
-    color: AppColors.yellow,
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  dishName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: AppColors.textPrimary,
-    marginBottom: 4,
-  },
-  dishPrice: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: AppColors.textPrimary,
-    marginBottom: 6,
-  },
-  dishDesc: {
-    fontSize: 12,
-    color: AppColors.textSecondary,
-    lineHeight: 16,
-  },
-  dishActionCol: {
-    alignItems: 'center',
-  },
-  dishImage: {
-    width: 96,
-    height: 84,
-    borderRadius: 14,
-    backgroundColor: AppColors.surfaceLight,
-    marginBottom: 8,
-  },
-  addButton: {
-    width: 96,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: AppColors.primary,
-    backgroundColor: AppColors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonText: {
-    color: AppColors.primary,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  stepperContainer: {
-    width: 96,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: AppColors.primary,
-    backgroundColor: AppColors.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-  },
-  stepperBtn: {
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperQtyText: {
-    color: AppColors.primary,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  customizableLabel: {
-    color: AppColors.textTertiary,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    marginTop: 3,
-  },
-  floatingCartContainer: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
-  },
-  floatingCartTouch: {
-    borderRadius: 16,
-    ...shadowStyle({
-      color: AppColors.primary,
-      offsetY: 6,
-      opacity: 0.4,
-      radius: 18,
-      elevation: 8,
-    }),
-  },
-  floatingCartGradient: {
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  cartItemsCount: {
-    color: 'rgba(255, 255, 255, 0.75)',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  cartTotalAmount: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  viewCartRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  viewCartText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    marginRight: 4,
-  },
-});
+const createStyles = (theme: ThemePalette, isDark: boolean) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    appBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.cardBorder,
+      backgroundColor: theme.surface,
+      zIndex: 2,
+    },
+    titleCol: {
+      flex: 1,
+      marginRight: 10,
+    },
+    headerTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.textPrimary,
+    },
+    headerSubtitle: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    contentContainer: {
+      flex: 1,
+      position: 'relative',
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+    },
+    searchBarBox: {
+      height: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.inputBg,
+      borderRadius: AppRadius.md,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      paddingHorizontal: 14,
+      marginBottom: 14,
+    },
+    searchIcon: {
+      marginRight: 8,
+    },
+    searchInput: {
+      flex: 1,
+      height: 40,
+      color: theme.textPrimary,
+      fontSize: 14,
+      paddingVertical: 0,
+    },
+    searchPlaceholder: {
+      color: theme.textTertiary,
+      fontSize: 13,
+    },
+    categoriesRow: {
+      paddingRight: 16,
+      marginBottom: 18,
+    },
+    categoryPill: {
+      backgroundColor: theme.chipBg,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      marginRight: 8,
+    },
+    categoryPillActive: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+    categoryText: {
+      color: theme.textSecondary,
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    categoryTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    dishCard: {
+      flexDirection: 'row',
+      backgroundColor: theme.card,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      padding: 16,
+      marginBottom: 14,
+    },
+    dishDetails: {
+      flex: 1,
+      marginRight: 14,
+    },
+    badgesRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    bestsellerTag: {
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
+      borderRadius: 4,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      marginLeft: 8,
+    },
+    bestsellerText: {
+      color: isDark ? '#FBBF24' : '#D97706',
+      fontSize: 9,
+      fontWeight: '800',
+    },
+    dishName: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: theme.textPrimary,
+      marginBottom: 4,
+    },
+    dishPrice: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: theme.textPrimary,
+      marginBottom: 6,
+    },
+    dishDesc: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      lineHeight: 16,
+    },
+    dishActionCol: {
+      alignItems: 'center',
+    },
+    dishImage: {
+      width: 96,
+      height: 84,
+      borderRadius: 14,
+      backgroundColor: theme.surfaceLight,
+      marginBottom: 8,
+    },
+    addButton: {
+      width: 96,
+      height: 36,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: theme.primary,
+      backgroundColor: theme.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addButtonText: {
+      color: theme.primary,
+      fontSize: 13,
+      fontWeight: '800',
+    },
+    stepperContainer: {
+      width: 96,
+      height: 36,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: theme.primary,
+      backgroundColor: theme.card,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 8,
+    },
+    stepperBtn: {
+      padding: 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepperQtyText: {
+      color: theme.primary,
+      fontSize: 14,
+      fontWeight: '900',
+    },
+    customizableLabel: {
+      color: theme.textTertiary,
+      fontSize: 9,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+      marginTop: 3,
+    },
+    floatingCartContainer: {
+      position: 'absolute',
+      bottom: 16,
+      left: 16,
+      right: 16,
+    },
+    floatingCartTouch: {
+      borderRadius: 16,
+      ...shadowStyle({
+        color: theme.primary,
+        offsetY: 6,
+        opacity: 0.4,
+        radius: 18,
+        elevation: 8,
+      }),
+    },
+    floatingCartGradient: {
+      borderRadius: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    cartItemsCount: {
+      color: 'rgba(255, 255, 255, 0.75)',
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.8,
+    },
+    cartTotalAmount: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '900',
+    },
+    viewCartRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    viewCartText: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '800',
+      marginRight: 4,
+    },
+  });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AppColors } from '../../theme/colors';
+import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 import { AppRadius } from '../../theme/spacing';
 import { AppConstants } from '../../constants/app';
 import { CartItem } from '../../models/food';
@@ -42,6 +42,9 @@ export const CartSummarySheet: React.FC<CartSummarySheetProps> = ({
   onOrderPlaced,
   isSubmitting = false,
 }) => {
+  const { theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
@@ -111,7 +114,7 @@ export const CartSummarySheet: React.FC<CartSummarySheetProps> = ({
               <Text style={styles.subtitle}>{cartSubtitle}</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={AppColors.textSecondary} />
+              <Ionicons name="close" size={24} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -138,7 +141,7 @@ export const CartSummarySheet: React.FC<CartSummarySheetProps> = ({
                         onPress={() => updateQuantity(item.cartLineKey || item.foodItemId, -1)}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="remove" size={14} color={AppColors.primary} />
+                        <Ionicons name="remove" size={14} color={theme.primary} />
                       </TouchableOpacity>
                       <Text style={styles.cartStepperQty}>{item.quantity}</Text>
                       <TouchableOpacity
@@ -146,7 +149,7 @@ export const CartSummarySheet: React.FC<CartSummarySheetProps> = ({
                         onPress={() => updateQuantity(item.cartLineKey || item.foodItemId, 1)}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="add" size={14} color={AppColors.primary} />
+                        <Ionicons name="add" size={14} color={theme.primary} />
                       </TouchableOpacity>
                     </View>
                     <Text style={styles.itemPrice}>
@@ -162,11 +165,11 @@ export const CartSummarySheet: React.FC<CartSummarySheetProps> = ({
             <View style={styles.couponSection}>
               <View style={styles.couponInputRow}>
                 <View style={styles.couponInputBox}>
-                  <Ionicons name="pricetag-outline" size={18} color={AppColors.primary} style={{ marginRight: 8 }} />
+                  <Ionicons name="pricetag-outline" size={18} color={theme.primary} style={{ marginRight: 8 }} />
                   <TextInput
                     style={styles.couponInput}
                     placeholder="Enter Coupon (e.g. WELCOME50)"
-                    placeholderTextColor={AppColors.textTertiary}
+                    placeholderTextColor={theme.textTertiary}
                     value={couponCode}
                     onChangeText={setCouponCode}
                     autoCapitalize="characters"
@@ -211,8 +214,8 @@ export const CartSummarySheet: React.FC<CartSummarySheetProps> = ({
 
               {discountAmount > 0 && (
                 <View style={styles.billRow}>
-                  <Text style={[styles.billLabel, { color: AppColors.secondary }]}>Coupon Discount ({appliedCoupon})</Text>
-                  <Text style={[styles.billValue, { color: AppColors.secondary }]}>
+                  <Text style={[styles.billLabel, { color: theme.secondary }]}>Coupon Discount ({appliedCoupon})</Text>
+                  <Text style={[styles.billValue, { color: theme.secondary }]}>
                     -{AppConstants.currency}{discountAmount.toFixed(0)}
                   </Text>
                 </View>
@@ -248,12 +251,12 @@ export const CartSummarySheet: React.FC<CartSummarySheetProps> = ({
                       paddingVertical: 10,
                       borderRadius: 10,
                       borderWidth: 1,
-                      borderColor: paymentMethod === method ? AppColors.primary : AppColors.border,
-                      backgroundColor: paymentMethod === method ? AppColors.primary + '22' : 'transparent',
+                      borderColor: paymentMethod === method ? theme.primary : theme.cardBorder,
+                      backgroundColor: paymentMethod === method ? (isDark ? 'rgba(255, 90, 31, 0.2)' : '#FFF3EE') : 'transparent',
                       alignItems: 'center',
                     }}
                   >
-                    <Text style={{ color: AppColors.textPrimary, fontWeight: '600' }}>
+                    <Text style={{ color: theme.textPrimary, fontWeight: '600' }}>
                       {method === 'COD' ? 'Cash on delivery' : 'Pay online'}
                     </Text>
                   </TouchableOpacity>
@@ -306,255 +309,256 @@ export const CartSummarySheet: React.FC<CartSummarySheetProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: AppColors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 14,
-  },
-  headerTitles: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: AppColors.textPrimary,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: AppColors.textSecondary,
-    marginTop: 2,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: AppColors.border,
-  },
-  scrollArea: {
-    paddingHorizontal: 20,
-  },
-  itemsList: {
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  itemCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: AppColors.surfaceLight,
-  },
-  itemInfo: {
-    flex: 1,
-    paddingRight: 16,
-  },
-  itemTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: AppColors.textPrimary,
-  },
-  itemPortion: {
-    fontSize: 12,
-    color: AppColors.textSecondary,
-    marginTop: 2,
-  },
-  itemAddons: {
-    fontSize: 11,
-    color: AppColors.textTertiary,
-    marginTop: 2,
-  },
-  itemRightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  cartStepperBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: AppColors.surface,
-    borderWidth: 1.5,
-    borderColor: AppColors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  cartStepperBtn: {
-    padding: 3,
-  },
-  cartStepperQty: {
-    color: AppColors.primary,
-    fontSize: 13,
-    fontWeight: '800',
-    paddingHorizontal: 8,
-  },
-  itemPrice: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: AppColors.textPrimary,
-  },
-  couponSection: {
-    marginVertical: 12,
-    backgroundColor: AppColors.surfaceLight,
-    padding: 12,
-    borderRadius: AppRadius.md,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-  },
-  couponInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  couponInputBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: AppColors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: AppRadius.sm,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-    marginRight: 10,
-  },
-  couponInput: {
-    flex: 1,
-    color: AppColors.textPrimary,
-    fontSize: 13,
-    fontWeight: '600',
-    padding: 0,
-  },
-  applyCouponBtn: {
-    backgroundColor: AppColors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: AppRadius.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  applyCouponText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  removeCouponBtn: {
-    backgroundColor: `${AppColors.error}22`,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: AppRadius.sm,
-    borderWidth: 1,
-    borderColor: AppColors.error,
-  },
-  removeCouponText: {
-    color: AppColors.error,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  couponMessageText: {
-    fontSize: 12,
-    marginTop: 8,
-    fontWeight: '600',
-  },
-  couponSuccess: {
-    color: AppColors.secondary,
-  },
-  couponError: {
-    color: AppColors.error,
-  },
-  billBox: {
-    backgroundColor: AppColors.surfaceLight,
-    borderRadius: AppRadius.md,
-    padding: 16,
-    marginVertical: 12,
-  },
-  billRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  billLabel: {
-    fontSize: 13,
-    color: AppColors.textSecondary,
-  },
-  billValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: AppColors.textPrimary,
-  },
-  freeDeliveryText: {
-    color: AppColors.secondary,
-    fontWeight: '700',
-  },
-  billDivider: {
-    height: 1,
-    backgroundColor: AppColors.border,
-    marginVertical: 10,
-  },
-  grandTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  grandTotalLabel: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: AppColors.textPrimary,
-  },
-  grandTotalValue: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: AppColors.primary,
-  },
-  actionsBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: AppColors.border,
-    backgroundColor: AppColors.surface,
-  },
-  clearButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginRight: 10,
-    borderRadius: AppRadius.md,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-  },
-  clearButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: AppColors.textSecondary,
-  },
-  placeOrderButton: {
-    flex: 1,
-    backgroundColor: AppColors.primary,
-    paddingVertical: 14,
-    borderRadius: AppRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeOrderText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-});
+const createStyles = (theme: ThemePalette, isDark: boolean) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.65)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: theme.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      maxHeight: '85%',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 14,
+    },
+    headerTitles: {
+      flex: 1,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: theme.textPrimary,
+    },
+    subtitle: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    closeButton: {
+      padding: 4,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: theme.cardBorder,
+    },
+    scrollArea: {
+      paddingHorizontal: 20,
+    },
+    itemsList: {
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
+    itemCard: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.cardBorder,
+    },
+    itemInfo: {
+      flex: 1,
+      paddingRight: 16,
+    },
+    itemTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.textPrimary,
+    },
+    itemPortion: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    itemAddons: {
+      fontSize: 11,
+      color: theme.textTertiary,
+      marginTop: 2,
+    },
+    itemRightRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    cartStepperBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.card,
+      borderWidth: 1.5,
+      borderColor: theme.primary,
+      borderRadius: 8,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    cartStepperBtn: {
+      padding: 3,
+    },
+    cartStepperQty: {
+      color: theme.primary,
+      fontSize: 13,
+      fontWeight: '800',
+      paddingHorizontal: 8,
+    },
+    itemPrice: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: theme.textPrimary,
+    },
+    couponSection: {
+      marginVertical: 12,
+      backgroundColor: theme.inputBg,
+      padding: 12,
+      borderRadius: AppRadius.md,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    couponInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    couponInputBox: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.card,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: AppRadius.sm,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      marginRight: 10,
+    },
+    couponInput: {
+      flex: 1,
+      color: theme.textPrimary,
+      fontSize: 13,
+      fontWeight: '600',
+      padding: 0,
+    },
+    applyCouponBtn: {
+      backgroundColor: theme.primary,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: AppRadius.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    applyCouponText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: 13,
+    },
+    removeCouponBtn: {
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2',
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: AppRadius.sm,
+      borderWidth: 1,
+      borderColor: theme.error,
+    },
+    removeCouponText: {
+      color: theme.error,
+      fontWeight: '700',
+      fontSize: 13,
+    },
+    couponMessageText: {
+      fontSize: 12,
+      marginTop: 8,
+      fontWeight: '600',
+    },
+    couponSuccess: {
+      color: theme.secondary,
+    },
+    couponError: {
+      color: theme.error,
+    },
+    billBox: {
+      backgroundColor: theme.inputBg,
+      borderRadius: AppRadius.md,
+      padding: 16,
+      marginVertical: 12,
+    },
+    billRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    billLabel: {
+      fontSize: 13,
+      color: theme.textSecondary,
+    },
+    billValue: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.textPrimary,
+    },
+    freeDeliveryText: {
+      color: theme.secondary,
+      fontWeight: '700',
+    },
+    billDivider: {
+      height: 1,
+      backgroundColor: theme.cardBorder,
+      marginVertical: 10,
+    },
+    grandTotalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    grandTotalLabel: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: theme.textPrimary,
+    },
+    grandTotalValue: {
+      fontSize: 18,
+      fontWeight: '900',
+      color: theme.primary,
+    },
+    actionsBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderTopWidth: 1,
+      borderTopColor: theme.cardBorder,
+      backgroundColor: theme.surface,
+    },
+    clearButton: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginRight: 10,
+      borderRadius: AppRadius.md,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    clearButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.textSecondary,
+    },
+    placeOrderButton: {
+      flex: 1,
+      backgroundColor: theme.primary,
+      paddingVertical: 14,
+      borderRadius: AppRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    placeOrderText: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: '#FFFFFF',
+    },
+  });

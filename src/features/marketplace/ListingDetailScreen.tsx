@@ -29,6 +29,7 @@ import { ApiEndpoints } from '../../constants/api';
 import { OfflineBanner } from '../../components/common/OfflineBanner';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { useAuthStore } from '../../store/authStore';
+import { useAppTheme } from '../../theme/themeStore';
 
 const { width } = Dimensions.get('window');
 
@@ -61,6 +62,7 @@ export const ListingDetailScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'ListingDetail'>>();
   const listingId = route.params?.listingId;
+  const { theme, isDark } = useAppTheme();
 
   const { favorites, toggleFavorite } = useMarketplaceStore();
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -244,24 +246,24 @@ export const ListingDetailScreen: React.FC = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.safeArea, styles.centerBox]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading listing details...</Text>
+      <SafeAreaView style={[styles.safeArea, styles.centerBox, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading listing details...</Text>
       </SafeAreaView>
     );
   }
 
   if (error || !detail) {
     return (
-      <SafeAreaView style={[styles.safeArea, styles.centerBox]}>
-        <MaterialIcons name="error-outline" size={48} color={colors.error} />
-        <Text style={styles.errorTitle}>Listing Unavailable</Text>
-        <Text style={styles.errorSubtitle}>{error || 'Listing could not be loaded'}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={fetchListing}>
+      <SafeAreaView style={[styles.safeArea, styles.centerBox, { backgroundColor: theme.background }]}>
+        <MaterialIcons name="error-outline" size={48} color={theme.error} />
+        <Text style={[styles.errorTitle, { color: theme.textPrimary }]}>Listing Unavailable</Text>
+        <Text style={[styles.errorSubtitle, { color: theme.textSecondary }]}>{error || 'Listing could not be loaded'}</Text>
+        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: theme.primary }]} onPress={fetchListing}>
           <Text style={styles.retryBtnText}>Retry</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.goBackBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.goBackText}>Go Back</Text>
+          <Text style={[styles.goBackText, { color: theme.textSecondary }]}>Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -269,10 +271,10 @@ export const ListingDetailScreen: React.FC = () => {
 
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor="transparent" translucent />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
         {/* Photo Carousel */}
         <View style={styles.carouselContainer}>
           {detail.images.length > 0 ? (
@@ -381,13 +383,13 @@ export const ListingDetailScreen: React.FC = () => {
           </View>
 
           {/* Title */}
-          <Text style={styles.titleText}>{detail.title}</Text>
+          <Text style={[styles.titleText, { color: theme.textPrimary }]}>{detail.title}</Text>
 
           {/* Meta Tags Row */}
           <View style={styles.metaTagsRow}>
             {detail.categoryName ? (
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryBadgeText}>{detail.categoryName}</Text>
+              <View style={[styles.categoryBadge, { backgroundColor: theme.chipBg }]}>
+                <Text style={[styles.categoryBadgeText, { color: theme.textPrimary }]}>{detail.categoryName}</Text>
               </View>
             ) : null}
             {detail.condition ? (
@@ -397,41 +399,41 @@ export const ListingDetailScreen: React.FC = () => {
             ) : null}
             {detail.location ? (
               <View style={styles.locationWrapper}>
-                <MaterialIcons name="location-on" size={14} color={colors.textTertiary} />
-                <Text style={styles.locationText}>{detail.location}</Text>
+                <MaterialIcons name="location-on" size={14} color={theme.textTertiary} />
+                <Text style={[styles.locationText, { color: theme.textSecondary }]}>{detail.location}</Text>
               </View>
             ) : null}
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: theme.cardBorder }]} />
 
           {/* Description */}
-          <Text style={styles.sectionHeader}>Description</Text>
-          <View style={styles.descriptionBox}>
-            <Text style={styles.descriptionText}>
+          <Text style={[styles.sectionHeader, { color: theme.textPrimary }]}>Description</Text>
+          <View style={[styles.descriptionBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <Text style={[styles.descriptionText, { color: theme.textSecondary }]}>
               {detail.description?.trim() ? detail.description : 'No description'}
             </Text>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: theme.cardBorder }]} />
 
           {/* Seller Profile */}
-          <Text style={styles.sectionHeader}>Seller Profile</Text>
-          <View style={styles.sellerCard}>
+          <Text style={[styles.sectionHeader, { color: theme.textPrimary }]}>Seller Profile</Text>
+          <View style={[styles.sellerCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <View style={styles.sellerRow}>
-              <View style={styles.sellerAvatar}>
-                <MaterialIcons name="person" size={28} color={colors.textSecondary} />
+              <View style={[styles.sellerAvatar, { backgroundColor: theme.chipBg }]}>
+                <MaterialIcons name="person" size={28} color={theme.textSecondary} />
               </View>
               <View style={styles.sellerMeta}>
                 <View style={styles.sellerNameRow}>
-                  <Text style={styles.sellerName}>
+                  <Text style={[styles.sellerName, { color: theme.textPrimary }]}>
                     {detail.sellerName?.trim() ? detail.sellerName : 'Seller'}
                   </Text>
                 </View>
                 {isOwner ? (
-                  <Text style={styles.sellerStats}>This is your listing</Text>
+                  <Text style={[styles.sellerStats, { color: theme.textTertiary }]}>This is your listing</Text>
                 ) : detail.sellerPhone ? (
-                  <Text style={styles.sellerStats}>{detail.sellerPhone}</Text>
+                  <Text style={[styles.sellerStats, { color: theme.textTertiary }]}>{detail.sellerPhone}</Text>
                 ) : null}
               </View>
             </View>
@@ -469,17 +471,17 @@ export const ListingDetailScreen: React.FC = () => {
 
       {/* Persistent Bottom Action Bar */}
       {canContactSeller ? (
-        <View style={styles.bottomBar}>
-          <TouchableOpacity style={styles.bottomContactBtn} onPress={() => setShowContactModal(true)}>
-            <Text style={styles.bottomContactText}>Chat / Call</Text>
+        <View style={[styles.bottomBar, { backgroundColor: theme.surface, borderTopColor: theme.cardBorder }]}>
+          <TouchableOpacity style={[styles.bottomContactBtn, { borderColor: theme.primary }]} onPress={() => setShowContactModal(true)}>
+            <Text style={[styles.bottomContactText, { color: theme.primary }]}>Chat / Call</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.bottomOfferBtn} onPress={() => setShowOfferModal(true)}>
+          <TouchableOpacity style={[styles.bottomOfferBtn, { backgroundColor: theme.primary }]} onPress={() => setShowOfferModal(true)}>
             <Text style={styles.bottomOfferText}>Make an Offer</Text>
           </TouchableOpacity>
         </View>
       ) : canRemoveListing ? (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { backgroundColor: theme.surface, borderTopColor: theme.cardBorder }]}>
           <TouchableOpacity
             style={[styles.bottomOfferBtn, { flex: 1, backgroundColor: colors.error }]}
             onPress={handleRemoveListing}
@@ -498,25 +500,25 @@ export const ListingDetailScreen: React.FC = () => {
       <Modal visible={showOfferModal} transparent animationType="slide">
         <FormKeyboardAvoid>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Make an Offer</Text>
+              <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>Make an Offer</Text>
               <TouchableOpacity onPress={() => setShowOfferModal(false)}>
-                <MaterialIcons name="close" size={24} color={colors.textSecondary} />
+                <MaterialIcons name="close" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalPriceHint}>
+            <Text style={[styles.modalPriceHint, { color: theme.textSecondary }]}>
               Listed price: ₹{Number.isFinite(detail.price) ? detail.price.toFixed(0) : '—'}
             </Text>
 
-            <View style={styles.offerInputWrapper}>
-              <Text style={styles.offerPrefix}>₹ </Text>
+            <View style={[styles.offerInputWrapper, { backgroundColor: theme.inputBg }]}>
+              <Text style={[styles.offerPrefix, { color: theme.primary }]}>₹ </Text>
               <TextInput
                 keyboardType="numeric"
                 value={offerPrice}
                 onChangeText={setOfferPrice}
-                style={styles.offerInput}
+                style={[styles.offerInput, { color: theme.textPrimary }]}
               />
             </View>
 

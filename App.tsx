@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { navigationRef } from './src/navigation/navigationRef';
 import { colors } from './src/theme/colors';
@@ -15,25 +15,31 @@ import { polyfillAlert } from './src/utils/alertPolyfill';
 
 polyfillAlert();
 import { useAppUpdateChecker } from './src/hooks/useAppUpdateChecker';
-
-const CustomLightTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: colors.primary,
-    background: colors.background,
-    card: colors.surface,
-    text: colors.textPrimary,
-    border: colors.border,
-    notification: colors.primary,
-  },
-};
-
+import { useAppTheme, useThemeStore } from './src/theme/themeStore';
 import { AppAlert } from './src/components/common/AppAlert';
 
 export default function App() {
+  const { theme, isDark } = useAppTheme();
   useAppUpdateChecker();
+
+  const navigationTheme = React.useMemo(() => {
+    const baseNavTheme = isDark ? DarkTheme : DefaultTheme;
+    return {
+      ...baseNavTheme,
+      dark: isDark,
+      colors: {
+        ...baseNavTheme.colors,
+        primary: theme.primary,
+        background: theme.background,
+        card: theme.surface,
+        text: theme.textPrimary,
+        border: theme.border,
+        notification: theme.primary,
+      },
+    };
+  }, [theme, isDark]);
   useEffect(() => {
+    useThemeStore.getState().initTheme();
     configService.fetchConfig().then(() => {
       if ((Platform.OS === 'ios' || Platform.OS === 'android') && AppEnvironment.hasMapboxToken) {
         try {
@@ -88,10 +94,10 @@ export default function App() {
     <SafeAreaProvider>
       <NavigationContainer
         ref={navigationRef}
-        theme={CustomLightTheme}
+        theme={navigationTheme}
         linking={{ enabled: false, prefixes: [] }}
       >
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <RootNavigator />
       </NavigationContainer>
       <AppAlert />
