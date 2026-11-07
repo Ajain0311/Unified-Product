@@ -64,8 +64,11 @@ export const MarketplaceHomeScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      loadListings();
-    }, [loadListings])
+      // Fast cached navigation: only fetch if not yet loaded or when manually requested
+      if (serverListings.length === 0) {
+        loadListings();
+      }
+    }, [loadListings, serverListings.length])
   );
 
   const allListings = useMemo(() => {

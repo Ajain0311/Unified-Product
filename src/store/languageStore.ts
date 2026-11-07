@@ -75,37 +75,40 @@ export interface LanguageState {
   language: LanguageCode;
   t: (key: string, fallback?: string) => string;
   translations: Record<string, string>;
-  setLanguage: (lang: LanguageCode) => Promise<void>;
-  toggleLanguage: () => Promise<void>;
+  setLanguage: (lang: LanguageCode) => void;
+  toggleLanguage: () => void;
   initLanguage: () => Promise<void>;
 }
 
 export const useLanguageStore = create<LanguageState>((set, get) => {
-  const getTranslator = (lang: LanguageCode) => {
-    return (key: string, fallback?: string): string => {
-      return TRANSLATIONS[lang]?.[key] || fallback || key;
-    };
+  const translators: Record<LanguageCode, (key: string, fallback?: string) => string> = {
+    en: (key: string, fallback?: string) => TRANSLATIONS.en[key] || fallback || key,
+    hi: (key: string, fallback?: string) => TRANSLATIONS.hi[key] || fallback || key,
   };
 
   return {
     currentLanguage: 'en',
     language: 'en',
     translations: TRANSLATIONS.en,
-    t: getTranslator('en'),
+    t: translators.en,
 
-    setLanguage: async (lang: LanguageCode) => {
-      await AsyncStorage.setItem('superapp_language', lang);
+    setLanguage: (lang: LanguageCode) => {
+      // 1. Immediate synchronous UI state transition (0ms latency)
       set({
         currentLanguage: lang,
         language: lang,
         translations: TRANSLATIONS[lang] || TRANSLATIONS.en,
-        t: getTranslator(lang),
+        t: translators[lang] || translators.en,
+      });
+      // 2. Non-blocking asynchronous persistence in background
+      AsyncStorage.setItem('superapp_language', lang).catch((err) => {
+        console.warn('[LanguageStore] Failed to persist language:', err);
       });
     },
 
-    toggleLanguage: async () => {
+    toggleLanguage: () => {
       const next: LanguageCode = get().currentLanguage === 'en' ? 'hi' : 'en';
-      await get().setLanguage(next);
+      get().setLanguage(next);
     },
 
     initLanguage: async () => {
@@ -115,7 +118,7 @@ export const useLanguageStore = create<LanguageState>((set, get) => {
           currentLanguage: saved,
           language: saved,
           translations: TRANSLATIONS[saved] || TRANSLATIONS.en,
-          t: getTranslator(saved),
+          t: translators[saved] || translators.en,
         });
       }
     },

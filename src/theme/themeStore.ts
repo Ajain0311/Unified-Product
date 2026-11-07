@@ -111,8 +111,8 @@ interface ThemeState {
   isDark: boolean;
   colors: ThemePalette;
   theme: ThemePalette;
-  setMode: (mode: ThemeMode) => Promise<void>;
-  toggleTheme: () => Promise<void>;
+  setMode: (mode: ThemeMode) => void;
+  toggleTheme: () => void;
   initTheme: () => Promise<void>;
 }
 
@@ -126,20 +126,24 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   colors: initialPalette,
   theme: initialPalette,
 
-  setMode: async (mode: ThemeMode) => {
-    await AsyncStorage.setItem('superapp_theme_mode', mode);
+  setMode: (mode: ThemeMode) => {
     const chosenColors = mode === 'dark' ? darkTheme : lightTheme;
+    // 1. Immediate synchronous UI state transition (0ms latency)
     set({
       mode,
       isDark: mode === 'dark',
       colors: chosenColors,
       theme: chosenColors,
     });
+    // 2. Non-blocking asynchronous persistence in background
+    AsyncStorage.setItem('superapp_theme_mode', mode).catch((err) => {
+      console.warn('[ThemeStore] Failed to persist theme:', err);
+    });
   },
 
-  toggleTheme: async () => {
+  toggleTheme: () => {
     const next: ThemeMode = get().mode === 'dark' ? 'light' : 'dark';
-    await get().setMode(next);
+    get().setMode(next);
   },
 
   initTheme: async () => {

@@ -650,6 +650,8 @@ public class FoodOrdersController : ControllerBase
             return Unauthorized(ApiResponse<FoodCheckoutResultDto>.Fail("Authentication required"));
 
         var orders = await _db.FoodOrders
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(o => o.Restaurant)
             .Include(o => o.Address)
             .Include(o => o.Items)

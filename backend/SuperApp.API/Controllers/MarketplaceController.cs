@@ -53,6 +53,7 @@ public class MarketplaceController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<MarketplaceCategoryDto>>>> GetCategories()
     {
         var categories = await _db.MarketplaceCategories
+            .AsNoTracking()
             .Where(c => c.IsActive)
             .OrderBy(c => c.SortOrder)
             .Select(c => new MarketplaceCategoryDto
@@ -91,6 +92,7 @@ public class MarketplaceController : ControllerBase
             : new List<long>();
 
         var query = _db.MarketplaceListings
+            .AsNoTracking()
             .Include(l => l.Category)
             .Include(l => l.Images)
             .Where(l => l.IsActive && l.Status == ListingStatus.Active)

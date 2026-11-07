@@ -43,17 +43,19 @@ import { useAppTheme } from '../theme/themeStore';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export const RootNavigator: React.FC = () => {
+const RootNavigatorComponent: React.FC = () => {
   const { theme } = useAppTheme();
+
+  const screenOptions = React.useMemo(() => ({
+    headerShown: false,
+    animation: 'slide_from_right' as const,
+    contentStyle: { backgroundColor: theme.background },
+  }), [theme.background]);
 
   return (
     <Stack.Navigator
       initialRouteName="Splash"
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_right',
-        contentStyle: { backgroundColor: theme.background },
-      }}
+      screenOptions={screenOptions}
     >
       <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="PhoneEntry" component={PhoneEntryScreen} />
@@ -94,3 +96,5 @@ export const RootNavigator: React.FC = () => {
     </Stack.Navigator>
   );
 };
+
+export const RootNavigator = React.memo(RootNavigatorComponent);

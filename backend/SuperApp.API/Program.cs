@@ -88,6 +88,7 @@ else if (string.Equals(dbProvider, "Postgres", StringComparison.OrdinalIgnoreCas
                     maxRetryDelay: TimeSpan.FromSeconds(5), 
                     errorCodesToAdd: null);
                 npgsqlOptions.CommandTimeout(30);
+                npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
             });
             options.UseSnakeCaseNamingConvention();
         });
@@ -108,6 +109,7 @@ else
                 maxRetryDelay: TimeSpan.FromSeconds(5), 
                 errorNumbersToAdd: null);
             sqlOptions.CommandTimeout(30);
+            sqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
         }));
 }
 

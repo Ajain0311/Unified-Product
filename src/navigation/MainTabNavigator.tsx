@@ -23,7 +23,7 @@ import { AdminDashboardScreen } from '../features/admin/AdminDashboardScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-export const MainTabNavigator: React.FC = () => {
+const MainTabNavigatorComponent: React.FC = () => {
   const { activeRole } = useRoleStore();
   const { theme, isDark } = useAppTheme();
   const config = ROLE_CONFIGS[activeRole] || ROLE_CONFIGS.CUSTOMER;
@@ -33,34 +33,36 @@ export const MainTabNavigator: React.FC = () => {
   const activeColor = config.color;
   const inactiveColor = theme.textTertiary;
 
+  const screenOptions = React.useMemo(() => ({
+    headerShown: false,
+    sceneStyle: { backgroundColor: theme.background },
+    tabBarStyle: {
+      backgroundColor: theme.tabBarBg,
+      borderTopColor: theme.cardBorder,
+      borderTopWidth: 1,
+      height: 54 + bottomInset,
+      paddingBottom: bottomInset,
+      paddingTop: 6,
+      elevation: 8,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: isDark ? 0.3 : 0.05,
+      shadowRadius: 6,
+    },
+    tabBarActiveTintColor: activeColor,
+    tabBarInactiveTintColor: inactiveColor,
+    tabBarLabelStyle: {
+      fontSize: 10,
+      fontWeight: '700' as const,
+      marginTop: 2,
+    },
+  }), [theme.background, theme.tabBarBg, theme.cardBorder, isDark, activeColor, inactiveColor, bottomInset]);
+
   return (
     <Tab.Navigator
       key={activeRole}
       safeAreaInsets={{ bottom: 0 }}
-      screenOptions={{
-        headerShown: false,
-        sceneStyle: { backgroundColor: theme.background },
-        tabBarStyle: {
-          backgroundColor: theme.tabBarBg,
-          borderTopColor: theme.cardBorder,
-          borderTopWidth: 1,
-          height: 54 + bottomInset,
-          paddingBottom: bottomInset,
-          paddingTop: 6,
-          elevation: 8,
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: isDark ? 0.3 : 0.05,
-          shadowRadius: 6,
-        },
-        tabBarActiveTintColor: activeColor,
-        tabBarInactiveTintColor: inactiveColor,
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '700',
-          marginTop: 2,
-        },
-      }}
+      screenOptions={screenOptions}
     >
       {activeRole === 'CUSTOMER' && (
         <>
@@ -278,6 +280,8 @@ export const MainTabNavigator: React.FC = () => {
     </Tab.Navigator>
   );
 };
+
+export const MainTabNavigator = React.memo(MainTabNavigatorComponent);
 
 const styles = StyleSheet.create({
   iconWrapper: {

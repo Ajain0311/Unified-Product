@@ -15,9 +15,33 @@ interface GitHubReleaseResponse {
   }>;
 }
 
-const GITHUB_REPO = 'Ajain0311/SuperApp_V2';
+const GITHUB_REPO = 'Ajain0311/Unified-Product';
 const DISMISSED_TAG_KEY = '@superapp_dismissed_update_tag';
 const INSTALLED_TAG_KEY = '@superapp_installed_update_tag';
+const LAST_CHECK_TIME_KEY = '@superapp_last_update_check_timestamp';
+const CHECK_THROTTLE_MS = 6 * 60 * 60 * 1000; // Check at most once every 6 hours
+
+export function parseSemver(v: string): [number, number, number] {
+  if (!v) return [0, 0, 0];
+  const clean = v.replace(/^[vV]/, '').split('-')[0].trim();
+  const parts = clean.split('.').map((p) => parseInt(p, 10));
+  return [
+    Number.isFinite(parts[0]) ? parts[0] : 0,
+    Number.isFinite(parts[1]) ? parts[1] : 0,
+    Number.isFinite(parts[2]) ? parts[2] : 0,
+  ];
+}
+
+export function isRemoteVersionNewer(remoteTag: string, installedVersion: string): boolean {
+  const [rMaj, rMin, rPat] = parseSemver(remoteTag);
+  const [iMaj, iMin, iPat] = parseSemver(installedVersion);
+
+  if (rMaj > iMaj) return true;
+  if (rMaj < iMaj) return false;
+  if (rMin > iMin) return true;
+  if (rMin < iMin) return false;
+  return rPat > iPat;
+}
 
 export function useAppUpdateChecker(): void {
   useEffect(() => {
@@ -25,6 +49,14 @@ export function useAppUpdateChecker(): void {
 
     async function checkForUpdate() {
       try {
+        // Throttle check to avoid hitting GitHub API on every screen mount / focus
+        const lastCheckRaw = await AsyncStorage.getItem(LAST_CHECK_TIME_KEY);
+        const lastCheck = lastCheckRaw ? parseInt(lastCheckRaw, 10) : 0;
+        const now = Date.now();
+        if (now - lastCheck < CHECK_THROTTLE_MS) {
+          return;
+        }
+
         const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
           headers: {
             Accept: 'application/vnd.github.v3+json',
@@ -38,12 +70,12 @@ export function useAppUpdateChecker(): void {
 
         if (!latestTag || !isMounted) return;
 
-        // Current version from app config / manifest
+        // Current installed version from app.json / Expo manifest
         const currentVersion =
           Constants.expoConfig?.version ||
           (Constants.manifest as any)?.version ||
           (Constants.manifest2 as any)?.extra?.expoClient?.version ||
-          '1.0.2';
+          '1.0.4';
 
         // Check if user already dismissed or installed this exact release tag
         const [dismissedTag, installedTag] = await Promise.all([
@@ -52,25 +84,24 @@ export function useAppUpdateChecker(): void {
         ]);
 
         if (latestTag === dismissedTag || latestTag === installedTag) {
-          // Already handled or dismissed
           return;
         }
 
-        // Normalize version strings (e.g. "v1.0.2-577906c" -> "1.0.2")
-        const cleanLatest = latestTag.replace(/^v/, '');
-        const cleanCurrent = currentVersion.replace(/^v/, '');
-
-        // If release tag matches or starts with the current version, app is up to date
-        if (
-          cleanLatest === cleanCurrent ||
-          cleanLatest.startsWith(`${cleanCurrent}-`) ||
-          cleanLatest.startsWith(cleanCurrent)
-        ) {
+        // Semver validation: Only prompt if remote version is strictly newer than installed version
+        if (!isRemoteVersionNewer(latestTag, currentVersion)) {
+          // Record check timestamp so we don't re-query GitHub until throttle expires
+          await AsyncStorage.setItem(LAST_CHECK_TIME_KEY, now.toString());
           return;
         }
 
-        const apkAsset = data.assets?.find((a) => a.name.endsWith('.apk'));
+        const apkAsset =
+          data.assets?.find((a) => a.name === 'zupify-release.apk') ||
+          data.assets?.find((a) => a.name === 'app-release.apk') ||
+          data.assets?.find((a) => a.name.endsWith('.apk'));
+
         if (!apkAsset) return;
+
+        await AsyncStorage.setItem(LAST_CHECK_TIME_KEY, now.toString());
 
         Alert.alert(
           'New Update Available! 🚀',
@@ -93,14 +124,14 @@ export function useAppUpdateChecker(): void {
           ],
           { cancelable: true }
         );
-      } catch (err) {
+      } catch {
         // Silent on network failure
       }
     }
 
     const timer = setTimeout(() => {
       void checkForUpdate();
-    }, 2500);
+    }, 3000);
 
     return () => {
       isMounted = false;
@@ -137,7 +168,6 @@ async function downloadAndInstallApk(downloadUrl: string, latestTag: string): Pr
       const cUri = await FileSystem.getContentUriAsync(result.uri);
 
       // FLAG_GRANT_READ_URI_PERMISSION = 1, FLAG_ACTIVITY_NEW_TASK = 0x10000000 (268435456)
-      // Combined flags = 268435457
       await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
         data: cUri,
         flags: 268435457,
@@ -151,7 +181,7 @@ async function downloadAndInstallApk(downloadUrl: string, latestTag: string): Pr
     } catch {
       Alert.alert(
         'Installation Help',
-        'Could not open installer directly. Please allow "Install unknown apps" for RJ09 SEWA in phone settings or download via browser.'
+        'Could not open installer directly. Please allow "Install unknown apps" for Zupify in phone settings or download via browser.'
       );
     }
   }

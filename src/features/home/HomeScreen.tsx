@@ -226,10 +226,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }
       }
 
+      // Bazaar Listings
+      if (listingsRes.status === 'fulfilled') {
+        const raw = listingsRes.value?.data?.data || listingsRes.value?.data;
+        const items = Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [];
+        if (items.length > 0) {
+          setBazaarListings(items.slice(0, 8));
+        }
+      }
+
+      // Live Ride
+      if (ridesRes.status === 'fulfilled') {
+        const rawRides = ridesRes.value?.data?.data || ridesRes.value?.data;
+        const ridesList = Array.isArray(rawRides) ? rawRides : [];
+        const live = ridesList.find(
+          (r: any) =>
+            r.status === 'REQUESTED' ||
+            r.status === 'SEARCHING' ||
+            r.status === 'ACCEPTED' ||
+            r.status === 'ARRIVED' ||
+            r.status === 'STARTED',
+        );
+        setActiveRide(live || null);
+      }
+
+      // Defer Today's Deals loading asynchronously so main feed renders immediately
       if (loadedRests.length > 0) {
         const topRest = loadedRests[0];
-        try {
-          const detailRes = await apiClient.get<any>(ApiEndpoints.food.restaurantDetail(topRest.id));
+        apiClient.get<any>(ApiEndpoints.food.restaurantDetail(topRest.id)).then((detailRes) => {
           const detailData = detailRes?.data?.data || detailRes?.data;
           if (detailData && Array.isArray(detailData.categories)) {
             const deals: TodayDealItem[] = [];
@@ -264,20 +288,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 }
               }
             }
-            setTodayDeals(deals);
+            if (deals.length > 0) {
+              setTodayDeals(deals);
+            }
           }
-        } catch {
-          // Keep default fallback
-        }
-      }
-
-      // Bazaar Listings
-      if (listingsRes.status === 'fulfilled') {
-        const raw = listingsRes.value?.data?.data || listingsRes.value?.data;
-        const items = Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [];
-        if (items.length > 0) {
-          setBazaarListings(items.slice(0, 8));
-        }
+        }).catch(() => {});
       }
 
       // Live Ride

@@ -28,7 +28,7 @@ public class RestaurantsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        var query = _db.Restaurants.Where(r => r.IsActive).AsQueryable();
+        var query = _db.Restaurants.AsNoTracking().Where(r => r.IsActive).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(city))
         {
@@ -194,6 +194,8 @@ public class RestaurantsController : ControllerBase
     public async Task<ActionResult<ApiResponse<RestaurantDetailDto>>> GetRestaurant(long id)
     {
         var restaurant = await _db.Restaurants
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.Categories.Where(c => c.IsActive).OrderBy(c => c.SortOrder))
                 .ThenInclude(c => c.FoodItems.Where(f => f.IsActive).OrderBy(f => f.SortOrder))
                     .ThenInclude(f => f.Variants.Where(v => v.IsActive).OrderBy(v => v.SortOrder))

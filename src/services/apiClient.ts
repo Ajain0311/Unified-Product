@@ -35,10 +35,27 @@ export class ApiError extends Error implements AppError {
   }
 }
 
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+  ttlMs: number;
+}
+
+const CACHEABLE_PREFIXES: Record<string, number> = {
+  'banners': 60000,
+  'categories': 120000,
+  'restaurants': 30000,
+  'config': 300000,
+  'support': 120000,
+  'addresses': 30000,
+};
+
 class ApiClient {
   private client: AxiosInstance;
   private onUnauthorizedCallback: (() => void) | null = null;
   private isDeviceOnline: boolean = true;
+  private cache = new Map<string, CacheEntry>();
+  private inFlightRequests = new Map<string, Promise<any>>();
 
   constructor() {
     this.client = axios.create({
@@ -210,22 +227,85 @@ class ApiClient {
     return new ApiError(error?.message || 'An unexpected application error occurred.');
   }
 
+  private getCacheKey(url: string, config?: AxiosRequestConfig): string {
+    const paramsKey = config?.params ? JSON.stringify(config.params) : '';
+    return `${url}:${paramsKey}`;
+  }
+
+  public clearCache(keyword?: string) {
+    if (!keyword) {
+      this.cache.clear();
+      return;
+    }
+    for (const key of this.cache.keys()) {
+      if (key.includes(keyword)) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  private invalidateCacheOnMutation(url: string) {
+    for (const prefix of Object.keys(CACHEABLE_PREFIXES)) {
+      if (url.includes(prefix)) {
+        this.clearCache(prefix);
+      }
+    }
+  }
+
   async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.get<T>(url, config);
-    return response.data;
+    const cacheKey = this.getCacheKey(url, config);
+    const isNoCache = config?.headers?.['Cache-Control'] === 'no-cache';
+
+    // 1. Instant cache hit check (0ms memory lookup)
+    if (!isNoCache) {
+      const cached = this.cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < cached.ttlMs) {
+        return cached.data;
+      }
+    }
+
+    // 2. In-flight promise reuse to prevent duplicate concurrent network requests
+    if (this.inFlightRequests.has(cacheKey)) {
+      return this.inFlightRequests.get(cacheKey)!;
+    }
+
+    const promise = (async () => {
+      try {
+        const response = await this.client.get<T>(url, config);
+        const data = response.data;
+
+        // Auto-cache common read feeds
+        for (const [prefix, ttl] of Object.entries(CACHEABLE_PREFIXES)) {
+          if (url.includes(prefix)) {
+            this.cache.set(cacheKey, { data, timestamp: Date.now(), ttlMs: ttl });
+            break;
+          }
+        }
+
+        return data;
+      } finally {
+        this.inFlightRequests.delete(cacheKey);
+      }
+    })();
+
+    this.inFlightRequests.set(cacheKey, promise);
+    return promise;
   }
 
   async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    this.invalidateCacheOnMutation(url);
     const response = await this.client.post<T>(url, data, config);
     return response.data;
   }
 
   async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    this.invalidateCacheOnMutation(url);
     const response = await this.client.put<T>(url, data, config);
     return response.data;
   }
 
   async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    this.invalidateCacheOnMutation(url);
     const response = await this.client.delete<T>(url, config);
     return response.data;
   }
