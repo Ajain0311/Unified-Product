@@ -70,7 +70,7 @@ export default function App() {
     // Wire up global 401 unauthorized interceptor to open in-place AuthOtpModal
     apiClient.registerUnauthorizedHandler(() => {
       useAuthModalStore.getState().openAuthModal({
-        title: 'Authentication Expired',
+        title: 'Sign In to Continue',
         subtitle: 'Please verify your phone number to continue seamlessly without losing your progress.',
       });
     });

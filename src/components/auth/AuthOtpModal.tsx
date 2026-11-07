@@ -40,6 +40,9 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
   const [otp, setOtp] = useState('');
   const [fullName, setFullName] = useState('');
   const [isNewUser, setIsNewUser] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [devOtp, setDevOtp] = useState<string | undefined>(undefined);
   const [timerSeconds, setTimerSeconds] = useState(30);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,6 +50,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
 
   const sendOtp = useAuthStore((s: any) => s.sendOtp);
   const verifyOtp = useAuthStore((s: any) => s.verifyOtp);
+  const adminLogin = useAuthStore((s: any) => s.adminLogin);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -57,6 +61,9 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
       setPhone('');
       setOtp('');
       setFullName('');
+      setIsAdmin(false);
+      setAdminPassword('');
+      setShowPassword(false);
       setError(null);
       setIsLoading(false);
       Animated.parallel([
@@ -88,6 +95,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
   const cleanNumber = phone.trim().replace(/\D/g, '');
   const isPhoneValid = cleanNumber.length === 10;
   const isOtpValid = otp.trim().length === 6;
+  const isPasswordValid = adminPassword.trim().length >= 4;
 
   const handleSendOtp = async () => {
     if (!isPhoneValid) {
@@ -99,6 +107,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
     Keyboard.dismiss();
     try {
       const res = await sendOtp(cleanNumber);
+      setIsAdmin(Boolean(res.isAdmin));
       setIsNewUser(Boolean(res.isNewUser));
       setDevOtp(res.devOtp);
       setStep('OTP');
@@ -118,6 +127,10 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
       setError('Please enter a complete 6-digit OTP');
       return;
     }
+    if (isAdmin && !isPasswordValid) {
+      setError('Please enter your admin password');
+      return;
+    }
     if (isNewUser && (!fullName.trim() || fullName.trim().length < 2)) {
       setError('Please enter your full name');
       return;
@@ -126,11 +139,15 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
     setIsLoading(true);
     Keyboard.dismiss();
     try {
-      await verifyOtp(cleanNumber, otp.trim(), isNewUser ? fullName.trim() : undefined);
+      if (isAdmin) {
+        await adminLogin(cleanNumber, adminPassword.trim(), otp.trim());
+      } else {
+        await verifyOtp(cleanNumber, otp.trim(), isNewUser ? fullName.trim() : undefined);
+      }
       onClose();
       onSuccess();
     } catch (err: any) {
-      setError(err?.message || 'Invalid or expired OTP. Please try again.');
+      setError(err?.message || 'Verification failed. Please check your credentials and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -282,6 +299,45 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
                   </View>
                 ) : null}
 
+                {isAdmin ? (
+                  <View style={{ marginBottom: 14 }}>
+                    <View style={styles.adminBadgeRow}>
+                      <Ionicons name="shield-half" size={14} color="#FF5A1F" />
+                      <Text style={[styles.adminBadgeText, { color: '#FF5A1F' }]}>ADMIN ACCOUNT VERIFICATION</Text>
+                    </View>
+                    <Text style={[styles.label, { color: theme.textSecondary }]}>ADMIN PASSWORD</Text>
+                    <View
+                      style={[
+                        styles.passwordContainer,
+                        {
+                          backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#F8FAFC',
+                          borderColor: isPasswordValid ? '#10B981' : theme.cardBorder,
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        style={[styles.passwordInput, { color: theme.textPrimary }]}
+                        placeholder="Enter admin password (e.g. Admin@123)"
+                        placeholderTextColor={theme.textTertiary}
+                        secureTextEntry={!showPassword}
+                        value={adminPassword}
+                        onChangeText={setAdminPassword}
+                        autoCapitalize="none"
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowPassword(!showPassword)}
+                        style={styles.eyeBtn}
+                      >
+                        <Ionicons
+                          name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={18}
+                          color={theme.textTertiary}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null}
+
                 {isNewUser ? (
                   <View style={{ marginBottom: 14 }}>
                     <Text style={[styles.label, { color: theme.textSecondary }]}>YOUR FULL NAME</Text>
@@ -334,9 +390,9 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.primaryBtn, (!isOtpValid || isLoading) && { opacity: 0.6 }]}
+                  style={[styles.primaryBtn, (!isOtpValid || (isAdmin && !isPasswordValid) || isLoading) && { opacity: 0.6 }]}
                   onPress={handleVerifyOtp}
-                  disabled={!isOtpValid || isLoading}
+                  disabled={!isOtpValid || (isAdmin && !isPasswordValid) || isLoading}
                   activeOpacity={0.88}
                 >
                   <LinearGradient
@@ -349,7 +405,9 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
                       <View style={styles.btnRow}>
-                        <Text style={styles.btnText}>Verify & Continue Order</Text>
+                        <Text style={styles.btnText}>
+                          {isAdmin ? 'Login as Admin' : 'Verify & Continue'}
+                        </Text>
                         <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
                       </View>
                     )}
@@ -509,6 +567,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 8,
     marginBottom: 12,
+  },
+  adminBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  adminBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    height: 50,
+    paddingHorizontal: 14,
+  },
+  passwordInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  eyeBtn: {
+    padding: 6,
   },
   phoneChangeRow: {
     flexDirection: 'row',

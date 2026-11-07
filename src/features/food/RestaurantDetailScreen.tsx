@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,7 +25,7 @@ import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthModalStore } from '../../store/authModalStore';
 import { CartItem, FoodItemVariant, FoodItemAddon } from '../../models/food';
-import { apiClient } from '../../services/apiClient';
+import { apiClient, createIdempotencyKey } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { absoluteImageUrl } from '../../services/documentService';
 import { shadowStyle } from '../../utils/platformStyles';
@@ -83,6 +83,8 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [isLoadingMenu, setIsLoadingMenu] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const checkoutIdempotencyRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  const paymentIdempotencyKeysRef = useRef(new Map<string, string>());
 
   const cartItems = useCartStore((state) => state.items);
   const addItemToCart = useCartStore((state) => state.addItem);
@@ -247,7 +249,13 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
         paymentMethod,
         notes: 'Leave at front door',
       };
-      const res = await apiClient.post<any>(ApiEndpoints.food.checkout, payload);
+      const checkoutFingerprint = JSON.stringify({ restaurantId: restaurantNumericId, payload });
+      if (checkoutIdempotencyRef.current?.fingerprint !== checkoutFingerprint) {
+        checkoutIdempotencyRef.current = { fingerprint: checkoutFingerprint, key: createIdempotencyKey() };
+      }
+      const res = await apiClient.post<any>(ApiEndpoints.food.checkout, payload, {
+        headers: { 'Idempotency-Key': checkoutIdempotencyRef.current.key },
+      });
       const data = res.data?.data || res.data;
       const orders = Array.isArray(data?.orders) ? data.orders : data?.id ? [data] : [];
       if (!orders.length || !orders[0]?.id) {
@@ -257,9 +265,17 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
       const orderId = primary.orderNumber || `FO-${primary.id}`;
       const orderNumericId = primary.id;
       if (paymentMethod === 'ONLINE') {
+        const paymentKey = (operation: string) => {
+          const mapKey = `${operation}:${orderNumericId}`;
+          if (!paymentIdempotencyKeysRef.current.has(mapKey))
+            paymentIdempotencyKeysRef.current.set(mapKey, createIdempotencyKey());
+          return paymentIdempotencyKeysRef.current.get(mapKey)!;
+        };
         let pay: any = null;
         try {
-          const payRes = await apiClient.post<any>(ApiEndpoints.food.payOrder(orderNumericId), {});
+          const payRes = await apiClient.post<any>(ApiEndpoints.food.payOrder(orderNumericId), {}, {
+            headers: { 'Idempotency-Key': paymentKey('food-payment') },
+          });
           pay = payRes.data?.data || payRes.data;
         } catch (payErr: any) {
           const status = payErr?.response?.status;
@@ -269,7 +285,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
               currency: 'INR',
               receiptId: String(orderNumericId),
               module: 'FOOD',
-            });
+            }, { headers: { 'Idempotency-Key': paymentKey('payment-intent') } });
             pay = created.data?.data || created.data;
           } else {
             throw payErr;
@@ -291,6 +307,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
         }
       }
       clearCart();
+      checkoutIdempotencyRef.current = null;
       setIsCartVisible(false);
       const checkoutGroupId = data?.checkoutGroupId;
       try {
@@ -315,7 +332,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
       // If 401 unauthorized or authentication expired, open in-place modal and retry
       if (err?.statusCode === 401 || err?.isUnauthorized || String(err?.message || '').toLowerCase().includes('authentication expired') || String(err?.message || '').toLowerCase().includes('unauthorized')) {
         useAuthModalStore.getState().openAuthModal({
-          title: 'Authentication Expired',
+          title: 'Sign In to Complete Order',
           subtitle: 'Please verify your phone number right here to complete your order.',
           onSuccess: () => {
             handlePlaceOrder(couponCode, paymentMethod);
