@@ -109,3 +109,4 @@ const RootNavigatorComponent: React.FC = () => {
 };
 
 export const RootNavigator = React.memo(RootNavigatorComponent);
+export default RootNavigator;
