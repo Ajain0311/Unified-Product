@@ -28,6 +28,7 @@ import { AdminHotelCommissionsScreen } from '../features/admin/AdminHotelCommiss
 import { AdminRestaurantCommissionsScreen } from '../features/admin/AdminRestaurantCommissionsScreen';
 import { AdminRideFaresScreen } from '../features/admin/AdminRideFaresScreen';
 import { AdminRoleApplicationsScreen } from '../features/admin/AdminRoleApplicationsScreen';
+import { AdminWaterSuppliersScreen } from '../features/admin/AdminWaterSuppliersScreen';
 import { RoleApplicationScreen } from '../features/profile/RoleApplicationScreen';
 import {
   HotelHomeScreen,
@@ -39,6 +40,7 @@ import {
 import { BarHubScreen } from '../features/bars/BarHubScreen';
 import { BeverageHubScreen } from '../features/beverages/BeverageHubScreen';
 import { B2BWaterSuppliesScreen } from '../features/supplies/B2BWaterSuppliesScreen';
+import { WaterSupplierDashboardScreen } from '../features/supplies/WaterSupplierDashboardScreen';
 import { ModuleCatalogScreen } from '../features/modules/ModuleCatalogScreen';
 import { GrowWithSuperAppScreen } from '../features/grow/GrowWithSuperAppScreen';
 import { SubmitBusinessRequestScreen } from '../features/grow/SubmitBusinessRequestScreen';
@@ -90,6 +92,7 @@ const RootNavigatorComponent: React.FC = () => {
       <Stack.Screen name="AdminRestaurantCommissions" component={AdminRestaurantCommissionsScreen} />
       <Stack.Screen name="AdminRideFares" component={AdminRideFaresScreen} />
       <Stack.Screen name="AdminRoleApplications" component={AdminRoleApplicationsScreen} />
+      <Stack.Screen name="AdminWaterSuppliers" component={AdminWaterSuppliersScreen} />
       <Stack.Screen name="RoleApplication" component={RoleApplicationScreen} />
       <Stack.Screen name="HotelHome" component={HotelHomeScreen} />
       <Stack.Screen name="HotelDetail" component={HotelDetailScreen} />
@@ -99,6 +102,7 @@ const RootNavigatorComponent: React.FC = () => {
       <Stack.Screen name="BarHub" component={BarHubScreen} />
       <Stack.Screen name="BeverageHub" component={BeverageHubScreen} />
       <Stack.Screen name="B2BWaterSupplies" component={B2BWaterSuppliesScreen} />
+      <Stack.Screen name="WaterSupplierDashboard" component={WaterSupplierDashboardScreen} />
       <Stack.Screen name="ModuleCatalog" component={ModuleCatalogScreen} />
       <Stack.Screen name="GrowWithSuperApp" component={GrowWithSuperAppScreen} />
       <Stack.Screen name="SubmitBusinessRequest" component={SubmitBusinessRequestScreen} />

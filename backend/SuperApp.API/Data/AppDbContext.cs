@@ -13,6 +13,14 @@ public class AppDbContext : DbContext
     public DbSet<OtpRequest> OtpRequests => Set<OtpRequest>();
     public DbSet<Address> Addresses => Set<Address>();
     public DbSet<Restaurant> Restaurants => Set<Restaurant>();
+    public DbSet<BarReservation> BarReservations => Set<BarReservation>();
+    public DbSet<WaterSupplier> WaterSuppliers => Set<WaterSupplier>();
+    public DbSet<WaterProduct> WaterProducts => Set<WaterProduct>();
+    public DbSet<WaterOrder> WaterOrders => Set<WaterOrder>();
+    public DbSet<WaterOrderLine> WaterOrderLines => Set<WaterOrderLine>();
+    public DbSet<WaterInvoice> WaterInvoices => Set<WaterInvoice>();
+    public DbSet<WaterQuote> WaterQuotes => Set<WaterQuote>();
+    public DbSet<WaterQuoteLine> WaterQuoteLines => Set<WaterQuoteLine>();
     public DbSet<RestaurantUser> RestaurantUsers => Set<RestaurantUser>();
     public DbSet<RestaurantCategory> RestaurantCategories => Set<RestaurantCategory>();
     public DbSet<FoodItem> FoodItems => Set<FoodItem>();
@@ -129,6 +137,62 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.City);
             entity.HasIndex(e => e.IsActive);
             entity.HasIndex(e => e.IsFeatured);
+            entity.HasIndex(e => new { e.BusinessType, e.IsActive, e.City });
+        });
+
+        modelBuilder.Entity<BarReservation>(entity =>
+        {
+            entity.HasIndex(e => new { e.RestaurantId, e.ReservationAt, e.Status });
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+            entity.HasOne(e => e.Restaurant).WithMany(r => r.BarReservations).HasForeignKey(e => e.RestaurantId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<WaterSupplier>(entity =>
+        {
+            entity.HasIndex(e => e.UserId).IsUnique();
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.City);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        });
+        modelBuilder.Entity<WaterProduct>(entity =>
+        {
+            entity.HasIndex(e => new { e.SupplierId, e.IsActive });
+            entity.HasOne(e => e.Supplier).WithMany(s => s.Products).HasForeignKey(e => e.SupplierId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<WaterOrder>(entity =>
+        {
+            entity.HasIndex(e => e.OrderNumber).IsUnique();
+            entity.HasIndex(e => new { e.CustomerId, e.CreatedAt });
+            entity.HasIndex(e => new { e.SupplierId, e.Status, e.CreatedAt });
+            entity.HasIndex(e => e.InvoiceNumber).IsUnique();
+            entity.HasOne(e => e.Customer).WithMany().HasForeignKey(e => e.CustomerId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Supplier).WithMany().HasForeignKey(e => e.SupplierId).OnDelete(DeleteBehavior.NoAction);
+        });
+        modelBuilder.Entity<WaterOrderLine>(entity =>
+        {
+            entity.HasIndex(e => e.OrderId);
+            entity.HasOne(e => e.Order).WithMany(o => o.Lines).HasForeignKey(e => e.OrderId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId).OnDelete(DeleteBehavior.NoAction);
+        });
+        modelBuilder.Entity<WaterInvoice>(entity =>
+        {
+            entity.HasIndex(e => e.OrderId).IsUnique();
+            entity.HasIndex(e => e.InvoiceNumber).IsUnique();
+            entity.HasOne(e => e.Order).WithOne(o => o.Invoice).HasForeignKey<WaterInvoice>(e => e.OrderId).OnDelete(DeleteBehavior.NoAction);
+        });
+        modelBuilder.Entity<WaterQuote>(entity =>
+        {
+            entity.HasIndex(e => new { e.CustomerId, e.CreatedAt });
+            entity.HasIndex(e => new { e.SupplierId, e.Status, e.CreatedAt });
+            entity.HasOne(e => e.Customer).WithMany().HasForeignKey(e => e.CustomerId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Supplier).WithMany().HasForeignKey(e => e.SupplierId).OnDelete(DeleteBehavior.NoAction);
+        });
+        modelBuilder.Entity<WaterQuoteLine>(entity =>
+        {
+            entity.HasIndex(e => e.QuoteId);
+            entity.HasOne(e => e.Quote).WithMany(q => q.Lines).HasForeignKey(e => e.QuoteId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId).OnDelete(DeleteBehavior.NoAction);
         });
         
         // RestaurantUser
@@ -484,7 +548,8 @@ public class AppDbContext : DbContext
             new Role { Id = 2, Name = RoleNames.Admin, Description = "System administrator", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
             new Role { Id = 3, Name = RoleNames.RestaurantOwner, Description = "Restaurant owner/manager", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
             new Role { Id = 4, Name = RoleNames.Driver, Description = "Ride driver", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new Role { Id = 5, Name = RoleNames.MarketplaceSeller, Description = "Marketplace seller", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+            new Role { Id = 5, Name = RoleNames.MarketplaceSeller, Description = "Marketplace seller", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Role { Id = 6, Name = RoleNames.WaterSupplier, Description = "Verified water supplier", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
         
         // Seed default admin user (password: Admin@123)

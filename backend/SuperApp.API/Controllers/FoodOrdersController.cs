@@ -77,8 +77,8 @@ public class FoodOrdersController : ControllerBase
             return BadRequest(ApiResponse<FoodOrderDto>.Fail("At least one food item is required"));
 
         var restaurant = await _db.Restaurants.FirstOrDefaultAsync(r => r.Id == request.RestaurantId);
-        if (restaurant == null)
-            return NotFound(ApiResponse<FoodOrderDto>.Fail("Restaurant not found"));
+        if (restaurant == null || restaurant.BusinessType == RestaurantBusinessTypes.Bar)
+            return NotFound(ApiResponse<FoodOrderDto>.Fail("Restaurant not found or ordering is unavailable"));
         if (!restaurant.IsActive)
             return BadRequest(ApiResponse<FoodOrderDto>.Fail("Restaurant is currently closed"));
 
@@ -379,8 +379,8 @@ public class FoodOrdersController : ControllerBase
         var restaurants = await _db.Restaurants.AsNoTracking()
             .Where(item => restaurantIds.Contains(item.Id))
             .ToListAsync(HttpContext.RequestAborted);
-        if (restaurantIds.Count == 0 || restaurants.Count != restaurantIds.Count)
-            return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail("One or more cart items are not available."));
+        if (restaurantIds.Count == 0 || restaurants.Count != restaurantIds.Count || restaurants.Any(restaurant => restaurant.BusinessType == RestaurantBusinessTypes.Bar))
+            return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail("One or more cart items are unavailable or ordering is disabled."));
         var serviceabilityService = new ServiceabilityService(policy);
         foreach (var restaurant in restaurants)
         {

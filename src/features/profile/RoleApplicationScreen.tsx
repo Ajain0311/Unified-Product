@@ -39,6 +39,7 @@ type RoleApp = {
   hotelAddress?: string;
   hotelCity?: string;
   hotelPhone?: string;
+  businessType?: string;
   applicantNotes?: string;
   adminNotes?: string;
   reviewedByAdminName?: string;
@@ -124,6 +125,7 @@ export const RoleApplicationScreen: React.FC = () => {
   const [hotelAddress, setHotelAddress] = useState('');
   const [hotelCity, setHotelCity] = useState('');
   const [hotelPhone, setHotelPhone] = useState('');
+  const [businessType, setBusinessType] = useState<'RESTAURANT' | 'CAFE' | 'BAR'>('RESTAURANT');
   const [notes, setNotes] = useState('');
   const [docUri, setDocUri] = useState<string | null>(null);
   const [docNo, setDocNo] = useState<string | null>(null);
@@ -260,6 +262,7 @@ export const RoleApplicationScreen: React.FC = () => {
             hotelAddress: hotelAddress.trim(),
             hotelCity: hotelCity.trim() || undefined,
             hotelPhone: hotelPhone.trim(),
+            businessType,
             businessDocumentNo: docNo,
             applicantNotes: notes.trim() || undefined,
           }
@@ -269,6 +272,7 @@ export const RoleApplicationScreen: React.FC = () => {
             hotelAddress: hotelAddress.trim(),
             hotelCity: hotelCity.trim() || undefined,
             hotelPhone: hotelPhone.trim(),
+            businessType,
             businessDocumentNo: docNo,
             applicantNotes: notes.trim() || undefined,
           };
@@ -435,7 +439,7 @@ export const RoleApplicationScreen: React.FC = () => {
                         {app.vehicleRegistrationNumber ? ` · ${app.vehicleRegistrationNumber}` : ''}
                       </Text>
                     ) : (
-                      <Text style={styles.summaryLine}>{app.hotelName || 'Outlet'}</Text>
+                      <Text style={styles.summaryLine}>{app.hotelName || 'Outlet'}{app.businessType ? ` · ${app.businessType}` : ''}</Text>
                     )}
                     <Text style={styles.statusMeta}>Submitted: {formatDate(app.createdAt)}</Text>
                     {app.adminNotes ? (
@@ -543,6 +547,22 @@ export const RoleApplicationScreen: React.FC = () => {
                 </>
               ) : (
                 <>
+                  {!isHotelOwner ? (
+                    <>
+                      <Text style={styles.label}>Business type *</Text>
+                      <View style={styles.chipRow}>
+                        {([
+                          ['RESTAURANT', 'Restaurant'],
+                          ['CAFE', 'Cafe'],
+                          ['BAR', 'Bar & Lounge'],
+                        ] as const).map(([value, label]) => (
+                          <TouchableOpacity key={value} style={[styles.chip, businessType === value && styles.chipActive]} onPress={() => setBusinessType(value)}>
+                            <Text style={[styles.chipText, businessType === value && styles.chipTextActive]}>{label}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </>
+                  ) : null}
                   <Text style={styles.label}>Hotel / Cafe / Restaurant Name *</Text>
                   <TextInput
                     style={styles.input}

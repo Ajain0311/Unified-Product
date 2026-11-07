@@ -1,4 +1,5 @@
 using SuperApp.API.Services;
+using SuperApp.API.Models;
 using System.ComponentModel.DataAnnotations;
 
 namespace SuperApp.API.DTOs;
@@ -8,6 +9,7 @@ namespace SuperApp.API.DTOs;
 public class RestaurantSummaryDto
 {
     public long Id { get; set; }
+    public string BusinessType { get; set; } = RestaurantBusinessTypes.Restaurant;
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? ImageUrl { get; set; }

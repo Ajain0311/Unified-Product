@@ -1,5 +1,6 @@
 export interface RestaurantSummary {
   id: number;
+  businessType?: 'RESTAURANT' | 'CAFE' | 'BAR' | string;
   name: string;
   description?: string;
   imageUrl?: string;
@@ -60,6 +61,7 @@ export interface RestaurantCategory {
 
 export interface RestaurantDetail {
   id: number;
+  businessType?: 'RESTAURANT' | 'CAFE' | 'BAR' | string;
   name: string;
   description?: string;
   imageUrl?: string;

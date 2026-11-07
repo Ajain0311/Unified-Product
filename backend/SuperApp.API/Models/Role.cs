@@ -32,4 +32,5 @@ public static class RoleNames
     public const string RestaurantOwner = "RESTAURANT_OWNER";
     public const string Driver = "DRIVER";
     public const string MarketplaceSeller = "MARKETPLACE_SELLER";
+    public const string WaterSupplier = "WATER_SUPPLIER";
 }

@@ -20,6 +20,38 @@ export const ApiEndpoints = {
     validateCoupon: '/coupons/validate',
   },
 
+  bars: {
+    venues: '/bars',
+    availability: (id: number | string) => `/bars/${id}/availability`,
+    createReservation: '/bars/reservations',
+    myReservations: '/bars/reservations/mine',
+    cancelReservation: (id: number | string) => `/bars/reservations/${id}/cancel`,
+    ownerReservations: '/bars/owner/reservations',
+    ownerReservationStatus: (id: number | string) => `/bars/owner/reservations/${id}/status`,
+    ownerSettings: (id: number | string) => `/bars/owner/${id}/reservation-settings`,
+  },
+
+  water: {
+    products: '/water/products',
+    applySupplier: '/water/supplier/application',
+    supplier: '/water/supplier/mine',
+    supplierProducts: '/water/supplier/products',
+    supplierOrders: '/water/supplier/orders',
+    createProduct: '/water/supplier/products',
+    product: (id: number | string) => `/water/supplier/products/${id}`,
+    orders: '/water/orders',
+    myOrders: '/water/orders/mine',
+    quotes: '/water/quotes',
+    myQuotes: '/water/quotes/mine',
+    supplierQuotes: '/water/supplier/quotes',
+    offerQuote: (id: number | string) => `/water/supplier/quotes/${id}/offer`,
+    acceptQuote: (id: number | string) => `/water/quotes/${id}/accept`,
+    cancelOrder: (id: number | string) => `/water/orders/${id}/cancel`,
+    updateOrderStatus: (id: number | string) => `/water/supplier/orders/${id}/status`,
+    adminSuppliers: '/water/admin/suppliers',
+    reviewSupplier: (id: number | string) => `/water/admin/suppliers/${id}/review`,
+  },
+
   // Ride
   ride: {
     estimate: '/rides/estimate',

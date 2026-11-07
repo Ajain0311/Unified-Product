@@ -40,6 +40,9 @@ public class SubmitRoleApplicationRequest
     [MaxLength(20)]
     public string? HotelPhone { get; set; }
 
+    [MaxLength(24)]
+    public string? BusinessType { get; set; }
+
     [MaxLength(40)]
     public string? BusinessDocumentNo { get; set; }
 
@@ -72,6 +75,7 @@ public class RoleApplicationDto
     public string? HotelAddress { get; set; }
     public string? HotelCity { get; set; }
     public string? HotelPhone { get; set; }
+    public string? BusinessType { get; set; }
     public string? BusinessDocumentNo { get; set; }
     public string? BusinessDocumentImageUrl { get; set; }
     public string? ApplicantNotes { get; set; }

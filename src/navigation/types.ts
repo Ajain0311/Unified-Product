@@ -78,6 +78,7 @@ export type RootStackParamList = {
   AdminRestaurantCommissions: undefined;
   AdminRideFares: undefined;
   AdminRoleApplications: undefined;
+  AdminWaterSuppliers: undefined;
   RoleApplication: { role: 'DRIVER' | 'RESTAURANT_OWNER' | 'HOTEL_OWNER' };
   HotelHome: undefined;
   HotelDetail: { hotelId: string };
@@ -87,6 +88,7 @@ export type RootStackParamList = {
   BarHub: undefined;
   BeverageHub: undefined;
   B2BWaterSupplies: undefined;
+  WaterSupplierDashboard: undefined;
   ModuleCatalog: undefined;
   GrowWithSuperApp: undefined;
   SubmitBusinessRequest: {

@@ -57,6 +57,9 @@ public class RoleApplication
     [MaxLength(20)]
     public string? HotelPhone { get; set; }
 
+    [MaxLength(24)]
+    public string? BusinessType { get; set; }
+
     /// <summary>Business registration / FSSAI / shop license document in documents table.</summary>
     [MaxLength(40)]
     public string? BusinessDocumentNo { get; set; }

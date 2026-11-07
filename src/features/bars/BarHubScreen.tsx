@@ -1,384 +1,159 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  StatusBar,
-  Alert,
-} from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Modal, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { RootStackParamList } from '../../navigation/types';
+import { RestaurantSummary } from '../../models/food';
+import { apiClient, createIdempotencyKey } from '../../services/apiClient';
+import { ApiEndpoints } from '../../constants/api';
 import { useAppTheme } from '../../theme/themeStore';
-import { useLanguageStore } from '../../store/languageStore';
-import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthModalStore } from '../../store/authModalStore';
+import { AppRadius, AppSpacing } from '../../theme/spacing';
 
-interface BarVenue {
-  id: string;
-  name: string;
-  tagline: string;
-  rating: number;
-  location: string;
-  cover: string;
-  badge: string;
-  happyHours: string;
-  category: 'Rooftops' | 'Craft Beer' | 'Live Music' | 'Cocktails';
-  priceLevel: string;
-}
-
-const CURATED_BARS: BarVenue[] = [
-  {
-    id: 'bar-01',
-    name: 'Skyline Rooftop Lounge & Bar',
-    tagline: 'Artisanal cocktails with 360° panoramic city skyline views',
-    rating: 4.8,
-    location: 'Civil Lines, Jaipur',
-    cover: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&auto=format&fit=crop',
-    badge: 'Trending',
-    happyHours: '4 PM - 8 PM',
-    category: 'Rooftops',
-    priceLevel: '₹₹₹',
-  },
-  {
-    id: 'bar-02',
-    name: 'The Malt House & Brewery',
-    tagline: 'Freshly crafted Belgian wits, IPAs & live acoustic Friday jams',
-    rating: 4.7,
-    location: 'C-Scheme, Jaipur',
-    cover: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=800&auto=format&fit=crop',
-    badge: 'Microbrewery',
-    happyHours: '5 PM - 9 PM',
-    category: 'Craft Beer',
-    priceLevel: '₹₹',
-  },
-  {
-    id: 'bar-03',
-    name: 'Velvet & Vines Speakeasy',
-    tagline: 'Prohibition-era inspired hidden cellar with curated single malts',
-    rating: 4.9,
-    location: 'Malviya Nagar, Jaipur',
-    cover: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=800&auto=format&fit=crop',
-    badge: 'Exclusive',
-    happyHours: '6 PM - 9 PM',
-    category: 'Cocktails',
-    priceLevel: '₹₹₹₹',
-  },
-  {
-    id: 'bar-04',
-    name: 'Echoes Jazz & Blues Club',
-    tagline: 'Intimate candlelight tables, tapas & touring international artists',
-    rating: 4.6,
-    location: 'Tonk Road, Jaipur',
-    cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&auto=format&fit=crop',
-    badge: 'Live Stage',
-    happyHours: '4 PM - 7 PM',
-    category: 'Live Music',
-    priceLevel: '₹₹',
-  },
-];
-
-const CATEGORIES = ['All', 'Rooftops', 'Craft Beer', 'Cocktails', 'Live Music'] as const;
+type Reservation = { id: number; restaurantName: string; reservationAt: string; partySize: number; status: string };
+const localDateTime = (date: Date) => {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+const parseLocalDateTime = (value: string): Date | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const [, y, m, d, h, min] = match.map(Number);
+  const date = new Date(y, m - 1, d, h, min);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 
 export const BarHubScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, isDark } = useAppTheme();
-  const { language } = useLanguageStore();
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [venues, setVenues] = useState<RestaurantSummary[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [selected, setSelected] = useState<RestaurantSummary | null>(null);
+  const [reservationAt, setReservationAt] = useState('');
+  const [partySize, setPartySize] = useState('2');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredBars = CURATED_BARS.filter(
-    (b) => selectedCategory === 'All' || b.category === selectedCategory
-  );
+  const load = useCallback(async (refresh = false) => {
+    refresh ? setRefreshing(true) : setLoading(true);
+    setError(null);
+    try {
+      const [venuesResult, reservationsResult] = await Promise.all([
+        apiClient.get<any>(ApiEndpoints.bars.venues, { params: { page: 1, pageSize: 30 } }),
+        useAuthStore.getState().isAuthenticated ? apiClient.get<any>(ApiEndpoints.bars.myReservations) : Promise.resolve(null),
+      ]);
+      const venuePayload = venuesResult?.data ?? venuesResult;
+      const list = venuePayload?.items ?? venuePayload?.data?.items ?? [];
+      if (!Array.isArray(list)) throw new Error('Bar catalogue response was invalid');
+      setVenues(list);
+      const reservationPayload = reservationsResult?.data?.data ?? reservationsResult?.data ?? [];
+      setReservations(Array.isArray(reservationPayload) ? reservationPayload : []);
+    } catch (e: any) {
+      setError(e?.message || 'Could not load bars and lounges.');
+    } finally { setLoading(false); setRefreshing(false); }
+  }, []);
 
-  const handleReserve = (bar: BarVenue) => {
-    Alert.alert(
-      language === 'hi' ? 'टेबल आरक्षण' : 'VIP Table Reservation',
-      language === 'hi'
-        ? `${bar.name} में टेबल आरक्षित करने के लिए आपका अनुरोध दर्ज हो गया है। होटल टीम पुष्टि करेगी।`
-        : `Your VIP table booking request for "${bar.name}" has been placed. Priority entry confirmation will arrive shortly.`,
-      [{ text: 'OK' }]
-    );
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  const openReservation = (venue: RestaurantSummary) => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    date.setHours(19, 0, 0, 0);
+    setReservationAt(localDateTime(date));
+    setPartySize('2');
+    setSelected(venue);
   };
 
+  const reserve = async (venue: RestaurantSummary) => {
+    if (!useAuthStore.getState().isAuthenticated) {
+      useAuthModalStore.getState().openAuthModal({
+        title: 'Sign in to reserve',
+        subtitle: 'Verify your phone number to request a table.',
+        onSuccess: () => { void reserve(venue); },
+      });
+      return;
+    }
+    const date = parseLocalDateTime(reservationAt);
+    const count = Number(partySize);
+    if (!date || date <= new Date() || !Number.isInteger(count) || count < 1) {
+      Alert.alert('Check reservation details', 'Enter a future local date and time, and a party size of at least one.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const availabilityResponse: any = await apiClient.get(ApiEndpoints.bars.availability(venue.id), { params: { reservationAt: date.toISOString(), partySize: count }, headers: { 'Cache-Control': 'no-cache' } });
+      const availability = availabilityResponse?.data?.data ?? availabilityResponse?.data;
+      if (!availability?.available) {
+        Alert.alert('Unavailable', 'This venue does not have enough seating for the selected time.');
+        return;
+      }
+      await apiClient.post(ApiEndpoints.bars.createReservation, { restaurantId: venue.id, reservationAt: date.toISOString(), partySize: count }, { headers: { 'Idempotency-Key': createIdempotencyKey() } });
+      setSelected(null);
+      Alert.alert('Request sent', 'The venue will review your reservation request.');
+      await load(true);
+    } catch (e: any) {
+      Alert.alert('Could not reserve', e?.message || 'Please try again.');
+    } finally { setSubmitting(false); }
+  };
+
+  const cancelReservation = (id: number) => Alert.alert('Cancel reservation?', 'This will send a cancellation to the venue.', [
+    { text: 'Keep', style: 'cancel' },
+    { text: 'Cancel reservation', style: 'destructive', onPress: async () => {
+      try { await apiClient.post(ApiEndpoints.bars.cancelReservation(id), {}); await load(true); }
+      catch (e: any) { Alert.alert('Could not cancel', e?.message || 'Please try again.'); }
+    } },
+  ]);
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
-      {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backBtn, { backgroundColor: theme.chipBg, borderColor: theme.cardBorder }]}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="arrow-back" size={20} color={theme.textPrimary} />
-        </TouchableOpacity>
-
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-            {language === 'hi' ? 'बार्स और लाउंज' : 'Bars & Nightlife Lounges'}
-          </Text>
-          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-            {language === 'hi'
-              ? 'नाइटलाइफ़, कॉकटेल बार्स एवं वीआईपी रिजर्वेशन'
-              : 'Premium craft breweries, speakeasies & VIP reservations'}
-          </Text>
-        </View>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}><Ionicons name="arrow-back" size={20} color={theme.textPrimary} /></TouchableOpacity>
+        <View style={{ flex: 1 }}><Text style={[styles.title, { color: theme.textPrimary }]}>Bars & Lounges</Text><Text style={[styles.subtitle, { color: theme.textSecondary }]}>Verified venues and table reservations</Text></View>
       </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* VIP Access Scrim Banner */}
-        <View
-          style={[
-            styles.vipBanner,
-            { backgroundColor: isDark ? '#581C8725' : '#FAF5FF', borderColor: '#7C3AED44' },
-          ]}
-        >
-          <View style={styles.vipIconWrap}>
-            <Ionicons name="wine" size={20} color="#7C3AED" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.vipTitle, { color: '#7C3AED' }]}>
-              {language === 'hi' ? 'वीआईपी टेबल और प्रायोरिटी एंट्री' : 'VIP Tables & Guest Passes'}
-            </Text>
-            <Text style={[styles.vipDesc, { color: theme.textSecondary }]}>
-              {language === 'hi'
-                ? 'कपल एंट्री, कॉर्पोरेट बुकिंग्स और वीकेंड लाइव म्यूजिक शो'
-                : 'Skip the line, reserve private tables, and access curated craft brews.'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Filter Pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryScroll}
-        >
-          {CATEGORIES.map((cat) => {
-            const active = selectedCategory === cat;
-            return (
-              <TouchableOpacity
-                key={cat}
-                style={[
-                  styles.filterPill,
-                  {
-                    backgroundColor: active ? '#7C3AED' : theme.card,
-                    borderColor: active ? '#7C3AED' : theme.cardBorder,
-                  },
-                  AppShadows.subtle,
-                ]}
-                onPress={() => setSelectedCategory(cat)}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.filterPillText,
-                    { color: active ? '#FFFFFF' : theme.textPrimary, fontWeight: active ? '700' : '500' },
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-          {language === 'hi' ? 'लोकप्रिय बार्स और क्लब्स' : 'Featured Nightlife Venues'}
-        </Text>
-
-        {filteredBars.map((item) => (
-          <View
-            key={item.id}
-            style={[
-              styles.barCard,
-              { backgroundColor: theme.card, borderColor: theme.cardBorder },
-              AppShadows.md,
-            ]}
-          >
-            <View style={styles.imageWrap}>
-              <Image source={{ uri: item.cover }} style={styles.barCover} resizeMode="cover" />
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.badge}</Text>
-              </View>
-              <View style={styles.pricePill}>
-                <Text style={styles.priceText}>{item.priceLevel}</Text>
-              </View>
-            </View>
-
-            <View style={styles.cardBody}>
-              <View style={styles.row}>
-                <Text style={[styles.barName, { color: theme.textPrimary }]} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <View style={styles.ratingBadge}>
-                  <Ionicons name="star" size={11} color="#FFF" />
-                  <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
-                </View>
-              </View>
-
-              <Text style={[styles.barTagline, { color: theme.textSecondary }]} numberOfLines={2}>
-                {item.tagline}
-              </Text>
-
-              <View style={styles.locRow}>
-                <Ionicons
-                  name="location-outline"
-                  size={13}
-                  color={theme.textTertiary}
-                  style={{ marginRight: 4 }}
-                />
-                <Text style={[styles.locText, { color: theme.textTertiary }]}>{item.location}</Text>
-              </View>
-
-              <View style={styles.happyHourRow}>
-                <Ionicons name="time-outline" size={13} color="#7C3AED" style={{ marginRight: 5 }} />
-                <Text style={styles.happyHourText}>Happy Hours: {item.happyHours}</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.reserveBtn}
-                onPress={() => handleReserve(item)}
-                activeOpacity={0.88}
-              >
-                <Text style={styles.reserveBtnText}>
-                  {language === 'hi' ? 'टेबल आरक्षित करें' : 'Reserve a Table'}
-                </Text>
-                <Ionicons name="arrow-forward" size={14} color="#FFF" />
-              </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}>
+        {loading ? <ActivityIndicator style={styles.state} color={theme.primary} /> : null}
+        {!loading && error ? <View style={styles.state}><Text style={[styles.message, { color: theme.textSecondary }]}>{error}</Text><TouchableOpacity onPress={() => load()}><Text style={{ color: theme.primary, fontWeight: '700' }}>Try again</Text></TouchableOpacity></View> : null}
+        {!loading && !error && venues.length === 0 ? <View style={styles.state}><Ionicons name="wine-outline" size={34} color={theme.textTertiary} /><Text style={[styles.message, { color: theme.textSecondary }]}>No approved bars or lounges are available yet.</Text></View> : null}
+        {venues.map((venue) => <View key={venue.id} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          {venue.imageUrl ? <Image source={{ uri: venue.imageUrl }} style={styles.image} /> : <View style={[styles.image, styles.imageBlank, { backgroundColor: theme.chipBg }]}><Ionicons name="wine" size={30} color={theme.textTertiary} /></View>}
+          <View style={styles.cardBody}>
+            <Text style={[styles.venueName, { color: theme.textPrimary }]}>{venue.name}</Text>
+            <Text style={[styles.detail, { color: theme.textSecondary }]}>{venue.description || venue.addressLine || venue.city || 'Venue details and opening information'}</Text>
+            <View style={styles.meta}><Ionicons name="star" size={13} color="#D19326" /><Text style={[styles.rating, { color: theme.textPrimary }]}>{venue.rating.toFixed(1)}</Text><Text style={[styles.city, { color: theme.textTertiary }]}>{venue.city || ''}</Text></View>
+            <View style={styles.actions}>
+              <TouchableOpacity onPress={() => navigation.navigate('RestaurantDetail', { restaurantId: String(venue.id) })} style={[styles.secondaryButton, { borderColor: theme.cardBorder }]}><Text style={[styles.secondaryText, { color: theme.textPrimary }]}>View venue</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => openReservation(venue)} style={[styles.primaryButton, { backgroundColor: theme.primary }]}><Text style={styles.primaryText}>Reserve</Text></TouchableOpacity>
             </View>
           </View>
-        ))}
+        </View>)}
+        {reservations.length > 0 ? <><Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Your reservations</Text>{reservations.map((item) => <View key={item.id} style={[styles.reservation, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}><View style={{ flex: 1 }}><Text style={[styles.venueName, { color: theme.textPrimary }]}>{item.restaurantName}</Text><Text style={[styles.detail, { color: theme.textSecondary }]}>{new Date(item.reservationAt).toLocaleString()} · {item.partySize} guests · {item.status}</Text></View>{!['CANCELLED', 'REJECTED', 'COMPLETED'].includes(item.status) ? <TouchableOpacity onPress={() => cancelReservation(item.id)}><Text style={{ color: '#B54747', fontWeight: '700' }}>Cancel</Text></TouchableOpacity> : null}</View>)}</> : null}
       </ScrollView>
+      <Modal visible={!!selected} transparent animationType="fade" onRequestClose={() => setSelected(null)}>
+        <View style={styles.modalBackdrop}><View style={[styles.modalCard, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Reserve at {selected?.name}</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Local date and time (YYYY-MM-DDTHH:mm)</Text>
+          <TextInput value={reservationAt} onChangeText={setReservationAt} autoCapitalize="none" placeholder="2026-11-09T19:00" placeholderTextColor={theme.textTertiary} style={[styles.input, { color: theme.textPrimary, borderColor: theme.cardBorder }]} />
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Party size</Text>
+          <TextInput value={partySize} onChangeText={setPartySize} keyboardType="number-pad" style={[styles.input, { color: theme.textPrimary, borderColor: theme.cardBorder }]} />
+          <View style={styles.actions}><TouchableOpacity onPress={() => setSelected(null)} style={[styles.secondaryButton, { borderColor: theme.cardBorder }]}><Text style={[styles.secondaryText, { color: theme.textPrimary }]}>Close</Text></TouchableOpacity><TouchableOpacity disabled={submitting} onPress={() => selected && reserve(selected)} style={[styles.primaryButton, { backgroundColor: theme.primary, opacity: submitting ? 0.7 : 1 }]}>{submitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>Check and request</Text>}</TouchableOpacity></View>
+        </View></View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: AppSpacing.lg,
-    paddingVertical: AppSpacing.md,
-    borderBottomWidth: 1,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: AppSpacing.md,
-  },
-  headerTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
-  headerSubtitle: { fontSize: 11, marginTop: 1 },
-  scrollContent: {
-    paddingHorizontal: AppSpacing.lg,
-    paddingTop: AppSpacing.md,
-    paddingBottom: AppSpacing.huge,
-  },
-  vipBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: AppSpacing.md,
-    borderRadius: AppRadius.lg,
-    borderWidth: 1,
-    marginBottom: AppSpacing.md,
-  },
-  vipIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: AppRadius.md,
-    backgroundColor: '#7C3AED20',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  vipTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
-  vipDesc: { fontSize: 11, lineHeight: 15 },
-  categoryScroll: {
-    gap: AppSpacing.sm,
-    marginBottom: AppSpacing.lg,
-  },
-  filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: AppRadius.pill,
-    borderWidth: 1,
-  },
-  filterPillText: { fontSize: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: AppSpacing.md },
-  barCard: {
-    borderRadius: AppRadius.lg,
-    borderWidth: 1,
-    marginBottom: AppSpacing.lg,
-    overflow: 'hidden',
-  },
-  imageWrap: {
-    width: '100%',
-    height: 170,
-    position: 'relative',
-  },
-  barCover: { width: '100%', height: '100%' },
-  badge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: '#7C3AED',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: AppRadius.xs,
-  },
-  badgeText: { color: '#FFF', fontSize: 10, fontWeight: '800' },
-  pricePill: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: AppRadius.xs,
-  },
-  priceText: { color: '#FFF', fontSize: 10, fontWeight: '700' },
-  cardBody: { padding: AppSpacing.md },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  barName: { fontSize: 16, fontWeight: '700', flex: 1, marginRight: 8 },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#7C3AED',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: AppRadius.xs,
-    gap: 3,
-  },
-  ratingText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  barTagline: { fontSize: 12, marginBottom: 8, lineHeight: 16 },
-  locRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  locText: { fontSize: 12 },
-  happyHourRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  happyHourText: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
-  reserveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: AppRadius.md,
-    backgroundColor: '#7C3AED',
-    gap: 6,
-  },
-  reserveBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  safe: { flex: 1 }, header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: AppSpacing.lg, paddingVertical: AppSpacing.md, borderBottomWidth: 1 },
+  back: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', marginRight: AppSpacing.md }, title: { fontSize: 18, fontWeight: '700' }, subtitle: { fontSize: 12, marginTop: 3 },
+  content: { padding: AppSpacing.lg, paddingBottom: AppSpacing.huge }, state: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: 12 }, message: { textAlign: 'center', fontSize: 14, lineHeight: 20 },
+  card: { borderWidth: 1, borderRadius: AppRadius.lg, overflow: 'hidden', marginBottom: AppSpacing.md }, image: { width: '100%', height: 165 }, imageBlank: { alignItems: 'center', justifyContent: 'center' }, cardBody: { padding: AppSpacing.md }, venueName: { fontSize: 16, fontWeight: '700' }, detail: { fontSize: 13, marginTop: 5, lineHeight: 18 },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9 }, rating: { fontSize: 12, fontWeight: '700' }, city: { flex: 1, fontSize: 12 }, actions: { flexDirection: 'row', gap: 10, marginTop: 14, justifyContent: 'flex-end' }, secondaryButton: { borderWidth: 1, borderRadius: AppRadius.md, paddingHorizontal: 14, paddingVertical: 10 }, secondaryText: { fontSize: 13, fontWeight: '700' }, primaryButton: { minWidth: 110, alignItems: 'center', justifyContent: 'center', borderRadius: AppRadius.md, paddingHorizontal: 14, paddingVertical: 10 }, primaryText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  sectionTitle: { fontSize: 17, fontWeight: '700', marginTop: AppSpacing.md, marginBottom: AppSpacing.sm }, reservation: { borderWidth: 1, borderRadius: AppRadius.md, padding: AppSpacing.md, marginBottom: AppSpacing.sm, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  modalBackdrop: { flex: 1, backgroundColor: '#0009', justifyContent: 'center', padding: AppSpacing.lg }, modalCard: { borderRadius: AppRadius.lg, padding: AppSpacing.lg }, label: { fontSize: 12, marginTop: 12, marginBottom: 5 }, input: { borderWidth: 1, borderRadius: AppRadius.md, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
 });

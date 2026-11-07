@@ -342,6 +342,21 @@ export const AdminDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
 
         <TouchableOpacity
           style={styles.quickNavCard}
+          onPress={() => navigation.navigate('AdminWaterSuppliers')}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.quickNavIcon, { backgroundColor: '#38BDF820' }]}>
+            <Ionicons name="water-outline" size={22} color="#38BDF8" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.quickNavTitle}>Water Supplier Applications</Text>
+            <Text style={styles.quickNavSub}>Verify documents and approve suppliers</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickNavCard}
           onPress={() => navigation.navigate('AdminBusinessRequests')}
           activeOpacity={0.8}
         >

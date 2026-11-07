@@ -249,6 +249,8 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
                     <Text style={styles.meta}>
                       {a.hotelName || 'Hotel'}
                       {'\n'}
+                      Business type: {a.businessType || 'RESTAURANT'}
+                      {'\n'}
                       {[a.hotelCity, a.hotelPhone].filter(Boolean).join(' • ') || '—'}
                       {a.hotelAddress ? `\n${a.hotelAddress}` : ''}
                     </Text>

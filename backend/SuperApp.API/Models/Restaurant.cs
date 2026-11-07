@@ -7,6 +7,9 @@ public class Restaurant
 {
     [Key]
     public long Id { get; set; }
+
+    [Required, MaxLength(24)]
+    public string BusinessType { get; set; } = RestaurantBusinessTypes.Restaurant;
     
     [Required, MaxLength(200)]
     public string Name { get; set; } = string.Empty;
@@ -57,6 +60,10 @@ public class Restaurant
 
     [Column(TypeName = "decimal(5,2)")]
     public decimal? CommissionRatePercent { get; set; }
+
+    public int? ReservationCapacity { get; set; }
+
+    public int? ReservationDurationMinutes { get; set; }
     
     public int AvgDeliveryTimeMinutes { get; set; } = 30;
     
@@ -73,4 +80,18 @@ public class Restaurant
     public ICollection<RestaurantCategory> Categories { get; set; } = new List<RestaurantCategory>();
     public ICollection<FoodItem> FoodItems { get; set; } = new List<FoodItem>();
     public ICollection<FoodOrder> FoodOrders { get; set; } = new List<FoodOrder>();
+    public ICollection<BarReservation> BarReservations { get; set; } = new List<BarReservation>();
+}
+
+public static class RestaurantBusinessTypes
+{
+    public const string Restaurant = "RESTAURANT";
+    public const string Cafe = "CAFE";
+    public const string Bar = "BAR";
+
+    public static bool TryNormalize(string? value, out string normalized)
+    {
+        normalized = (value ?? string.Empty).Trim().ToUpperInvariant();
+        return normalized is Restaurant or Cafe or Bar;
+    }
 }

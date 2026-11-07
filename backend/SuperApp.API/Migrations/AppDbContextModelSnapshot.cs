@@ -48,6 +48,12 @@ namespace SuperApp.API.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("city");
 
+                    b.Property<string>("BusinessType")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("business_type");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1536,6 +1542,9 @@ namespace SuperApp.API.Migrations
 
                     b.HasIndex("City")
                         .HasDatabaseName("ix_restaurants_city");
+
+                    b.HasIndex("BusinessType", "IsActive", "City")
+                        .HasDatabaseName("ix_restaurants_business_type_is_active_city");
 
                     b.HasIndex("IsActive")
                         .HasDatabaseName("ix_restaurants_is_active");

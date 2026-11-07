@@ -75,6 +75,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   const [activeItemForCustomization, setActiveItemForCustomization] = useState<FoodItemRow | null>(null);
   const [isCartVisible, setIsCartVisible] = useState(false);
   const [restaurantName, setRestaurantName] = useState('Restaurant');
+  const [restaurantBusinessType, setRestaurantBusinessType] = useState('RESTAURANT');
   const [restaurantRating, setRestaurantRating] = useState<number>(4.5);
   const [restaurantDeliveryFee, setRestaurantDeliveryFee] = useState<number>(0);
   const [restaurantCuisines, setRestaurantCuisines] = useState<string>('Dishes & Delights');
@@ -108,6 +109,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
         const data = res.data?.data || res.data;
         if (data) {
           if (data.name) setRestaurantName(data.name);
+          if (data.businessType) setRestaurantBusinessType(String(data.businessType).toUpperCase());
           if (data.rating) setRestaurantRating(Number(data.rating));
           if (data.deliveryFee !== undefined) setRestaurantDeliveryFee(Number(data.deliveryFee));
           // Subtitle should stay short — full description can blow up the app bar
@@ -356,6 +358,10 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   };
 
   const handleAddItem = (item: FoodItemRow) => {
+    if (restaurantBusinessType === 'BAR') {
+      Alert.alert('Menu browsing only', 'Bar and lounge orders are not enabled. Please contact the venue directly.');
+      return;
+    }
     if (item.isAvailable === false) {
       Alert.alert('Item Sold Out', `${item.name} is currently out of stock.`);
       return;
@@ -537,6 +543,9 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
               <View style={styles.dishActionCol}>
                 <Image source={{ uri: resolveDishImage(item.image) }} style={styles.dishImage} />
                 {(() => {
+                  if (restaurantBusinessType === 'BAR') {
+                    return <Text style={[styles.customizableLabel, { color: theme.textTertiary, textAlign: 'center' }]}>VIEW MENU</Text>;
+                  }
                   if (item.isAvailable === false) {
                     return (
                       <View style={[styles.addButton, { backgroundColor: theme.surfaceLight, borderColor: theme.cardBorder }]}>

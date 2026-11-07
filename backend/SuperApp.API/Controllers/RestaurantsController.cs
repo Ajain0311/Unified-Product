@@ -27,10 +27,22 @@ public class RestaurantsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] bool? isVegOnly,
         [FromQuery] string? city,
+        [FromQuery] string? businessType,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
         var query = _db.Restaurants.AsNoTracking().Where(r => r.IsActive).AsQueryable();
+
+        if (string.IsNullOrWhiteSpace(businessType))
+        {
+            query = query.Where(r => r.BusinessType == RestaurantBusinessTypes.Restaurant);
+        }
+        else
+        {
+            if (!RestaurantBusinessTypes.TryNormalize(businessType, out var normalizedType))
+                return BadRequest(ApiResponse<PagedResult<RestaurantSummaryDto>>.Fail("Unsupported business type"));
+            query = query.Where(r => r.BusinessType == normalizedType);
+        }
 
         if (!string.IsNullOrWhiteSpace(city))
         {
@@ -60,6 +72,7 @@ public class RestaurantsController : ControllerBase
             .Select(r => new RestaurantSummaryDto
             {
                 Id = r.Id,
+                BusinessType = r.BusinessType,
                 Name = r.Name,
                 Description = r.Description,
                 ImageUrl = r.ImageUrl,
@@ -111,7 +124,8 @@ public class RestaurantsController : ControllerBase
             .AsNoTracking()
             .Include(f => f.Restaurant)
             .Include(f => f.RestaurantCategory)
-            .Where(f => f.IsActive && f.IsAvailable && f.Restaurant != null && f.Restaurant.IsActive);
+            .Where(f => f.IsActive && f.IsAvailable && f.Restaurant != null && f.Restaurant.IsActive
+                && f.Restaurant.BusinessType == RestaurantBusinessTypes.Restaurant);
 
         if (restaurantId.HasValue && restaurantId.Value > 0)
             query = query.Where(f => f.RestaurantId == restaurantId.Value);
@@ -214,6 +228,7 @@ public class RestaurantsController : ControllerBase
         var detail = new RestaurantDetailDto
         {
             Id = restaurant.Id,
+            BusinessType = restaurant.BusinessType,
             Name = restaurant.Name,
             Description = restaurant.Description,
             ImageUrl = restaurant.ImageUrl,

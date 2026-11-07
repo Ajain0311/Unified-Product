@@ -1,473 +1,108 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  StatusBar,
-  Alert,
-} from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Image, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { AppRadius, AppSpacing } from '../../theme/spacing';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
-import { useCartStore } from '../../store/cartStore';
-import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
-
-interface BeverageItem {
-  id: number;
-  name: string;
-  cafe: string;
-  category: string;
-  price: number;
-  rating: number;
-  prepTime: string;
-  imageUrl: string;
-  badge?: string;
-  isIced?: boolean;
-}
-
-const BEVERAGE_COLLECTIONS = [
-  { id: 'all', title: 'All Drinks', icon: 'sparkles' },
-  { id: 'coffee', title: 'Artisan Coffee', icon: 'cafe' },
-  { id: 'boba', title: 'Boba & Bubble Tea', icon: 'water' },
-  { id: 'juices', title: 'Cold-Pressed Juices', icon: 'nutrition' },
-  { id: 'tea', title: 'Matcha & Herbal Teas', icon: 'leaf' },
-];
-
-const FEATURED_BEVERAGES: BeverageItem[] = [
-  {
-    id: 101,
-    name: 'Spanish Iced Latte with Condensed Milk',
-    cafe: 'Blue Tokai Roastery',
-    category: 'coffee',
-    price: 240,
-    rating: 4.8,
-    prepTime: '15 mins',
-    imageUrl: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=600',
-    badge: 'BESTSELLER',
-    isIced: true,
-  },
-  {
-    id: 102,
-    name: 'Brown Sugar Tiger Milk Boba',
-    cafe: 'The Bubble Tea Bar',
-    category: 'boba',
-    price: 260,
-    rating: 4.9,
-    prepTime: '20 mins',
-    imageUrl: 'https://images.unsplash.com/photo-1558857563-b37cb337e7df?w=600',
-    badge: 'POPULAR',
-    isIced: true,
-  },
-  {
-    id: 103,
-    name: 'Cold-Pressed Valencia Orange & Carrot',
-    cafe: 'Green Bliss Botanicals',
-    category: 'juices',
-    price: 180,
-    rating: 4.7,
-    prepTime: '12 mins',
-    imageUrl: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=600',
-    isIced: true,
-  },
-  {
-    id: 104,
-    name: 'Kyoto Ceremonial Uji Matcha Latte',
-    cafe: 'Artisanal Tea Atelier',
-    category: 'tea',
-    price: 280,
-    rating: 4.9,
-    prepTime: '15 mins',
-    imageUrl: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=600',
-    badge: 'SIGNATURE',
-    isIced: false,
-  },
-];
+import { apiClient } from '../../services/apiClient';
+import { ApiEndpoints } from '../../constants/api';
+import { RestaurantSummary } from '../../models/food';
+import { RootStackParamList } from '../../navigation/types';
 
 export const BeverageHubScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
-  const addItemToCart = useCartStore((state) => state.addItem);
+  const [cafes, setCafes] = useState<RestaurantSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [selectedCat, setSelectedCat] = useState('all');
-  const [fulfillmentMode, setFulfillmentMode] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
+  const loadCafes = useCallback(async (pull = false) => {
+    if (pull) setRefreshing(true); else setLoading(true);
+    setError(null);
+    try {
+      const response: any = await apiClient.get(ApiEndpoints.food.restaurants, {
+        params: { businessType: 'CAFE', page: 1, pageSize: 30 },
+      });
+      const payload = response?.data ?? response;
+      const items = payload?.items ?? payload?.data?.items ?? [];
+      if (!Array.isArray(items)) throw new Error('Cafe catalogue response was invalid');
+      setCafes(items);
+    } catch (e: any) {
+      setError(e?.message || 'Could not load cafes. Please try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
-  const filteredItems = FEATURED_BEVERAGES.filter(
-    (item) => selectedCat === 'all' || item.category === selectedCat
-  );
-
-  const handleAddToCart = (bev: BeverageItem) => {
-    addItemToCart(999, bev.cafe, {
-      id: Date.now(),
-      foodItemId: bev.id,
-      name: bev.name,
-      basePrice: bev.price,
-      quantity: 1,
-      addons: [],
-      totalPrice: bev.price,
-    });
-    Alert.alert(
-      language === 'hi' ? 'कार्ट में जोड़ा गया' : 'Added to Cart',
-      `${bev.name} from ${bev.cafe} added to your cart.`
-    );
-  };
+  useFocusEffect(useCallback(() => { void loadCafes(); }, [loadCafes]));
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backBtn, { backgroundColor: theme.chipBg, borderColor: theme.cardBorder }]}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
+      <View style={[styles.header, { borderBottomColor: theme.cardBorder, backgroundColor: theme.surface }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.back}>
           <Ionicons name="arrow-back" size={20} color={theme.textPrimary} />
         </TouchableOpacity>
-
         <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-            {language === 'hi' ? 'कैफे और पेय' : 'Beverages & Artisan Cafes'}
-          </Text>
-          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-            {language === 'hi'
-              ? 'स्पेशलिटी कॉफी, शेक्स, बोबा एवं ताज़ा जूस'
-              : 'Specialty coffee roasters, cold brews & bubble tea'}
-          </Text>
+          <Text style={[styles.title, { color: theme.textPrimary }]}>{language === 'hi' ? 'कैफ़े और पेय' : 'Cafes & Beverages'}</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{language === 'hi' ? 'सत्यापित कैफ़े और उपलब्ध मेनू' : 'Local cafes and their current menus'}</Text>
         </View>
       </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Delivery / Counter Pickup Segment Switch */}
-        <View
-          style={[
-            styles.segmentContainer,
-            { backgroundColor: theme.chipBg, borderColor: theme.cardBorder },
-          ]}
-        >
+      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadCafes(true)} />}>
+        {loading ? <ActivityIndicator style={styles.state} color={theme.primary} /> : null}
+        {!loading && error ? (
+          <View style={styles.state}>
+            <Text style={[styles.message, { color: theme.textSecondary }]}>{error}</Text>
+            <TouchableOpacity onPress={() => loadCafes()} style={[styles.retry, { backgroundColor: theme.primary }]}><Text style={styles.retryText}>Try again</Text></TouchableOpacity>
+          </View>
+        ) : null}
+        {!loading && !error && cafes.length === 0 ? (
+          <View style={styles.state}><Ionicons name="cafe-outline" size={34} color={theme.textTertiary} /><Text style={[styles.message, { color: theme.textSecondary }]}>{language === 'hi' ? 'अभी कोई स्वीकृत कैफ़े उपलब्ध नहीं है।' : 'No approved cafes are available yet.'}</Text></View>
+        ) : null}
+        {cafes.map((cafe) => (
           <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              fulfillmentMode === 'DELIVERY' && { backgroundColor: theme.card },
-              fulfillmentMode === 'DELIVERY' && AppShadows.subtle,
-            ]}
-            onPress={() => setFulfillmentMode('DELIVERY')}
-            activeOpacity={0.8}
+            key={cafe.id}
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('RestaurantDetail', { restaurantId: String(cafe.id) })}
+            style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
           >
-            <Ionicons
-              name="bicycle-outline"
-              size={15}
-              color={fulfillmentMode === 'DELIVERY' ? '#0891B2' : theme.textTertiary}
-            />
-            <Text
-              style={[
-                styles.segmentText,
-                { color: fulfillmentMode === 'DELIVERY' ? '#0891B2' : theme.textSecondary },
-              ]}
-            >
-              Chilled Delivery (~20m)
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              fulfillmentMode === 'PICKUP' && { backgroundColor: theme.card },
-              fulfillmentMode === 'PICKUP' && AppShadows.subtle,
-            ]}
-            onPress={() => setFulfillmentMode('PICKUP')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="walk-outline"
-              size={15}
-              color={fulfillmentMode === 'PICKUP' ? '#0891B2' : theme.textTertiary}
-            />
-            <Text
-              style={[
-                styles.segmentText,
-                { color: fulfillmentMode === 'PICKUP' ? '#0891B2' : theme.textSecondary },
-              ]}
-            >
-              Express Barista Pickup
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Collection Pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.collectionsScroll}
-        >
-          {BEVERAGE_COLLECTIONS.map((c) => {
-            const active = selectedCat === c.id;
-            return (
-              <TouchableOpacity
-                key={c.id}
-                style={[
-                  styles.collectionPill,
-                  {
-                    backgroundColor: active ? '#0891B2' : theme.card,
-                    borderColor: active ? '#0891B2' : theme.cardBorder,
-                  },
-                  AppShadows.subtle,
-                ]}
-                onPress={() => setSelectedCat(c.id)}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={c.icon as any}
-                  size={14}
-                  color={active ? '#FFFFFF' : '#0891B2'}
-                  style={{ marginRight: 6 }}
-                />
-                <Text
-                  style={[
-                    styles.collectionPillText,
-                    { color: active ? '#FFFFFF' : theme.textPrimary, fontWeight: active ? '700' : '500' },
-                  ]}
-                >
-                  {c.title}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* Menu Items List */}
-        <Text style={[styles.sectionHeading, { color: theme.textPrimary }]}>
-          {language === 'hi' ? 'विशेष पेय' : 'Signature Handcrafted Drinks'}
-        </Text>
-
-        <View style={styles.drinksGrid}>
-          {filteredItems.map((item) => (
-            <View
-              key={item.id}
-              style={[
-                styles.drinkCard,
-                { backgroundColor: theme.card, borderColor: theme.cardBorder },
-                AppShadows.subtle,
-              ]}
-            >
-              <View style={styles.drinkImageWrap}>
-                <Image source={{ uri: item.imageUrl }} style={styles.drinkImage} resizeMode="cover" />
-                {item.badge && (
-                  <View style={styles.badgePill}>
-                    <Text style={styles.badgePillText}>{item.badge}</Text>
-                  </View>
-                )}
-                <View style={styles.prepTimePill}>
-                  <Ionicons name="time" size={10} color="#FFFFFF" />
-                  <Text style={styles.prepTimeText}>{item.prepTime}</Text>
-                </View>
-              </View>
-
-              <View style={styles.drinkContent}>
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={11} color="#F59E0B" />
-                  <Text style={[styles.ratingNumber, { color: theme.textSecondary }]}>
-                    {item.rating.toFixed(1)}
-                  </Text>
-                  <Text style={[styles.cafeName, { color: theme.textTertiary }]} numberOfLines={1}>
-                    • {item.cafe}
-                  </Text>
-                </View>
-
-                <Text style={[styles.drinkName, { color: theme.textPrimary }]} numberOfLines={2}>
-                  {item.name}
-                </Text>
-
-                <View style={styles.drinkPriceRow}>
-                  <Text style={[styles.drinkPrice, { color: '#0891B2' }]}>₹{item.price}</Text>
-
-                  <TouchableOpacity
-                    style={styles.addBtn}
-                    onPress={() => handleAddToCart(item)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="add" size={14} color="#FFFFFF" />
-                    <Text style={styles.addBtnText}>ADD</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+            {cafe.imageUrl ? <Image source={{ uri: cafe.imageUrl }} style={styles.image} resizeMode="cover" /> : <View style={[styles.image, styles.imagePlaceholder, { backgroundColor: theme.chipBg }]}><Ionicons name="cafe" size={32} color={theme.textTertiary} /></View>}
+            <View style={styles.cardBody}>
+              <Text style={[styles.name, { color: theme.textPrimary }]} numberOfLines={1}>{cafe.name}</Text>
+              <Text style={[styles.description, { color: theme.textSecondary }]} numberOfLines={2}>{cafe.description || cafe.addressLine || cafe.city || 'Cafe menu and ordering information'}</Text>
+              <View style={styles.meta}><Ionicons name="star" size={13} color="#D19326" /><Text style={[styles.rating, { color: theme.textPrimary }]}>{cafe.rating.toFixed(1)}</Text><Text style={[styles.open, { color: theme.textTertiary }]}>{cafe.city || ''}</Text><Ionicons name="chevron-forward" size={18} color={theme.textTertiary} /></View>
             </View>
-          ))}
-        </View>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: AppSpacing.lg,
-    paddingVertical: AppSpacing.md,
-    borderBottomWidth: 1,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: AppSpacing.md,
-  },
-  headerTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
-  headerSubtitle: { fontSize: 11, marginTop: 1 },
-  scrollContent: {
-    paddingHorizontal: AppSpacing.lg,
-    paddingTop: AppSpacing.md,
-    paddingBottom: AppSpacing.huge,
-  },
-  segmentContainer: {
-    flexDirection: 'row',
-    padding: 3,
-    borderRadius: AppRadius.pill,
-    borderWidth: 1,
-    marginBottom: AppSpacing.md,
-  },
-  segmentBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: AppRadius.pill,
-    gap: 6,
-  },
-  segmentText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  collectionsScroll: {
-    gap: AppSpacing.sm,
-    marginBottom: AppSpacing.lg,
-  },
-  collectionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: AppRadius.pill,
-    borderWidth: 1,
-  },
-  collectionPillText: { fontSize: 12 },
-  sectionHeading: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: AppSpacing.md,
-  },
-  drinksGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: AppSpacing.md,
-  },
-  drinkCard: {
-    width: '48.5%',
-    borderRadius: AppRadius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  drinkImageWrap: {
-    width: '100%',
-    height: 125,
-    position: 'relative',
-  },
-  drinkImage: {
-    width: '100%',
-    height: '100%',
-  },
-  badgePill: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#0891B2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: AppRadius.xs,
-  },
-  badgePillText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  prepTimePill: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: AppRadius.xs,
-    gap: 3,
-  },
-  prepTimeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  drinkContent: {
-    padding: AppSpacing.sm,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 3,
-    gap: 3,
-  },
-  ratingNumber: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  cafeName: {
-    fontSize: 10,
-    flex: 1,
-  },
-  drinkName: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 8,
-    minHeight: 32,
-    lineHeight: 16,
-  },
-  drinkPriceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  drinkPrice: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0891B2',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: AppRadius.xs,
-    gap: 2,
-  },
-  addBtnText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
+  safe: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: AppSpacing.lg, paddingVertical: AppSpacing.md, borderBottomWidth: 1 },
+  back: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', marginRight: AppSpacing.md },
+  title: { fontSize: 18, fontWeight: '700' },
+  subtitle: { fontSize: 12, marginTop: 3 },
+  content: { padding: AppSpacing.lg, paddingBottom: AppSpacing.huge },
+  state: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  message: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  retry: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: AppRadius.md },
+  retryText: { color: '#FFF', fontWeight: '700' },
+  card: { borderWidth: 1, borderRadius: AppRadius.lg, marginBottom: AppSpacing.md, overflow: 'hidden' },
+  image: { width: '100%', height: 170 },
+  imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  cardBody: { padding: AppSpacing.md },
+  name: { fontSize: 16, fontWeight: '700' },
+  description: { fontSize: 13, marginTop: 5, lineHeight: 18 },
+  meta: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 6 },
+  rating: { fontSize: 12, fontWeight: '700' },
+  open: { flex: 1, fontSize: 12, marginLeft: 6 },
 });

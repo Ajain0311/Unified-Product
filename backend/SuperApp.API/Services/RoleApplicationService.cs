@@ -37,6 +37,7 @@ public class RoleApplicationService
             HotelAddress = a.HotelAddress,
             HotelCity = a.HotelCity,
             HotelPhone = a.HotelPhone,
+            BusinessType = a.BusinessType,
             BusinessDocumentNo = a.BusinessDocumentNo,
             BusinessDocumentImageUrl = string.IsNullOrWhiteSpace(a.BusinessDocumentNo)
                 ? null
@@ -147,6 +148,11 @@ public class RoleApplicationService
                 return (null, "Outlet contact phone is required");
             var (docOk, docErr) = await ValidateDocumentOwnedAsync(request.BusinessDocumentNo, userId, ct);
             if (!docOk) return (null, docErr ?? "Business / FSSAI document upload is required");
+            var requestedBusinessType = string.IsNullOrWhiteSpace(request.BusinessType)
+                ? RestaurantBusinessTypes.Restaurant
+                : request.BusinessType;
+            if (!RestaurantBusinessTypes.TryNormalize(requestedBusinessType, out var businessType))
+                return (null, "Business type must be RESTAURANT, CAFE, or BAR");
 
             var hotelName = request.HotelName.Trim();
             var pendingSameOutlet = await _db.RoleApplications.AnyAsync(
@@ -162,6 +168,7 @@ public class RoleApplicationService
             app.HotelAddress = request.HotelAddress.Trim();
             app.HotelCity = string.IsNullOrWhiteSpace(request.HotelCity) ? "DEFAULT" : request.HotelCity.Trim();
             app.HotelPhone = request.HotelPhone.Trim();
+            app.BusinessType = businessType;
             app.BusinessDocumentNo = request.BusinessDocumentNo!.Trim();
         }
 
@@ -257,6 +264,7 @@ public class RoleApplicationService
             var restaurant = new Restaurant
             {
                 Name = app.HotelName ?? "New Hotel",
+                BusinessType = app.BusinessType ?? RestaurantBusinessTypes.Restaurant,
                 Description = "Pending menu setup",
                 Phone = app.HotelPhone,
                 AddressLine = app.HotelAddress,
