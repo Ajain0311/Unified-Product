@@ -51,6 +51,12 @@ export const CHITTORGARH_SERVICE_REGION: ServiceRegion = {
   },
   keyLandmarks: [
     {
+      name: 'Shri Sanwaliya Seth Mandir, Mandphiya',
+      latitude: 24.6600,
+      longitude: 74.4000,
+      category: 'fort',
+    },
+    {
       name: 'Chittorgarh Fort',
       latitude: 24.8879,
       longitude: 74.6450,
@@ -84,6 +90,76 @@ export const CHITTORGARH_SERVICE_REGION: ServiceRegion = {
 };
 
 export const ACTIVE_SERVICE_REGION: ServiceRegion = CHITTORGARH_SERVICE_REGION;
+
+/**
+ * Initial Launch Operating Hub: Mandphiya, Rajasthan (Shri Sanwaliya Seth Temple)
+ * Primary operating epicenter for food delivery (20 km), rides (20 km), and hotel discovery.
+ */
+export const MANDPHIYA_SERVICE_CENTER = {
+  name: 'Mandphiya (Shri Sanwaliya Ji), Rajasthan',
+  latitude: 24.6600,
+  longitude: 74.4000,
+  foodMaxDeliveryRadiusKm: 20,
+  rideMaxDistanceKm: 20,
+  hotelDefaultRadiusKm: 20,
+};
+
+export const MANDPHIYA_SERVICE_CONSTRAINTS = {
+  maxDeliveryRadiusKm: 20,
+  maxRideDistanceKm: 20,
+  defaultHotelRadiusKm: 20,
+};
+
+/**
+ * Calculate great-circle distance between two geographical points using Haversine formula (km).
+ */
+export function calculateHaversineDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const earthRadiusKm = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const rLat1 = (lat1 * Math.PI) / 180;
+  const rLat2 = (lat2 * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(rLat1) * Math.cos(rLat2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number((earthRadiusKm * c).toFixed(2));
+}
+
+/**
+ * Validates whether given coordinates fall within the 20 km food delivery radius of Mandphiya.
+ */
+export function isWithinMandphiyaDeliveryRadius(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+  maxKm = MANDPHIYA_SERVICE_CENTER.foodMaxDeliveryRadiusKm
+): boolean {
+  if (latitude == null || longitude == null) return false;
+  const distance = calculateHaversineDistanceKm(
+    MANDPHIYA_SERVICE_CENTER.latitude,
+    MANDPHIYA_SERVICE_CENTER.longitude,
+    latitude,
+    longitude
+  );
+  return distance <= maxKm;
+}
+
+/**
+ * Validates whether ride pickup or destination is within supported ride distance of Mandphiya.
+ */
+export function isWithinMandphiyaRideRadius(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+  maxKm = MANDPHIYA_SERVICE_CENTER.rideMaxDistanceKm
+): boolean {
+  return isWithinMandphiyaDeliveryRadius(latitude, longitude, maxKm);
+}
 
 /**
  * Checks whether given coordinates are within the supported service region boundary.

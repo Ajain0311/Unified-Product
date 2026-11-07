@@ -269,6 +269,21 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
                 )}
               </LinearGradient>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.guestButton}
+              onPress={() => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.replace('MainTabs');
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.guestButtonText}>Browse as Guest</Text>
+              <Ionicons name="chevron-forward" size={14} color={theme.textSecondary} />
+            </TouchableOpacity>
           </View>
 
           {/* Trust Highlights & Legal */}
@@ -561,6 +576,19 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
     },
     continueBtnTextDisabled: {
       color: isDark ? '#64748B' : '#94A3B8',
+    },
+    guestButton: {
+      marginTop: 14,
+      paddingVertical: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    guestButtonText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.textSecondary,
     },
     trustGrid: {
       flexDirection: 'row',

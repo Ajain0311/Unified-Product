@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using SuperApp.API.Hubs;
 using SuperApp.API.Services;
+using Microsoft.AspNetCore.RateLimiting;
+using SuperApp.API.Common;
 
 namespace SuperApp.API.Controllers;
 
@@ -112,6 +114,26 @@ public class FoodOrdersController : ControllerBase
         if (string.IsNullOrWhiteSpace(validatedAddress.AddressLine1) || string.IsNullOrWhiteSpace(validatedAddress.City))
         {
             return BadRequest(ApiResponse<FoodOrderDto>.Fail("Delivery address is incomplete (missing street line or city)"));
+        }
+
+        if (validatedAddress.Latitude.HasValue && validatedAddress.Longitude.HasValue)
+        {
+            var isDeliverable = ServiceAreaConfig.IsWithinDeliveryRadius(
+                (double)validatedAddress.Latitude.Value,
+                (double)validatedAddress.Longitude.Value,
+                ServiceAreaConfig.FoodMaxDeliveryRadiusKm);
+
+            if (!isDeliverable)
+            {
+                var distance = ServiceAreaConfig.CalculateDistanceKm(
+                    ServiceAreaConfig.MandphiyaCenterLatitude,
+                    ServiceAreaConfig.MandphiyaCenterLongitude,
+                    (double)validatedAddress.Latitude.Value,
+                    (double)validatedAddress.Longitude.Value);
+
+                return BadRequest(ApiResponse<FoodOrderDto>.Fail(
+                    $"Delivery address is outside the supported {ServiceAreaConfig.FoodMaxDeliveryRadiusKm:F0} km service radius of {ServiceAreaConfig.OperatingRegionName} (Distance: {distance:F1} km). Food delivery is only available within 20 km of Mandphiya."));
+            }
         }
 
         // Auto-accept: For COD, immediately confirm valid order to Accepted. For ONLINE, keep Pending until verified payment.
@@ -344,6 +366,26 @@ public class FoodOrdersController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<FoodCheckoutResultDto>.Fail("Unauthorized: Delivery address belongs to another customer"));
         if (string.IsNullOrWhiteSpace(validatedAddress.AddressLine1) || string.IsNullOrWhiteSpace(validatedAddress.City))
             return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail("Delivery address is incomplete (missing street line or city)"));
+
+        if (validatedAddress.Latitude.HasValue && validatedAddress.Longitude.HasValue)
+        {
+            var isDeliverable = ServiceAreaConfig.IsWithinDeliveryRadius(
+                (double)validatedAddress.Latitude.Value,
+                (double)validatedAddress.Longitude.Value,
+                ServiceAreaConfig.FoodMaxDeliveryRadiusKm);
+
+            if (!isDeliverable)
+            {
+                var distance = ServiceAreaConfig.CalculateDistanceKm(
+                    ServiceAreaConfig.MandphiyaCenterLatitude,
+                    ServiceAreaConfig.MandphiyaCenterLongitude,
+                    (double)validatedAddress.Latitude.Value,
+                    (double)validatedAddress.Longitude.Value);
+
+                return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail(
+                    $"Delivery address is outside the supported {ServiceAreaConfig.FoodMaxDeliveryRadiusKm:F0} km service radius of {ServiceAreaConfig.OperatingRegionName} (Distance: {distance:F1} km). Food delivery is only available within 20 km of Mandphiya."));
+            }
+        }
 
         if (request.Items.Count > 50)
             return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail("Cart size exceeds maximum limit of 50 items"));

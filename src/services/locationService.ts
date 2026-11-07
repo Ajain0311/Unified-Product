@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import { Linking, Platform } from 'react-native';
 import { mapboxService } from './mapboxService';
-import { CHITTORGARH_SERVICE_REGION } from '../config/serviceRegion';
+import { CHITTORGARH_SERVICE_REGION, MANDPHIYA_SERVICE_CENTER } from '../config/serviceRegion';
 
 export type LocationPermissionStatus = 'granted' | 'denied' | 'undetermined';
 
@@ -40,12 +40,12 @@ export interface WatchLocationOptions {
 
 export class LocationService {
   /**
-   * Reference regional coordinates for Chittorgarh District (used for regional framing only, never disguised as GPS)
+   * Reference regional coordinates for Mandphiya operating hub (used for regional framing only, never disguised as GPS)
    */
   public static readonly defaultLocation: LocationCoordinates = {
-    latitude: CHITTORGARH_SERVICE_REGION.centerCoordinates.latitude,
-    longitude: CHITTORGARH_SERVICE_REGION.centerCoordinates.longitude,
-    formattedAddress: 'Collectorate Circle, Chittorgarh, Rajasthan',
+    latitude: MANDPHIYA_SERVICE_CENTER.latitude,
+    longitude: MANDPHIYA_SERVICE_CENTER.longitude,
+    formattedAddress: 'Shri Sanwaliya Seth Mandir, Mandphiya, Rajasthan',
     accuracy: null,
     timestamp: Date.now(),
     isFallback: true,
@@ -144,6 +144,36 @@ export class LocationService {
 
     // 4. Permission is granted and GPS is on -> acquire real device position
     try {
+      // Step 4a: Fast-path check for cached hardware position (0ms delay, eliminates GPS timeout on Android)
+      try {
+        const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 300000 });
+        if (lastKnown && lastKnown.coords) {
+          const { latitude, longitude, accuracy: posAcc } = lastKnown.coords;
+          let formattedAddress = `${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°`;
+          try {
+            const reversed = await this.reverseGeocode(latitude, longitude);
+            if (reversed && reversed.trim()) formattedAddress = reversed;
+          } catch {}
+
+          return {
+            state: 'SUCCESS',
+            coordinates: {
+              latitude,
+              longitude,
+              formattedAddress,
+              accuracy: posAcc,
+              altitude: lastKnown.coords.altitude,
+              speed: lastKnown.coords.speed,
+              heading: lastKnown.coords.heading,
+              timestamp: lastKnown.timestamp,
+              isFallback: false,
+            },
+          };
+        }
+      } catch (lastErr) {
+        console.debug?.('[LocationService] getLastKnownPositionAsync skipped:', lastErr);
+      }
+
       let timeoutHandle: any;
       const positionPromise = Location.getCurrentPositionAsync({ accuracy });
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -179,11 +209,30 @@ export class LocationService {
         },
       };
     } catch (err: any) {
+      // Fallback: If fresh position timed out, try ANY available last known coordinates
+      try {
+        const fallbackPos = await Location.getLastKnownPositionAsync();
+        if (fallbackPos && fallbackPos.coords) {
+          const { latitude, longitude } = fallbackPos.coords;
+          return {
+            state: 'SUCCESS',
+            coordinates: {
+              latitude,
+              longitude,
+              formattedAddress: `${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°`,
+              accuracy: fallbackPos.coords.accuracy,
+              isFallback: true,
+              timestamp: fallbackPos.timestamp,
+            },
+          };
+        }
+      } catch {}
+
       if (err?.message === 'GPS timeout') {
         return {
           state: 'TIMEOUT',
           coordinates: null,
-          errorMessage: 'GPS request timed out. Please ensure you have a clear view of the sky or choose your address manually.',
+          errorMessage: 'GPS request timed out. Please select your location on the map.',
           canOpenSettings: false,
         };
       }

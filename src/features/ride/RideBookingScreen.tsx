@@ -28,7 +28,11 @@ import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 import {
   isCoordinatesWithinServiceRegion,
   CHITTORGARH_SERVICE_REGION,
+  calculateHaversineDistanceKm,
+  MANDPHIYA_SERVICE_CONSTRAINTS,
+  MANDPHIYA_SERVICE_CENTER,
 } from '../../config/serviceRegion';
+import { useAuthStore } from '../../store/authStore';
 import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 
 interface VehicleOption {
@@ -129,6 +133,17 @@ export const RideBookingScreen: React.FC = () => {
       return;
     }
 
+    const directDistance = calculateHaversineDistanceKm(
+      pickup.latitude,
+      pickup.longitude,
+      dropoff.latitude,
+      dropoff.longitude
+    );
+    if (directDistance > MANDPHIYA_SERVICE_CONSTRAINTS.maxRideDistanceKm) {
+      setRouteMetrics(`Distance (${directDistance.toFixed(1)} km) exceeds 20 km local ride limit`);
+      return;
+    }
+
     apiClient
       .post<any>(ApiEndpoints.ride.estimate, {
         pickupLatitude: pickup.latitude,
@@ -189,13 +204,13 @@ export const RideBookingScreen: React.FC = () => {
       });
   };
 
-  const handleLocateMe = async () => {
+  const handleLocateMe = async (isInteractive: boolean = false) => {
     if (isLocating) return;
     setIsLocating(true);
     setGpsStatus('LOCATING');
     try {
       const result = await locationService.getDetailedLocation({
-        timeoutMs: 12000,
+        timeoutMs: 10000,
       });
 
       if (!isMountedRef.current) return;
@@ -215,10 +230,10 @@ export const RideBookingScreen: React.FC = () => {
         setGpsStatus('ONLINE');
 
         const inRegion = isCoordinatesWithinServiceRegion(newCoords.latitude, newCoords.longitude);
-        if (!inRegion) {
+        if (!inRegion && isInteractive) {
           Alert.alert(
             'Out of Service Region',
-            `Your current location is outside ${CHITTORGARH_SERVICE_REGION.displayName}. SuperApp rides are currently active within Chittorgarh District. You can still view fares or set a pickup point within the district.`
+            `Your current location is outside ${CHITTORGARH_SERVICE_REGION.displayName}. SuperApp rides are currently active within Chittorgarh District & Mandphiya.`
           );
         }
 
@@ -227,56 +242,64 @@ export const RideBookingScreen: React.FC = () => {
         }
       } else if (result.state === 'GPS_DISABLED') {
         setGpsStatus('UNAVAILABLE');
-        Alert.alert(
-          'GPS Disabled',
-          'Device location / GPS is turned off. Please turn on GPS so we can detect your pickup point.',
-          [
-            { text: 'Set on Map', style: 'cancel' },
-            {
-              text: 'Turn On GPS',
-              onPress: async () => {
-                await locationService.promptEnableGps();
-                handleLocateMe();
+        if (isInteractive) {
+          Alert.alert(
+            'GPS Disabled',
+            'Device location / GPS is turned off. Please turn on GPS so we can detect your pickup point.',
+            [
+              { text: 'Set on Map', style: 'cancel' },
+              {
+                text: 'Turn On GPS',
+                onPress: async () => {
+                  await locationService.promptEnableGps();
+                  handleLocateMe(true);
+                },
               },
-            },
-          ]
-        );
+            ]
+          );
+        }
         setPickupAddress('Location services disabled. Please enable GPS.');
       } else if (result.state === 'PERMISSION_BLOCKED') {
         setGpsStatus('DENIED');
-        Alert.alert(
-          'Location Permission Blocked',
-          'Location access is blocked in your phone settings. Please enable location permission to locate yourself.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Open Settings',
-              onPress: () => locationService.openDeviceSettings(),
-            },
-          ]
-        );
+        if (isInteractive) {
+          Alert.alert(
+            'Location Permission Blocked',
+            'Location access is blocked in your phone settings. Please enable location permission to locate yourself.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Open Settings',
+                onPress: () => locationService.openDeviceSettings(),
+              },
+            ]
+          );
+        }
         setPickupAddress('Location permission blocked. Enable in Settings or select on map.');
       } else if (result.state === 'PERMISSION_DENIED') {
         setGpsStatus('DENIED');
-        Alert.alert(
-          'Location Required',
-          'Please allow location access so we can detect your pickup point and find nearby rides.',
-          [
-            { text: 'Set on Map', style: 'cancel' },
-            {
-              text: 'Retry',
-              onPress: () => handleLocateMe(),
-            },
-          ]
-        );
+        if (isInteractive) {
+          Alert.alert(
+            'Location Required',
+            'Please allow location access so we can detect your pickup point and find nearby rides.',
+            [
+              { text: 'Set on Map', style: 'cancel' },
+              {
+                text: 'Retry',
+                onPress: () => handleLocateMe(true),
+              },
+            ]
+          );
+        }
         setPickupAddress('Location permission denied. Search or move the map pin.');
       } else if (result.state === 'TIMEOUT') {
         setGpsStatus('UNAVAILABLE');
-        Alert.alert(
-          'GPS Timeout',
-          'Could not get a timely GPS lock. Please check your signal or pick your pickup point on the map.',
-          [{ text: 'OK' }]
-        );
+        if (isInteractive) {
+          Alert.alert(
+            'GPS Timeout',
+            'Could not get a timely GPS lock. Please check your signal or pick your pickup point on the map.',
+            [{ text: 'OK' }]
+          );
+        }
         setPickupAddress('GPS timed out. Tap map to select pickup point.');
       } else {
         setGpsStatus('UNAVAILABLE');
@@ -328,7 +351,7 @@ export const RideBookingScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    handleLocateMe();
+    handleLocateMe(false);
   }, []);
 
   useEffect(() => {
@@ -426,6 +449,20 @@ export const RideBookingScreen: React.FC = () => {
 
   const handleBookRide = async () => {
     if (isBooking) return;
+
+    const isAuthenticated = useAuthStore.getState().isAuthenticated;
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in with your phone number to book a ride.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => navigation.navigate('PhoneEntry') },
+        ]
+      );
+      return;
+    }
+
     if (!pickupCoords) {
       Alert.alert('Pickup Required', 'Please set your pickup location on the map.');
       return;
@@ -439,6 +476,20 @@ export const RideBookingScreen: React.FC = () => {
       Alert.alert(
         'Outside Service Region',
         `Rides are currently active only within ${CHITTORGARH_SERVICE_REGION.displayName}. Please select a pickup point within the district.`
+      );
+      return;
+    }
+
+    const directDist = calculateHaversineDistanceKm(
+      pickupCoords.latitude,
+      pickupCoords.longitude,
+      dropoffCoords.latitude,
+      dropoffCoords.longitude
+    );
+    if (directDist > MANDPHIYA_SERVICE_CONSTRAINTS.maxRideDistanceKm) {
+      Alert.alert(
+        'Distance Limit Exceeded',
+        `Local rides are currently limited to ${MANDPHIYA_SERVICE_CONSTRAINTS.maxRideDistanceKm} km around Mandphiya & Chittorgarh. Your route is ${directDist.toFixed(1)} km.`
       );
       return;
     }
@@ -498,7 +549,7 @@ export const RideBookingScreen: React.FC = () => {
             gpsStatus === 'DENIED' && styles.gpsChipDenied,
             gpsStatus === 'LOCATING' && styles.gpsChipLocating,
           ]}
-          onPress={handleLocateMe}
+          onPress={() => handleLocateMe(true)}
           activeOpacity={0.7}
         >
           <MaterialIcons
@@ -529,7 +580,7 @@ export const RideBookingScreen: React.FC = () => {
               <View style={styles.pickupHeaderRow}>
                 <Text style={styles.locationLabel}>PICKUP LOCATION</Text>
                 <TouchableOpacity
-                  onPress={handleLocateMe}
+                  onPress={() => handleLocateMe(true)}
                   disabled={isLocating}
                   style={styles.locateMeButton}
                   activeOpacity={0.7}

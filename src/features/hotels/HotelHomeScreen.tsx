@@ -21,6 +21,7 @@ import { hotelService } from '../../services/hotelService';
 import { Hotel } from '../../models/hotel';
 import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 import { AppSearchBar } from '../../components/common/AppSearchBar';
+import { calculateHaversineDistanceKm, MANDPHIYA_SERVICE_CENTER } from '../../config/serviceRegion';
 
 export const HotelHomeScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -31,7 +32,17 @@ export const HotelHomeScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCity, setSelectedCity] = useState<string>('All');
+  const [selectedCity, setSelectedCity] = useState<string>('Mandphiya (Nearby 20km)');
+
+  const getHotelDistance = (hotel: Hotel): number => {
+    if (!hotel.latitude || !hotel.longitude) return 0;
+    return calculateHaversineDistanceKm(
+      MANDPHIYA_SERVICE_CENTER.latitude,
+      MANDPHIYA_SERVICE_CENTER.longitude,
+      hotel.latitude,
+      hotel.longitude
+    );
+  };
 
   const fetchHotels = async () => {
     try {
@@ -50,25 +61,30 @@ export const HotelHomeScreen: React.FC = () => {
   }, []);
 
   const cities = useMemo(() => {
-    const list = ['All'];
-    hotels.forEach((h) => {
-      if (h.city && !list.includes(h.city)) {
-        list.push(h.city);
-      }
-    });
-    return list;
-  }, [hotels]);
+    return ['Mandphiya (Nearby 20km)', 'Chittorgarh', 'All Destinations'];
+  }, []);
 
   const filteredHotels = useMemo(() => {
-    return hotels.filter((h) => {
-      const matchCity = selectedCity === 'All' || h.city.toLowerCase() === selectedCity.toLowerCase();
+    let result = hotels.filter((h) => {
+      const dist = getHotelDistance(h);
+      let matchCity = true;
+      if (selectedCity === 'Mandphiya (Nearby 20km)') {
+        matchCity = dist <= 20 || h.city.toLowerCase() === 'mandphiya';
+      } else if (selectedCity === 'Chittorgarh') {
+        matchCity = h.city.toLowerCase() === 'chittorgarh' || h.address.toLowerCase().includes('chittorgarh');
+      }
+
       const matchQuery =
         !searchQuery ||
         h.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         h.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        h.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
         h.tagline.toLowerCase().includes(searchQuery.toLowerCase());
+
       return matchCity && matchQuery;
     });
+
+    return result.sort((a, b) => getHotelDistance(a) - getHotelDistance(b));
   }, [hotels, selectedCity, searchQuery]);
 
   return (
@@ -255,6 +271,16 @@ export const HotelHomeScreen: React.FC = () => {
                   </Text>
                 </View>
 
+                {/* Distance Badge */}
+                <View style={styles.distanceBadgeRow}>
+                  <Ionicons name="navigate-outline" size={12} color="#2563EB" />
+                  <Text style={styles.distanceBadgeText}>
+                    {getHotelDistance(hotel) < 1
+                      ? `${Math.round(getHotelDistance(hotel) * 1000)}m from Sanwaliya Temple`
+                      : `${getHotelDistance(hotel).toFixed(1)} km from Mandphiya`}
+                  </Text>
+                </View>
+
                 {/* Amenity tags */}
                 <View style={styles.amenitiesRow}>
                   {hotel.amenities.slice(0, 3).map((a, idx) => (
@@ -412,8 +438,19 @@ const styles = StyleSheet.create({
   },
   hotelPrice: { fontSize: 16, fontWeight: '800' },
   perNight: { fontSize: 11, fontWeight: '500' },
-  locRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  locRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   locText: { fontSize: 12, flex: 1 },
+  distanceBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  distanceBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
   amenitiesRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 },
   amenityTag: {
     paddingHorizontal: 8,

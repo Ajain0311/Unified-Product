@@ -222,16 +222,32 @@ export const ProfileScreen: React.FC = () => {
     ]);
   };
 
-  const name = user?.fullName || 'John Doe';
-  const phone = user?.mobileNumber ? `+91 ${user.mobileNumber}` : '+91 98765 43210';
-  const initials =
-    name
-      .split(' ')
-      .filter(Boolean)
-      .map((n: string) => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase() || 'JD';
+  const requireAuth = (action: () => void) => {
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in with your phone number to access this feature.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => navigation.navigate('PhoneEntry') },
+        ]
+      );
+      return;
+    }
+    action();
+  };
+
+  const name = user?.fullName || 'Guest Explorer';
+  const phone = user?.mobileNumber ? `+91 ${user.mobileNumber}` : 'Exploring Mandphiya';
+  const initials = user?.fullName
+    ? user.fullName
+        .split(' ')
+        .filter(Boolean)
+        .map((n: string) => n[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase()
+    : 'GE';
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -247,29 +263,71 @@ export const ProfileScreen: React.FC = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Profile Card */}
-        <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
-          <View style={[styles.avatarGradient, { backgroundColor: theme.primary }]}>
-            <Text style={styles.avatarInitials}>{initials}</Text>
-          </View>
-
-          <View style={styles.profileMeta}>
-            <Text style={[styles.profileName, { color: theme.textPrimary }]}>{name}</Text>
-            <Text style={[styles.profilePhone, { color: theme.textSecondary }]}>{phone}</Text>
-            <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedBadgeText}>Verified Member</Text>
+        {/* Profile Card / Guest Card */}
+        {user ? (
+          <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
+            <View style={[styles.avatarGradient, { backgroundColor: theme.primary }]}>
+              <Text style={styles.avatarInitials}>{initials}</Text>
             </View>
-          </View>
 
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={openEditName}
-            accessibilityRole="button"
-            accessibilityLabel="Edit name"
-          >
-            <MaterialIcons name="edit" size={20} color={theme.textSecondary} />
-          </TouchableOpacity>
-        </View>
+            <View style={styles.profileMeta}>
+              <Text style={[styles.profileName, { color: theme.textPrimary }]}>{name}</Text>
+              <Text style={[styles.profilePhone, { color: theme.textSecondary }]}>{phone}</Text>
+              <View style={styles.verifiedBadge}>
+                <Text style={styles.verifiedBadgeText}>Verified Member</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={openEditName}
+              accessibilityRole="button"
+              accessibilityLabel="Edit name"
+            >
+              <MaterialIcons name="edit" size={20} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={[styles.guestCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
+            <View style={styles.guestCardHeader}>
+              <View style={[styles.avatarGradient, { backgroundColor: theme.primary }]}>
+                <Ionicons name="person-outline" size={26} color="#FFFFFF" />
+              </View>
+              <View style={styles.profileMeta}>
+                <Text style={[styles.profileName, { color: theme.textPrimary }]}>Guest Explorer</Text>
+                <Text style={[styles.profilePhone, { color: theme.textSecondary }]}>Exploring Mandphiya & Chittorgarh</Text>
+                <View style={[styles.verifiedBadge, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
+                  <Text style={[styles.verifiedBadgeText, { color: '#2563EB' }]}>Guest Mode</Text>
+                </View>
+              </View>
+            </View>
+
+            <Text style={[styles.guestPerksTitle, { color: theme.textPrimary }]}>Unlock Member Privileges</Text>
+            <View style={styles.guestPerksList}>
+              <View style={styles.guestPerkRow}>
+                <Ionicons name="fast-food-outline" size={15} color={theme.primary} />
+                <Text style={[styles.guestPerkText, { color: theme.textSecondary }]}>Order food from top Mandphiya restaurants</Text>
+              </View>
+              <View style={styles.guestPerkRow}>
+                <Ionicons name="car-outline" size={15} color="#2563EB" />
+                <Text style={[styles.guestPerkText, { color: theme.textSecondary }]}>Book quick bike, auto & cab rides</Text>
+              </View>
+              <View style={styles.guestPerkRow}>
+                <Ionicons name="location-outline" size={15} color="#059669" />
+                <Text style={[styles.guestPerkText, { color: theme.textSecondary }]}>Save your delivery addresses & order history</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.signInButton, { backgroundColor: theme.primary }]}
+              onPress={() => navigation.navigate('PhoneEntry')}
+              activeOpacity={0.88}
+            >
+              <Text style={styles.signInButtonText}>Sign In / Register with Phone</Text>
+              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Multi-Role Switcher Card */}
         {hasMultipleRoles && (
@@ -303,7 +361,7 @@ export const ProfileScreen: React.FC = () => {
             title="Food Orders"
             subtitle="Past deliveries & tracking"
             color={colors.secondary}
-            onPress={() => navigation.navigate('Activity', { initialTab: 0 })}
+            onPress={() => requireAuth(() => navigation.navigate('Activity', { initialTab: 0 }))}
           />
           <View style={styles.itemDivider} />
           <MenuItem
@@ -311,7 +369,7 @@ export const ProfileScreen: React.FC = () => {
             title="My Rides"
             subtitle="Trip receipts & ride history"
             color={colors.blue}
-            onPress={() => navigation.navigate('Activity', { initialTab: 1 })}
+            onPress={() => requireAuth(() => navigation.navigate('Activity', { initialTab: 1 }))}
           />
           <View style={styles.itemDivider} />
           <MenuItem
@@ -319,7 +377,7 @@ export const ProfileScreen: React.FC = () => {
             title="Marketplace Listings"
             subtitle="Your active and sold items"
             color={colors.primary}
-            onPress={() => navigation.navigate('Activity', { initialTab: 2 })}
+            onPress={() => requireAuth(() => navigation.navigate('Activity', { initialTab: 2 }))}
           />
           <View style={styles.itemDivider} />
           <MenuItem
@@ -327,7 +385,7 @@ export const ProfileScreen: React.FC = () => {
             title="Bazaar Seller Settlements"
             subtitle="View sold listings fee and dues"
             color="#059669"
-            onPress={() => navigation.navigate('SellerSettlements')}
+            onPress={() => requireAuth(() => navigation.navigate('SellerSettlements'))}
           />
         </View>
 
@@ -344,7 +402,7 @@ export const ProfileScreen: React.FC = () => {
             color={colors.blue}
             badgeLabel={driverBadge?.label}
             badgeColor={driverBadge?.color}
-            onPress={() => navigation.navigate('RoleApplication', { role: 'DRIVER' })}
+            onPress={() => requireAuth(() => navigation.navigate('RoleApplication', { role: 'DRIVER' }))}
           />
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
@@ -357,7 +415,7 @@ export const ProfileScreen: React.FC = () => {
             color={colors.secondary}
             badgeLabel={hotelBadge?.label}
             badgeColor={hotelBadge?.color}
-            onPress={() => navigation.navigate('RoleApplication', { role: 'RESTAURANT_OWNER' })}
+            onPress={() => requireAuth(() => navigation.navigate('RoleApplication', { role: 'RESTAURANT_OWNER' }))}
           />
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
@@ -405,7 +463,7 @@ export const ProfileScreen: React.FC = () => {
             title="Saved Addresses"
             subtitle="Home, Work, and other addresses"
             color={colors.yellow}
-            onPress={() => navigation.navigate('SavedAddresses')}
+            onPress={() => requireAuth(() => navigation.navigate('SavedAddresses'))}
           />
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
@@ -413,7 +471,7 @@ export const ProfileScreen: React.FC = () => {
             title="Notifications"
             subtitle="Order updates & promotional alerts"
             color={colors.blue}
-            onPress={() => navigation.navigate('Notifications')}
+            onPress={() => requireAuth(() => navigation.navigate('Notifications'))}
           />
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
@@ -460,11 +518,21 @@ export const ProfileScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color={colors.error} />
-          <Text style={styles.logoutButtonText}>Log Out</Text>
-        </TouchableOpacity>
+        {/* Logout or Sign In Button */}
+        {user ? (
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <MaterialIcons name="logout" size={20} color={colors.error} />
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.logoutButton, { borderColor: theme.primary, backgroundColor: `${theme.primary}12` }]}
+            onPress={() => navigation.navigate('PhoneEntry')}
+          >
+            <MaterialIcons name="login" size={20} color={theme.primary} />
+            <Text style={[styles.logoutButtonText, { color: theme.primary }]}>Sign In to Account</Text>
+          </TouchableOpacity>
+        )}
 
         {/* App Version Info */}
         <Text style={styles.versionText}>RJ09 SEWA v1.0.0 (Unified Multi-Role)</Text>
@@ -567,6 +635,50 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  guestCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  guestCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  guestPerksTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
+  guestPerksList: {
+    gap: 8,
+    marginBottom: 18,
+  },
+  guestPerkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  guestPerkText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  signInButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 8,
+  },
+  signInButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
   avatarGradient: {
     width: 60,

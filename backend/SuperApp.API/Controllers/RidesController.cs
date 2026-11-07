@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using SuperApp.API.Common;
 using SuperApp.API.Data;
 using SuperApp.API.DTOs;
 using SuperApp.API.Models;
@@ -185,6 +187,25 @@ public class RidesController : ControllerBase
         if (distanceKm < 0.15m)
             return BadRequest(ApiResponse<RideEstimateResponse>.Fail("Pickup and destination are the same place"));
 
+        // Serviceability & maximum distance enforcement
+        if (!ServiceAreaConfig.IsWithinRegionBounds((double)request.PickupLatitude, (double)request.PickupLongitude))
+        {
+            return BadRequest(ApiResponse<RideEstimateResponse>.Fail(
+                $"Pickup location is outside the supported service area ({ServiceAreaConfig.OperatingRegionName})."));
+        }
+
+        if (!ServiceAreaConfig.IsWithinRegionBounds((double)request.DropoffLatitude, (double)request.DropoffLongitude))
+        {
+            return BadRequest(ApiResponse<RideEstimateResponse>.Fail(
+                $"Destination is outside the supported service area ({ServiceAreaConfig.OperatingRegionName}). Unsupported long-distance routes are not serviceable."));
+        }
+
+        if (distanceKm > (decimal)ServiceAreaConfig.RideMaxDistanceKm)
+        {
+            return BadRequest(ApiResponse<RideEstimateResponse>.Fail(
+                $"Estimated distance ({distanceKm:F1} km) exceeds the maximum supported ride limit of {ServiceAreaConfig.RideMaxDistanceKm:F0} km for {ServiceAreaConfig.OperatingRegionName}."));
+        }
+
         List<VehicleEstimateDto> options;
         List<RideOptionDto> addons;
         try
@@ -210,6 +231,7 @@ public class RidesController : ControllerBase
     /// Book a ride, assign nearest driver, and generate passenger verification OTP
     /// </summary>
     [HttpPost("book")]
+    [EnableRateLimiting("checkout-policy")]
     public async Task<ActionResult<ApiResponse<RideDto>>> BookRide([FromBody] BookRideRequest request)
     {
         var userId = GetCurrentUserId();
@@ -230,6 +252,25 @@ public class RidesController : ControllerBase
         var distanceKm = (decimal)route.DistanceKm;
         if (distanceKm < 0.15m)
             return BadRequest(ApiResponse<RideDto>.Fail("Pickup and destination are the same place"));
+
+        // Serviceability & maximum distance enforcement
+        if (!ServiceAreaConfig.IsWithinRegionBounds((double)request.PickupLatitude, (double)request.PickupLongitude))
+        {
+            return BadRequest(ApiResponse<RideDto>.Fail(
+                $"Pickup location is outside the supported service area ({ServiceAreaConfig.OperatingRegionName})."));
+        }
+
+        if (!ServiceAreaConfig.IsWithinRegionBounds((double)request.DropoffLatitude, (double)request.DropoffLongitude))
+        {
+            return BadRequest(ApiResponse<RideDto>.Fail(
+                $"Destination is outside the supported service area ({ServiceAreaConfig.OperatingRegionName}). Cross-country or unsupported long-distance routes are not permitted."));
+        }
+
+        if (distanceKm > (decimal)ServiceAreaConfig.RideMaxDistanceKm)
+        {
+            return BadRequest(ApiResponse<RideDto>.Fail(
+                $"Requested ride distance ({distanceKm:F1} km) exceeds the maximum supported ride limit of {ServiceAreaConfig.RideMaxDistanceKm:F0} km for {ServiceAreaConfig.OperatingRegionName}."));
+        }
 
         if (!VehicleTypes.TryNormalize(request.VehicleType, out var vehicleType))
             return BadRequest(ApiResponse<RideDto>.Fail("Unsupported vehicle type. Allowed values: BIKE, AUTO, CAB."));

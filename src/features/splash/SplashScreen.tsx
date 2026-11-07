@@ -39,7 +39,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
         const isAdmin = roles.some((role) => role.toUpperCase() === 'ADMIN');
         navigation.replace(isAdmin ? 'AdminPortal' : 'MainTabs');
       } else {
-        navigation.replace('PhoneEntry');
+        // Guest mode: route directly to MainTabs so users can freely explore
+        navigation.replace('MainTabs');
       }
     }, 1800);
 

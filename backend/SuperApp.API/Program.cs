@@ -1,8 +1,11 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using SuperApp.API.Common;
 using SuperApp.API.Data;
 using SuperApp.API.Hubs;
 using SuperApp.API.Middleware;
@@ -325,13 +328,52 @@ builder.Services.AddHostedService<RideExpiryBackgroundService>();
 // --- SignalR Real-Time Hubs ---
 builder.Services.AddSignalR();
 
-// --- Controllers ---
+// --- Controllers & Rate Limiting ---
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsync(
+            "{\"success\":false,\"message\":\"Too many requests. Please slow down and try again in a few moments.\",\"statusCode\":429}",
+            token);
+    };
+
+    // 1. Strict rate limit for OTP generation & verification (5 requests per minute per IP)
+    options.AddFixedWindowLimiter("otp-policy", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+
+    // 2. Public search, categories and catalog feeds (60 requests per minute per IP)
+    options.AddFixedWindowLimiter("search-policy", opt =>
+    {
+        opt.PermitLimit = 60;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 2;
+    });
+
+    // 3. Checkout, orders and ride booking mutations (20 requests per minute per IP)
+    options.AddFixedWindowLimiter("checkout-policy", opt =>
+    {
+        opt.PermitLimit = 20;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+});
 
 // --- Swagger ---
 builder.Services.AddEndpointsApiExplorer();
@@ -758,6 +800,8 @@ app.UseCors("AllowAll");
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

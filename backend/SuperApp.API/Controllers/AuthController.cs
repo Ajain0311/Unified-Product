@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SuperApp.API.Data;
 using SuperApp.API.DTOs;
@@ -33,6 +34,7 @@ public class AuthController : ControllerBase
     /// Send OTP to mobile number. Creates user if not exists.
     /// </summary>
     [HttpPost("send-otp")]
+    [EnableRateLimiting("otp-policy")]
     public async Task<ActionResult<SendOtpResponse>> SendOtp([FromBody] SendOtpRequest request)
     {
         if (!ModelState.IsValid)
@@ -79,6 +81,7 @@ public class AuthController : ControllerBase
     /// Verify OTP for normal Citizen user login/registration.
     /// </summary>
     [HttpPost("verify-otp")]
+    [EnableRateLimiting("otp-policy")]
     public async Task<ActionResult<AuthResponse>> VerifyOtp([FromBody] VerifyOtpRequest request)
     {
         if (!ModelState.IsValid)
