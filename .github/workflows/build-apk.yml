@@ -61,16 +61,21 @@ jobs:
       - name: Make Gradlew Executable
         run: chmod +x android/gradlew
 
-      - name: Build Release APK
+      - name: Build Release APK & Dev Client APK
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease assembleDebug --no-daemon
         env:
           EXPO_PUBLIC_ENV: prod
           EXPO_PUBLIC_API_BASE_URL: https://makemyfree.duckdns.org/api
           EXPO_PUBLIC_SIGNALR_HUB_URL: https://makemyfree.duckdns.org
           EXPO_PUBLIC_SHOW_TEST_OTP: "false"
           EXPO_PUBLIC_ENABLE_LOGS: "false"
+
+      - name: Rename Dev Client APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk zupify-dev-client.apk || true
+          cp android/app/build/outputs/apk/release/app-release.apk zupify-release.apk || true
 
       - name: Get Version From app.json
         id: get_version
@@ -80,15 +85,18 @@ jobs:
           echo "tag_name=v${VERSION}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release with Updated APK
+      - name: Create GitHub Release with Updated APKs
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_version.outputs.tag_name }}
-          name: "ZUPER Release ${{ steps.get_version.outputs.tag_name }}"
+          name: "Zupify Release ${{ steps.get_version.outputs.tag_name }}"
           body: |
-            Automated Android APK build for ZUPER from commit ${{ github.sha }}.
-            Includes Hotel bookings, Bars & Lounges, B2B water supplies, settlements and bilingual support.
-          files: android/app/build/outputs/apk/release/app-release.apk
+            ### 🚀 Zupify Automated Build
+            - **Production Release APK:** `zupify-release.apk` (Standalone standalone app)
+            - **Expo Dev Client APK:** `zupify-dev-client.apk` (Install on phone for live instant hot reload via Metro / `npx expo start`)
+          files: |
+            zupify-release.apk
+            zupify-dev-client.apk
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

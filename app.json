@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "ZUPER",
-    "slug": "zuper",
+    "name": "Zupify",
+    "slug": "zupify",
     "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.superapp.v2",
+      "bundleIdentifier": "com.zupify.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "SuperApp uses your location to set pickup points for rides and recommend nearby restaurants and stores.",
+        "NSLocationWhenInUseUsageDescription": "Zupify uses your location to set pickup points for rides and recommend nearby restaurants and stores.",
         "LSApplicationQueriesSchemes": [
           "tel",
           "telprompt"
@@ -18,11 +18,11 @@
       }
     },
     "android": {
-      "package": "com.superapp.v2",
-      "versionCode": 3,
+      "package": "com.zupify.app",
+      "versionCode": 4,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "backgroundColor": "#0A0E21",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -31,8 +31,7 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "POST_NOTIFICATIONS",
-        "REQUEST_INSTALL_PACKAGES"
+        "POST_NOTIFICATIONS"
       ],
       "googleServicesFile": "./google-services.json"
     },

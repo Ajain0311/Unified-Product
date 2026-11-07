@@ -58,16 +58,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
         ]}
       >
         <LinearGradient
-          colors={[AppColors.primary, AppColors.primaryDark]}
+          colors={['#FF6B35', '#FF8A5C']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.logoContainer}
         >
-          <Ionicons name="rocket-outline" size={48} color="#FFFFFF" />
+          <Ionicons name="sparkles" size={44} color="#FFFFFF" />
         </LinearGradient>
 
-        <Text style={styles.appName}>Super App</Text>
-        <Text style={styles.tagline}>Food • Rides • Marketplace</Text>
+        <Text style={styles.appName}>Zupify</Text>
+        <Text style={styles.tagline}>Everything in a Tap</Text>
       </Animated.View>
     </View>
   );
@@ -84,31 +84,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 24,
+    width: 96,
+    height: 96,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadowStyle({
-      color: AppColors.primary,
-      offsetY: 10,
-      opacity: 0.4,
-      radius: 20,
-      elevation: 12,
+      color: '#FF6B35',
+      offsetY: 6,
+      opacity: 0.25,
+      radius: 16,
+      elevation: 6,
     }),
-    marginBottom: 24,
+    marginBottom: 20,
   },
   appName: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
-    color: AppColors.textPrimary,
-    letterSpacing: 1,
-    marginBottom: 8,
+    color: '#0F172A',
+    letterSpacing: 1.5,
+    marginBottom: 6,
   },
   tagline: {
-    fontSize: 13,
-    color: AppColors.textSecondary,
-    letterSpacing: 2,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    letterSpacing: 2.5,
     textTransform: 'uppercase',
   },
 });
