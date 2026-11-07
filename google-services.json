@@ -9,6 +9,25 @@
       "client_info": {
         "mobilesdk_app_id": "1:113158279915:android:2182455db14f764c2d64ae",
         "android_client_info": {
+          "package_name": "com.zupify.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCxoShFEFX3KfnOCrVhlmhK5abgeBMuLg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:113158279915:android:2182455db14f764c2d64ae",
+        "android_client_info": {
           "package_name": "com.superapp.v2"
         }
       },
