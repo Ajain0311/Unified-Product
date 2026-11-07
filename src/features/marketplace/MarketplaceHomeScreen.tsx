@@ -10,25 +10,27 @@ import {
   StatusBar,
   Alert,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { AppSearchBar } from '../../components/common/AppSearchBar';
 import { useMarketplaceStore } from '../../store/marketplaceStore';
 import { ListingSummary, MarketplaceCategory } from '../../models/marketplace';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { absoluteImageUrl } from '../../services/documentService';
-import { shadowStyle } from '../../utils/platformStyles';
+import { useAppTheme } from '../../theme/themeStore';
+import { useLanguageStore } from '../../store/languageStore';
+import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 
 const QUICK_FILTERS = ['All', 'Featured', 'Under ₹10k', 'Like New'];
 
 export const MarketplaceHomeScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { theme, isDark } = useAppTheme();
+  const { language } = useLanguageStore();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState('All');
@@ -38,7 +40,6 @@ export const MarketplaceHomeScreen: React.FC = () => {
   const { customListings, favorites, toggleFavorite } = useMarketplaceStore();
 
   const loadListings = useCallback(() => {
-    // Fetch live categories from backend API
     apiClient
       .get<any>(ApiEndpoints.marketplace.categories)
       .then((res) => {
@@ -49,7 +50,6 @@ export const MarketplaceHomeScreen: React.FC = () => {
       })
       .catch(() => {});
 
-    // Fetch live listings from backend API
     apiClient
       .get<any>(ApiEndpoints.marketplace.listings)
       .then((res) => {
@@ -117,10 +117,10 @@ export const MarketplaceHomeScreen: React.FC = () => {
 
   const getConditionColor = (cond: string) => {
     switch (cond?.toUpperCase()) {
-      case 'NEW': return colors.blue;
-      case 'LIKE_NEW': return colors.secondary;
-      case 'USED': return colors.primary;
-      default: return colors.textSecondary;
+      case 'NEW': return '#2563EB';
+      case 'LIKE_NEW': return '#10B981';
+      case 'USED': return '#D97706';
+      default: return theme.textSecondary;
     }
   };
 
@@ -139,10 +139,12 @@ export const MarketplaceHomeScreen: React.FC = () => {
 
     return (
       <TouchableOpacity
-        activeOpacity={0.85}
+        activeOpacity={0.88}
         style={[
           styles.productCard,
-          item.isFeatured && styles.productCardFeatured,
+          { backgroundColor: theme.card, borderColor: theme.cardBorder },
+          item.isFeatured && { borderColor: '#D97706' },
+          AppShadows.subtle,
         ]}
         onPress={() => navigation.navigate('ListingDetail', { listingId: String(item.id) })}
       >
@@ -154,10 +156,11 @@ export const MarketplaceHomeScreen: React.FC = () => {
               resizeMode="cover"
             />
           ) : (
-            <View style={[styles.productImage, styles.productImageEmpty]}>
-              <MaterialIcons name="image-not-supported" size={28} color={colors.textTertiary} />
+            <View style={[styles.productImage, { backgroundColor: theme.chipBg }]}>
+              <MaterialIcons name="image-not-supported" size={28} color={theme.textTertiary} />
             </View>
           )}
+
           {item.isFeatured && (
             <View style={styles.featuredRibbon}>
               <Text style={styles.featuredRibbonText}>FEATURED</Text>
@@ -167,15 +170,16 @@ export const MarketplaceHomeScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.heartButton}
             onPress={() => handleToggleFavorite(item.id)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <MaterialIcons
               name={isFav ? 'favorite' : 'favorite-border'}
-              size={16}
-              color={isFav ? colors.error : '#FFFFFF'}
+              size={17}
+              color={isFav ? '#EF4444' : '#FFFFFF'}
             />
           </TouchableOpacity>
 
-          <View style={[styles.conditionBadge, { borderColor: `${condColor}80` }]}>
+          <View style={[styles.conditionBadge, { backgroundColor: `${condColor}20` }]}>
             <Text style={[styles.conditionBadgeText, { color: condColor }]}>
               {formatConditionText(item.condition)}
             </Text>
@@ -183,17 +187,17 @@ export const MarketplaceHomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.cardContent}>
-          <View>
-            <Text style={styles.productPrice}>₹{item.price.toFixed(0)}</Text>
-            <Text numberOfLines={2} style={styles.productTitle}>
-              {item.title}
-            </Text>
-          </View>
+          <Text style={[styles.productPrice, { color: theme.primary }]}>
+            ₹{item.price.toFixed(0)}
+          </Text>
+          <Text numberOfLines={2} style={[styles.productTitle, { color: theme.textPrimary }]}>
+            {item.title}
+          </Text>
 
           <View style={styles.locationRow}>
-            <MaterialIcons name="location-on" size={12} color={colors.textTertiary} />
-            <Text numberOfLines={1} style={styles.locationText}>
-              {item.location || 'Bangalore'}
+            <MaterialIcons name="location-on" size={12} color={theme.textTertiary} />
+            <Text numberOfLines={1} style={[styles.locationText, { color: theme.textTertiary }]}>
+              {item.location || 'Local Area'}
             </Text>
           </View>
         </View>
@@ -202,27 +206,30 @@ export const MarketplaceHomeScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <View>
           <View style={styles.tagRow}>
-            <View style={styles.bazaarBadge}>
-              <Text style={styles.bazaarBadgeText}>SUPER BAZAAR</Text>
+            <View style={[styles.bazaarBadge, { backgroundColor: '#D9770620' }]}>
+              <Text style={[styles.bazaarBadgeText, { color: '#D97706' }]}>CITY BAZAAR</Text>
             </View>
-            <MaterialIcons name="verified-user" size={14} color={colors.secondary} />
-            <Text style={styles.verifiedText}>Verified Local Sellers</Text>
+            <MaterialIcons name="verified-user" size={13} color="#10B981" />
+            <Text style={[styles.verifiedText, { color: '#10B981' }]}>Verified Local Sellers</Text>
           </View>
-          <Text style={styles.titleText}>Community Marketplace</Text>
+          <Text style={[styles.titleText, { color: theme.textPrimary }]}>
+            {language === 'hi' ? 'कम्युनिटी मार्केटप्लेस' : 'Community Marketplace'}
+          </Text>
         </View>
 
         <TouchableOpacity
-          style={styles.shieldButton}
+          style={[styles.shieldButton, { backgroundColor: theme.chipBg, borderColor: theme.cardBorder }]}
           onPress={() => Alert.alert('Safety & Trust', 'Safety tip: Always meet sellers in well-lit public spots!')}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MaterialIcons name="security" size={20} color={colors.textSecondary} />
+          <MaterialIcons name="security" size={19} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -231,7 +238,7 @@ export const MarketplaceHomeScreen: React.FC = () => {
         <AppSearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search pre-loved phones, bikes, sofas..."
+          placeholder="Search pre-loved electronics, bikes, furniture..."
           onClear={() => setSearchQuery('')}
         />
       </View>
@@ -250,19 +257,24 @@ export const MarketplaceHomeScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.categoryPill,
-                  isSelected && styles.categoryPillSelected,
+                  {
+                    backgroundColor: isSelected ? theme.primary : theme.card,
+                    borderColor: isSelected ? theme.primary : theme.cardBorder,
+                  },
+                  AppShadows.subtle,
                 ]}
                 onPress={() => setSelectedCategoryId(item.id)}
+                activeOpacity={0.8}
               >
                 <MaterialIcons
                   name={getCategoryIcon(item.name)}
-                  size={16}
-                  color={isSelected ? '#FFFFFF' : colors.textSecondary}
+                  size={15}
+                  color={isSelected ? '#FFFFFF' : theme.textSecondary}
                 />
                 <Text
                   style={[
                     styles.categoryText,
-                    isSelected && styles.categoryTextSelected,
+                    { color: isSelected ? '#FFFFFF' : theme.textPrimary, fontWeight: isSelected ? '700' : '500' },
                   ]}
                 >
                   {item.name}
@@ -287,14 +299,19 @@ export const MarketplaceHomeScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.filterChip,
-                  isSelected && styles.filterChipSelected,
+                  {
+                    backgroundColor: isSelected ? theme.primary : theme.card,
+                    borderColor: isSelected ? theme.primary : theme.cardBorder,
+                  },
+                  AppShadows.subtle,
                 ]}
                 onPress={() => setSelectedFilter(item)}
+                activeOpacity={0.8}
               >
                 <Text
                   style={[
                     styles.filterChipText,
-                    isSelected && styles.filterChipTextSelected,
+                    { color: isSelected ? '#FFFFFF' : theme.textSecondary, fontWeight: isSelected ? '700' : '500' },
                   ]}
                 >
                   {item}
@@ -316,15 +333,15 @@ export const MarketplaceHomeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconCircle}>
-              <MaterialIcons name="search-off" size={48} color={colors.textTertiary} />
+            <View style={[styles.emptyIconCircle, { backgroundColor: theme.chipBg }]}>
+              <MaterialIcons name="search-off" size={44} color={theme.textTertiary} />
             </View>
-            <Text style={styles.emptyTitle}>No items found</Text>
-            <Text style={styles.emptySubtitle}>
-              Try changing keywords or clearing the category filter
+            <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>No items found</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+              Try changing keywords or clearing the category filter.
             </Text>
             <TouchableOpacity
-              style={styles.resetButton}
+              style={[styles.resetButton, { backgroundColor: theme.primary }]}
               onPress={() => {
                 setSearchQuery('');
                 setSelectedCategoryId(0);
@@ -339,279 +356,236 @@ export const MarketplaceHomeScreen: React.FC = () => {
 
       {/* Sell Item FAB */}
       <TouchableOpacity
-        activeOpacity={0.85}
-        style={styles.fab}
+        activeOpacity={0.88}
+        style={[styles.fab, { backgroundColor: theme.primary }, AppShadows.float]}
         onPress={() => navigation.navigate('AddListing')}
       >
-        <MaterialIcons name="camera-alt" size={20} color="#FFFFFF" />
-        <Text style={styles.fabText}>Sell Item</Text>
+        <MaterialIcons name="camera-alt" size={19} color="#FFFFFF" />
+        <Text style={styles.fabText}>Post Ad</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  safeArea: { flex: 1 },
   header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xs,
+    paddingHorizontal: AppSpacing.lg,
+    paddingVertical: AppSpacing.md,
+    borderBottomWidth: 1,
   },
   tagRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 2,
   },
   bazaarBadge: {
-    backgroundColor: 'rgba(255, 107, 53, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 107, 53, 0.3)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: AppRadius.xs,
   },
   bazaarBadgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
-    color: colors.primary,
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   verifiedText: {
-    ...typography.caption,
-    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
   },
   titleText: {
-    ...typography.h2,
-    color: colors.textPrimary,
-    fontWeight: '800',
-    marginTop: 4,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   shieldButton: {
-    padding: spacing.xs,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchContainer: {
-    paddingHorizontal: spacing.md,
-    marginTop: spacing.sm,
+    paddingHorizontal: AppSpacing.lg,
+    paddingTop: AppSpacing.sm,
+    paddingBottom: AppSpacing.xs,
   },
   categoriesSection: {
-    marginTop: spacing.sm,
-    height: 44,
+    marginBottom: AppSpacing.sm,
   },
   categoriesList: {
-    paddingHorizontal: spacing.md,
-    gap: 8,
+    paddingHorizontal: AppSpacing.lg,
+    gap: AppSpacing.sm,
   },
   categoryPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.cardDark,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 22,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: AppRadius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
-    gap: 6,
-  },
-  categoryPillSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    gap: 5,
   },
   categoryText: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    fontWeight: '500',
-  },
-  categoryTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    fontSize: 12,
   },
   filtersSection: {
-    marginTop: 6,
-    marginBottom: spacing.xs,
+    marginBottom: AppSpacing.sm,
   },
   filtersList: {
-    paddingHorizontal: spacing.md,
-    gap: 8,
+    paddingHorizontal: AppSpacing.lg,
+    gap: AppSpacing.xs,
   },
   filterChip: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 16,
+    borderRadius: AppRadius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    backgroundColor: 'transparent',
-  },
-  filterChipSelected: {
-    backgroundColor: colors.surfaceLight,
-    borderColor: colors.primary,
   },
   filterChipText: {
     fontSize: 11,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  filterChipTextSelected: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  gridContent: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
-    paddingBottom: 90,
   },
   gridRow: {
     justifyContent: 'space-between',
-    marginBottom: 14,
+    paddingHorizontal: AppSpacing.lg,
+  },
+  gridContent: {
+    paddingBottom: 90,
+    paddingTop: AppSpacing.xs,
   },
   productCard: {
-    width: '48%',
-    backgroundColor: colors.cardDark,
-    borderRadius: 16,
+    width: '48.5%',
+    borderRadius: AppRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    marginBottom: AppSpacing.md,
     overflow: 'hidden',
-  },
-  productCardFeatured: {
-    borderColor: 'rgba(255, 107, 53, 0.5)',
-    borderWidth: 1.5,
   },
   imageWrapper: {
     width: '100%',
-    aspectRatio: 1.15,
+    height: 140,
     position: 'relative',
-    backgroundColor: colors.surfaceLight,
   },
   productImage: {
     width: '100%',
     height: '100%',
-  },
-  productImageEmpty: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.cardDark,
   },
   featuredRibbon: {
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: colors.primary,
+    backgroundColor: '#D97706',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: AppRadius.xs,
   },
   featuredRibbonText: {
     color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '900',
+    fontSize: 8,
+    fontWeight: '800',
     letterSpacing: 0.5,
   },
   heartButton: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(10, 14, 33, 0.7)',
-    borderRadius: 16,
-    padding: 6,
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   conditionBadge: {
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: 'rgba(10, 14, 33, 0.85)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
+    borderRadius: AppRadius.xs,
   },
   conditionBadgeText: {
     fontSize: 9,
     fontWeight: '800',
+    letterSpacing: 0.3,
   },
   cardContent: {
-    padding: 10,
-    minHeight: 85,
-    justifyContent: 'space-between',
+    padding: AppSpacing.sm,
   },
   productPrice: {
-    ...typography.h3,
-    color: colors.primary,
+    fontSize: 15,
     fontWeight: '800',
+    marginBottom: 2,
   },
   productTitle: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
+    fontSize: 12,
     fontWeight: '600',
-    marginTop: 3,
     lineHeight: 16,
+    minHeight: 32,
+    marginBottom: 6,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    marginTop: 6,
   },
   locationText: {
-    fontSize: 10,
-    color: colors.textTertiary,
-    flex: 1,
+    fontSize: 11,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xl,
-    marginTop: spacing.xl,
+    paddingVertical: 56,
+    paddingHorizontal: 24,
   },
   emptyIconCircle: {
-    padding: 20,
-    borderRadius: 50,
-    backgroundColor: colors.surfaceLight,
-    marginBottom: spacing.md,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   emptyTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
+    fontSize: 16,
     fontWeight: '700',
+    marginBottom: 4,
   },
   emptySubtitle: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
+    fontSize: 13,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: spacing.md,
+    marginBottom: 16,
   },
   resetButton: {
-    backgroundColor: colors.surfaceLight,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderRadius: spacing.radiusMd,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: AppRadius.pill,
   },
   resetButtonText: {
-    ...typography.bodySmall,
-    color: colors.primary,
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '700',
   },
   fab: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 20,
     right: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 18,
     paddingVertical: 12,
-    borderRadius: 28,
-    gap: 8,
-    ...shadowStyle({ offsetY: 4, opacity: 0.3, radius: 6, elevation: 6 }),
+    paddingHorizontal: 18,
+    borderRadius: AppRadius.pill,
+    gap: 6,
   },
   fabText: {
-    ...typography.bodyMedium,
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

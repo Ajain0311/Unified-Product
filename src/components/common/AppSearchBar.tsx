@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AppColors } from '../../theme/colors';
-import { AppRadius } from '../../theme/spacing';
+import { useAppTheme } from '../../theme/themeStore';
+import { AppRadius, AppShadows, AppSpacing } from '../../theme/spacing';
 
 interface AppSearchBarProps {
   value?: string;
@@ -13,28 +13,47 @@ interface AppSearchBarProps {
   editable?: boolean;
   onPress?: () => void;
   testID?: string;
+  style?: ViewStyle;
 }
 
 export const AppSearchBar: React.FC<AppSearchBarProps> = ({
   value,
   onChangeText,
-  placeholder = 'Search...',
+  placeholder = 'Search dishes, stays, rides & products...',
   onClear,
   onSubmitEditing,
   editable = true,
   onPress,
   testID,
+  style,
 }) => {
+  const { theme, isDark } = useAppTheme();
+
   const content = (
-    <View style={styles.container}>
-      <Ionicons name="search-outline" size={20} color={AppColors.textTertiary} style={styles.icon} />
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? theme.surfaceLight : '#FFFFFF',
+          borderColor: theme.cardBorder,
+        },
+        AppShadows.subtle,
+        style,
+      ]}
+    >
+      <Ionicons
+        name="search-outline"
+        size={19}
+        color={theme.textTertiary}
+        style={styles.icon}
+      />
       <TextInput
         testID={testID}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={AppColors.textHint}
-        style={styles.input}
+        placeholderTextColor={theme.textTertiary}
+        style={[styles.input, { color: theme.textPrimary }]}
         editable={editable}
         onSubmitEditing={onSubmitEditing}
         returnKeyType="search"
@@ -46,8 +65,9 @@ export const AppSearchBar: React.FC<AppSearchBarProps> = ({
             if (onClear) onClear();
           }}
           style={styles.clearButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="close-circle" size={18} color={AppColors.textTertiary} />
+          <Ionicons name="close-circle" size={18} color={theme.textTertiary} />
         </TouchableOpacity>
       )}
     </View>
@@ -55,7 +75,7 @@ export const AppSearchBar: React.FC<AppSearchBarProps> = ({
 
   if (onPress && !editable) {
     return (
-      <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
+      <TouchableOpacity activeOpacity={0.88} onPress={onPress}>
         {content}
       </TouchableOpacity>
     );
@@ -69,22 +89,21 @@ const styles = StyleSheet.create({
     height: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: AppColors.surfaceLight,
-    borderRadius: AppRadius.md,
+    borderRadius: AppRadius.lg,
     borderWidth: 1,
-    borderColor: AppColors.border,
     paddingHorizontal: 14,
   },
   icon: {
-    marginRight: 10,
+    marginRight: AppSpacing.sm,
   },
   input: {
     flex: 1,
-    color: AppColors.textPrimary,
     fontSize: 14,
+    fontWeight: '400',
     height: '100%',
   },
   clearButton: {
-    padding: 4,
+    padding: 2,
+    marginLeft: 4,
   },
 });

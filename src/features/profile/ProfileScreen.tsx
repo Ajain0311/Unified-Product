@@ -27,7 +27,8 @@ import { ApiEndpoints } from '../../constants/api';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { spacing, AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
+import { useAppTheme } from '../../theme/themeStore';
 
 interface MenuItemProps {
   icon: keyof typeof MaterialIcons.glyphMap;
@@ -48,23 +49,24 @@ const MenuItem: React.FC<MenuItemProps> = ({
   badgeLabel,
   badgeColor,
 }) => {
+  const { theme } = useAppTheme();
   return (
     <TouchableOpacity activeOpacity={0.7} style={styles.menuItem} onPress={onPress}>
-      <View style={[styles.menuIconContainer, { backgroundColor: `${color}26` }]}>
+      <View style={[styles.menuIconContainer, { backgroundColor: `${color}18` }]}>
         <MaterialIcons name={icon} size={22} color={color} />
       </View>
       <View style={styles.menuContent}>
         <View style={styles.menuTitleRow}>
-          <Text style={styles.menuTitle}>{title}</Text>
+          <Text style={[styles.menuTitle, { color: theme.textPrimary }]}>{title}</Text>
           {badgeLabel ? (
-            <View style={[styles.roleBadge, { backgroundColor: `${badgeColor || color}33` }]}>
+            <View style={[styles.roleBadge, { backgroundColor: `${badgeColor || color}25` }]}>
               <Text style={[styles.roleBadgeText, { color: badgeColor || color }]}>{badgeLabel}</Text>
             </View>
           ) : null}
         </View>
-        <Text style={styles.menuSubtitle}>{subtitle}</Text>
+        <Text style={[styles.menuSubtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
       </View>
-      <MaterialIcons name="chevron-right" size={20} color={colors.textTertiary} />
+      <MaterialIcons name="chevron-right" size={20} color={theme.textTertiary} />
     </TouchableOpacity>
   );
 };
@@ -118,6 +120,7 @@ function roleAppBadge(status: string | null): { label: string; color: string; su
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { theme, isDark } = useAppTheme();
   const { user, logout, updateUser } = useAuthStore();
   const { activeRole, hasMultipleRoles } = useRoleStore();
   const [roleModalVisible, setRoleModalVisible] = useState(false);
@@ -230,28 +233,28 @@ export const ProfileScreen: React.FC = () => {
       .toUpperCase() || 'JD';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialIcons name="chevron-left" size={28} color={colors.textPrimary} />
+          <MaterialIcons name="chevron-left" size={28} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Account</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>My Account</Text>
         <View style={{ width: 28 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarGradient}>
+        <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
+          <View style={[styles.avatarGradient, { backgroundColor: theme.primary }]}>
             <Text style={styles.avatarInitials}>{initials}</Text>
           </View>
 
           <View style={styles.profileMeta}>
-            <Text style={styles.profileName}>{name}</Text>
-            <Text style={styles.profilePhone}>{phone}</Text>
+            <Text style={[styles.profileName, { color: theme.textPrimary }]}>{name}</Text>
+            <Text style={[styles.profilePhone, { color: theme.textSecondary }]}>{phone}</Text>
             <View style={styles.verifiedBadge}>
               <Text style={styles.verifiedBadgeText}>Verified Member</Text>
             </View>
@@ -263,14 +266,14 @@ export const ProfileScreen: React.FC = () => {
             accessibilityRole="button"
             accessibilityLabel="Edit name"
           >
-            <MaterialIcons name="edit" size={20} color={colors.textSecondary} />
+            <MaterialIcons name="edit" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Multi-Role Switcher Card */}
         {hasMultipleRoles && (
           <TouchableOpacity
-            style={[styles.roleSwitchCard, { borderColor: `${activeConfig.color}60` }]}
+            style={[styles.roleSwitchCard, { backgroundColor: theme.card, borderColor: `${activeConfig.color}60` }, AppShadows.subtle]}
             activeOpacity={0.8}
             onPress={() => setRoleModalVisible(true)}
           >
@@ -285,15 +288,15 @@ export const ProfileScreen: React.FC = () => {
                 </View>
               </View>
               <Text style={[styles.roleTitle, { color: activeConfig.color }]}>{activeConfig.badge}</Text>
-              <Text style={styles.roleSubtitle}>{activeConfig.tagline}</Text>
+              <Text style={[styles.roleSubtitle, { color: theme.textSecondary }]}>{activeConfig.tagline}</Text>
             </View>
-            <MaterialIcons name="swap-horiz" size={24} color={colors.textSecondary} />
+            <MaterialIcons name="swap-horiz" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
         )}
 
         {/* Section 1: Activity & Orders */}
-        <Text style={styles.sectionHeader}>Activity & Orders</Text>
-        <View style={styles.sectionCard}>
+        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Activity & Orders</Text>
+        <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
           <MenuItem
             icon="fastfood"
             title="Food Orders"
@@ -328,8 +331,8 @@ export const ProfileScreen: React.FC = () => {
         </View>
 
         {/* Grow with SuperApp — role requests */}
-        <Text style={styles.sectionHeader}>Grow with SuperApp</Text>
-        <View style={styles.sectionCard}>
+        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Grow with SuperApp</Text>
+        <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
           <MenuItem
             icon="two-wheeler"
             title="Become a Rider / Captain"
@@ -342,7 +345,7 @@ export const ProfileScreen: React.FC = () => {
             badgeColor={driverBadge?.color}
             onPress={() => navigation.navigate('RoleApplication', { role: 'DRIVER' })}
           />
-          <View style={styles.itemDivider} />
+          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="restaurant"
             title="Open a Hotel / Cafe"
@@ -355,7 +358,7 @@ export const ProfileScreen: React.FC = () => {
             badgeColor={hotelBadge?.color}
             onPress={() => navigation.navigate('RoleApplication', { role: 'RESTAURANT_OWNER' })}
           />
-          <View style={styles.itemDivider} />
+          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="storefront"
             title="Sell on Bazaar"
@@ -378,8 +381,8 @@ export const ProfileScreen: React.FC = () => {
         </View>
 
         {/* Section 2: Account Settings */}
-        <Text style={styles.sectionHeader}>Account Settings</Text>
-        <View style={styles.sectionCard}>
+        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Account Settings</Text>
+        <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
           <MenuItem
             icon="location-on"
             title="Saved Addresses"
@@ -387,7 +390,7 @@ export const ProfileScreen: React.FC = () => {
             color={colors.yellow}
             onPress={() => navigation.navigate('SavedAddresses')}
           />
-          <View style={styles.itemDivider} />
+          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="notifications"
             title="Notifications"
@@ -395,7 +398,7 @@ export const ProfileScreen: React.FC = () => {
             color={colors.blue}
             onPress={() => navigation.navigate('Notifications')}
           />
-          <View style={styles.itemDivider} />
+          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="credit-card"
             title="Payment Methods"
@@ -403,7 +406,7 @@ export const ProfileScreen: React.FC = () => {
             color={colors.secondary}
             onPress={() => Alert.alert('Payment Methods', 'UPI, Cards, and Netbanking are available directly at checkout via Razorpay.')}
           />
-          <View style={styles.itemDivider} />
+          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="headset-mic"
             title="Help & Support"

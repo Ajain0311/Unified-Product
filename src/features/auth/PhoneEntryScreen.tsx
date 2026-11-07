@@ -16,14 +16,17 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../store/authStore';
+import { useAppTheme } from '../../theme/themeStore';
 import { shadowStyle } from '../../utils/platformStyles';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
+import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 
 interface PhoneEntryScreenProps {
   navigation: any;
 }
 
 export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -133,16 +136,16 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
           {!keyboardOpen ? (
             <View style={styles.featureRow}>
               <View style={styles.featureChip}>
-                <Text style={styles.featureChipIcon}>🍕</Text>
+                <Ionicons name="fast-food" size={13} color="#FF5A1F" style={{ marginRight: 6 }} />
                 <Text style={styles.featureChipText}>Food Delivery</Text>
               </View>
               <View style={styles.featureChip}>
-                <Text style={styles.featureChipIcon}>🚕</Text>
+                <Ionicons name="car-sport" size={13} color="#2563EB" style={{ marginRight: 6 }} />
                 <Text style={styles.featureChipText}>Fast Cabs</Text>
               </View>
               <View style={styles.featureChip}>
-                <Text style={styles.featureChipIcon}>🛍️</Text>
-                <Text style={styles.featureChipText}>Bazaar</Text>
+                <Ionicons name="bag-handle" size={13} color="#D97706" style={{ marginRight: 6 }} />
+                <Text style={styles.featureChipText}>City Bazaar</Text>
               </View>
             </View>
           ) : null}

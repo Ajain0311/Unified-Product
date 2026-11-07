@@ -19,10 +19,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { AppColors } from '../../theme/colors';
-import { AppRadius } from '../../theme/spacing';
+import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 import { AppSearchBar } from '../../components/common/AppSearchBar';
+import { AppHeader } from '../../components/common/AppHeader';
+import { SectionHeader } from '../../components/common/SectionHeader';
+import { ModuleGrid } from '../../components/common/ModuleGrid';
+import { PromotionCarousel, BannerItem } from '../../components/common/PromotionCarousel';
 import { MarqueeText } from '../../components/common/MarqueeText';
-import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
@@ -34,7 +37,7 @@ import { RestaurantSummary, FoodItem } from '../../models/food';
 import { ListingSummary } from '../../models/marketplace';
 import { DEFAULT_RESTAURANTS, resolveRestaurantImage } from '../food/FoodHomeScreen';
 
-const SCREEN_WIDTH = typeof Dimensions !== 'undefined' && Dimensions.get ? (Dimensions.get('window')?.width || 375) : 375;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 function parseBroadcastExpiry(referenceId: unknown): Date | null {
   const raw = String(referenceId ?? '').trim();
@@ -59,6 +62,7 @@ function isBroadcastStillVisible(
 }
 
 function resolveBannerImage(url: string) {
+  if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   const origin = AppEnvironment.hubBaseUrl.replace(/\/$/, '');
   return `${origin}${url.startsWith('/') ? url : `/${url}`}`;
@@ -94,7 +98,7 @@ export interface TodayDealItem {
 }
 
 const CUISINE_RECOMMENDATIONS = [
-  { id: 'biryani', name: 'Biryani', icon: 'flame', count: '14+ spots', color: '#F97316' },
+  { id: 'biryani', name: 'Biryani', icon: 'flame', count: '14+ spots', color: '#FF5A1F' },
   { id: 'north_indian', name: 'North Indian', icon: 'restaurant', count: '22+ spots', color: '#10B981' },
   { id: 'south_indian', name: 'South Indian', icon: 'leaf', count: '12+ spots', color: '#06B6D4' },
   { id: 'burgers', name: 'Burgers & Pizza', icon: 'fast-food', count: '18+ spots', color: '#EF4444' },
@@ -103,13 +107,12 @@ const CUISINE_RECOMMENDATIONS = [
 ];
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const user = useAuthStore((state) => state.user);
   const addItemToCart = useCartStore((state) => state.addItem);
-  const { theme, isDark, toggleTheme } = useAppTheme();
-  const { language, toggleLanguage, t } = useLanguageStore();
+  const { theme, isDark } = useAppTheme();
+  const { language, t } = useLanguageStore();
 
   const [activeRide, setActiveRide] = useState<any>(null);
-  const [banners, setBanners] = useState<any[]>([]);
+  const [banners, setBanners] = useState<BannerItem[]>([]);
   const [deliverTo, setDeliverTo] = useState<string>('Select Delivery Address');
   const [restaurants, setRestaurants] = useState<RestaurantSummary[]>(DEFAULT_RESTAURANTS);
   const [todayDeals, setTodayDeals] = useState<TodayDealItem[]>([]);
@@ -125,7 +128,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   // Multi-Category Search Overlay State
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchFilter, setSearchFilter] = useState<'ALL' | 'FOOD' | 'BAZAAR'>('ALL');
+  const [searchFilter, setSearchFilter] = useState<'ALL' | 'FOOD' | 'BAZAAR' | 'HOTELS'>('ALL');
   const [searchLoading, setSearchLoading] = useState(false);
   const [foodPool, setFoodPool] = useState<any[]>([]);
   const [bazaarPool, setBazaarPool] = useState<any[]>([]);
@@ -189,6 +192,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         const data = bannersRes.value?.data?.data || bannersRes.value?.data;
         if (Array.isArray(data) && data.length > 0) {
           setBanners(data);
+        } else {
+          // Curated default banners for premium feel
+          setBanners([
+            {
+              id: 'promo-1',
+              title: 'SuperApp Exclusive Discounts',
+              subtitle: 'Up to 50% OFF on gourmet meals & boutique stays',
+              ctaText: 'Discover',
+              badge: 'LIMITED TIME',
+              gradient: ['#FF5A1F', '#FF7A45'],
+            },
+            {
+              id: 'promo-2',
+              title: 'Instant Rides at Zero Surge',
+              subtitle: 'Verified local captains • Fixed transparent pricing',
+              ctaText: 'Book Cab',
+              badge: 'FASTEST',
+              gradient: ['#2563EB', '#3B82F6'],
+            },
+          ]);
         }
       }
 
@@ -352,6 +375,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       return;
     }
 
+    if (targetType === 'HOTEL' || moduleName === 'HOTELS') {
+      if (targetId) {
+        navigation.navigate('HotelDetail', { hotelId: targetId });
+        return;
+      }
+      navigation.navigate('HotelHome');
+      return;
+    }
+
     if (banner.title) {
       Alert.alert(banner.title, banner.subtitle || 'Special offer available on SuperApp services.');
     }
@@ -414,130 +446,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return results.slice(0, 20);
   }, [searchQuery, searchFilter, foodPool, bazaarPool]);
 
-  const getInitials = () => {
-    if (!user || !user.fullName) return 'U';
-    const parts = user.fullName.trim().split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return user.fullName.substring(0, 2).toUpperCase();
-  };
-
-  const isDarkUi = isDark;
-  const currentColors = isDarkUi
-    ? {
-        bg: '#0A0E21',
-        card: '#141829',
-        cardBorder: '#232946',
-        textMain: '#FFFFFF',
-        textMuted: '#94A3B8',
-        surfaceChip: '#1E243D',
-      }
-    : {
-        bg: '#F8FAFC',
-        card: '#FFFFFF',
-        cardBorder: '#E2E8F0',
-        textMain: '#0F172A',
-        textMuted: '#64748B',
-        surfaceChip: '#F1F5F9',
-      };
-
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentColors.bg }]}>
-      <StatusBar barStyle={isDarkUi ? 'light-content' : 'dark-content'} />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. TOP PREMIUM HEADER */}
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            style={[styles.locationGroup, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}
-            onPress={() => navigation.navigate('SavedAddresses')}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#FF6B35', '#FF8A5C']}
-              style={styles.locationIconBox}
-            >
-              <Ionicons name="location-sharp" size={16} color="#FFFFFF" />
-            </LinearGradient>
-            <View style={styles.locationTextColumn}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.deliverToCaption}>{language === 'hi' ? 'डिलीवरी पता' : 'DELIVER TO'}</Text>
-                <View style={styles.livePulseDot} />
-              </View>
-              <View style={styles.cityRow}>
-                <Text style={[styles.cityName, { color: currentColors.textMain }]} numberOfLines={1}>
-                  {deliverTo}
-                </Text>
-                <Ionicons name="chevron-down" size={14} color={currentColors.textMuted} />
-              </View>
-            </View>
-          </TouchableOpacity>
+        {/* 1. TOP PREMIUM APP HEADER */}
+        <AppHeader
+          deliverTo={deliverTo}
+          onPressLocation={() => navigation.navigate('SavedAddresses')}
+          onPressNotifications={() => {
+            setUnreadNotifCount(0);
+            navigation.navigate('Notifications');
+          }}
+          onPressProfile={() => navigation.navigate('Profile')}
+          unreadCount={unreadNotifCount}
+        />
 
-          <View style={styles.headerRightActions}>
-            {/* Language Switcher */}
-            <TouchableOpacity
-              style={[styles.headerIconButton, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}
-              onPress={toggleLanguage}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '800', color: AppColors.primary }}>
-                {language === 'hi' ? 'EN' : 'हि'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Dark/Light Mode */}
-            <TouchableOpacity
-              style={[styles.headerIconButton, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}
-              onPress={toggleTheme}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={isDarkUi ? 'sunny' : 'moon'}
-                size={18}
-                color={isDarkUi ? '#F59E0B' : '#475569'}
-              />
-            </TouchableOpacity>
-
-            {/* Notifications */}
-            <TouchableOpacity
-              style={[styles.headerIconButton, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}
-              onPress={() => {
-                setUnreadNotifCount(0);
-                navigation.navigate('Notifications');
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="notifications-outline" size={19} color={currentColors.textMain} />
-              {unreadNotifCount > 0 && (
-                <View style={styles.notifBadge}>
-                  <Text style={styles.notifBadgeText}>
-                    {unreadNotifCount > 99 ? '99+' : String(unreadNotifCount)}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* User Avatar */}
-            <TouchableOpacity
-              style={styles.profileAvatar}
-              onPress={() => navigation.navigate('Profile')}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#6366F1', '#8B5CF6']}
-                style={styles.profileGradient}
-              >
-                <Text style={styles.avatarInitials}>{getInitials()}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* 2. UNIFIED SEARCH BAR */}
+        {/* 2. UNIFIED GLOBAL SEARCH BAR */}
         <View style={styles.searchWrapper}>
           <AppSearchBar
             placeholder={
@@ -550,16 +479,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           />
         </View>
 
-        {/* 3. BROADCAST MARQUEE */}
+        {/* 3. BROADCAST MARQUEE (when active) */}
         {homeAnnouncement ? (
-          <View style={styles.announcementCard}>
+          <View style={[styles.announcementCard, { backgroundColor: isDark ? '#83184322' : '#FDF2F8' }]}>
             <TouchableOpacity
               style={styles.announcementTapArea}
               activeOpacity={0.85}
               onPress={() => navigation.navigate('Notifications')}
             >
               <View style={styles.announcementIconWrap}>
-                <Ionicons name="megaphone" size={14} color="#BE185D" />
+                <Ionicons name="megaphone" size={13} color="#BE185D" />
               </View>
               <MarqueeText
                 text={
@@ -579,18 +508,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 setDismissedAnnouncementId(homeAnnouncement.id);
                 setHomeAnnouncement(null);
               }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="close" size={16} color="#9F1239" />
+              <Ionicons name="close" size={15} color="#9F1239" />
             </TouchableOpacity>
           </View>
         ) : null}
 
-        {/* 4. ACTIVE RIDE STATUS CARD */}
+        {/* 4. ACTIVE RIDE STATUS CARD (Uber-like clean live trip tracker) */}
         {activeRide ? (
-          <View style={[styles.liveRideCard, { backgroundColor: currentColors.card, borderColor: '#10B98155' }]}>
+          <View
+            style={[
+              styles.liveRideCard,
+              { backgroundColor: theme.card, borderColor: '#10B98155' },
+              AppShadows.md,
+            ]}
+          >
             <View style={styles.liveRideHeader}>
               <View style={styles.liveRideIndicatorGroup}>
-                <View style={[styles.livePulseDot, { backgroundColor: '#10B981' }]} />
+                <View style={styles.livePulseDot} />
                 <Text style={styles.liveRideStatusText}>
                   LIVE TRIP • {activeRide.status === 'STARTED' ? 'IN TRANSIT' : 'CAPTAIN ASSIGNED'}
                 </Text>
@@ -604,16 +540,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <View style={styles.vehicleIconCircle}>
                 <Ionicons
                   name={activeRide.vehicleType === 'CAB' ? 'car' : 'bicycle'}
-                  size={24}
+                  size={22}
                   color="#10B981"
                 />
               </View>
               <View style={styles.liveRideDetails}>
-                <Text style={[styles.liveRideTitle, { color: currentColors.textMain }]}>
+                <Text style={[styles.liveRideTitle, { color: theme.textPrimary }]}>
                   {activeRide.vehicleType || 'Trip'} ({activeRide.rideNumber})
                 </Text>
                 <View style={styles.driverOtpRow}>
-                  <Text style={[styles.driverText, { color: currentColors.textMuted }]}>
+                  <Text style={[styles.driverText, { color: theme.textSecondary }]}>
                     {activeRide.driver?.fullName ? `Captain: ${activeRide.driver.fullName} • ` : ''}OTP:{' '}
                   </Text>
                   <Text style={styles.otpHighlight}>{activeRide.otpCode || '----'}</Text>
@@ -630,7 +566,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 activeOpacity={0.8}
               >
                 <Text style={styles.trackButtonText}>View</Text>
-                <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           </View>
@@ -638,123 +574,43 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
         {/* 5. PROMOTIONAL HERO BANNERS */}
         {banners.length > 0 && (
-          <View style={styles.bannerSection}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.bannersScroll}
-              decelerationRate="fast"
-              snapToInterval={SCREEN_WIDTH - 44}
-            >
-              {banners.map((banner) => (
-                <TouchableOpacity
-                  key={String(banner.id)}
-                  style={styles.bannerCard}
-                  activeOpacity={0.92}
-                  onPress={() => openBanner(banner)}
-                >
-                  {banner.imageUrl ? (
-                    <Image
-                      source={{ uri: resolveBannerImage(banner.imageUrl) }}
-                      style={styles.bannerImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <LinearGradient
-                      colors={['#3B82F6', '#8B5CF6']}
-                      style={styles.bannerImagePlaceholder}
-                    >
-                      <Ionicons name="sparkles" size={36} color="#FFFFFF" />
-                    </LinearGradient>
-                  )}
-                  <LinearGradient
-                    colors={['transparent', 'rgba(10, 14, 33, 0.9)']}
-                    style={styles.bannerOverlay}
-                  >
-                    <Text style={styles.bannerTitle} numberOfLines={1}>{banner.title}</Text>
-                    {banner.subtitle ? (
-                      <Text style={styles.bannerSubtitle} numberOfLines={1}>{banner.subtitle}</Text>
-                    ) : null}
-                    {banner.ctaText ? (
-                      <View style={styles.bannerCtaBadge}>
-                        <Text style={styles.bannerCtaText}>{banner.ctaText} →</Text>
-                      </View>
-                    ) : null}
-                  </LinearGradient>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          <PromotionCarousel
+            banners={banners}
+            onPressBanner={openBanner}
+            resolveImageUrl={resolveBannerImage}
+          />
         )}
 
-        {/* 6. ECOSYSTEM BUSINESS MODULES GRID */}
-        <View style={styles.sectionHeaderRow}>
-          <View>
-            <Text style={[styles.sectionHeading, { color: currentColors.textMain }]}>
-              {language === 'hi' ? 'सेवाएं और स्टे' : 'Explore Ecosystem'}
-            </Text>
-            <Text style={[styles.sectionSubheading, { color: currentColors.textMuted }]}>
-              {language === 'hi' ? 'होटल, खाना, कैब, बाज़ार एवं पेय' : 'Curated services, stays & local commerce'}
-            </Text>
-          </View>
-        </View>
+        {/* 6. DYNAMIC ECOSYSTEM SERVICES (Future-ready from BUSINESS_MODULES) */}
+        <SectionHeader
+          title={language === 'hi' ? 'सेवाएं और स्टे' : 'Explore Ecosystem'}
+          subtitle={
+            language === 'hi'
+              ? 'होटल, खाना, कैब, बाज़ार एवं पेय'
+              : 'Curated stays, fast delivery & local commerce'
+          }
+        />
 
-        <View style={styles.moduleGridContainer}>
-          {BUSINESS_MODULES.map((mod) => (
-            <TouchableOpacity
-              key={mod.id}
-              activeOpacity={0.88}
-              onPress={() => {
-                if (mod.route === 'Food' || mod.route === 'Rides' || mod.route === 'Bazaar') {
-                  navigation.navigate(mod.route);
-                } else {
-                  navigation.navigate(mod.route as any);
-                }
-              }}
-              style={[
-                styles.moduleCard,
-                {
-                  backgroundColor: currentColors.card,
-                  borderColor: currentColors.cardBorder,
-                },
-              ]}
-            >
-              <View style={styles.moduleCardTop}>
-                <LinearGradient
-                  colors={mod.gradient}
-                  style={styles.moduleIconBox}
-                >
-                  <Ionicons name={mod.icon as any} size={22} color="#FFFFFF" />
-                </LinearGradient>
-                {mod.badgeEn && (
-                  <View style={[styles.moduleBadge, { backgroundColor: currentColors.surfaceChip }]}>
-                    <Text style={[styles.moduleBadgeText, { color: mod.gradient[0] }]}>
-                      {language === 'hi' ? mod.badgeHi : mod.badgeEn}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              <Text
-                style={[styles.moduleName, { color: currentColors.textMain }]}
-                numberOfLines={1}
-              >
-                {language === 'hi' ? mod.nameHi : mod.nameEn}
-              </Text>
-
-              <Text
-                style={[styles.moduleDesc, { color: currentColors.textMuted }]}
-                numberOfLines={2}
-              >
-                {language === 'hi' ? mod.descriptionHi : mod.descriptionEn}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.moduleSection}>
+          <ModuleGrid
+            modules={BUSINESS_MODULES}
+            onSelectModule={(route) => {
+              if (route === 'Food' || route === 'Rides' || route === 'Bazaar') {
+                navigation.navigate(route);
+              } else {
+                navigation.navigate(route as any);
+              }
+            }}
+          />
         </View>
 
         {/* 7. QUICK RIDE SHORTCUT STRIP */}
         <TouchableOpacity
-          style={[styles.rideShortcutStrip, { backgroundColor: currentColors.card, borderColor: '#3B82F644' }]}
+          style={[
+            styles.rideShortcutStrip,
+            { backgroundColor: theme.card, borderColor: isDark ? '#1E3A8A' : '#BFDBFE' },
+            AppShadows.subtle,
+          ]}
           activeOpacity={0.88}
           onPress={() => navigation.navigate('Rides')}
         >
@@ -766,36 +622,33 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Ionicons name="car-sport" size={20} color="#FFFFFF" />
             </LinearGradient>
             <View style={styles.rideShortcutTextCol}>
-              <Text style={[styles.rideShortcutTitle, { color: currentColors.textMain }]}>
+              <Text style={[styles.rideShortcutTitle, { color: theme.textPrimary }]}>
                 {language === 'hi' ? 'तुरंत कैब या बाइक चाहिए?' : 'Need an instant ride?'}
               </Text>
-              <Text style={[styles.rideShortcutSubtitle, { color: currentColors.textMuted }]}>
-                {language === 'hi' ? 'बाइक, ऑटो व कैब नजदीकी उपलब्ध' : 'Verified captains nearby • Transparent fares'}
+              <Text style={[styles.rideShortcutSubtitle, { color: theme.textSecondary }]}>
+                {language === 'hi' ? 'बाइक, ऑटो व कैब नजदीकी उपलब्ध' : 'Verified captains nearby • Zero surge'}
               </Text>
             </View>
           </View>
           <View style={styles.rideShortcutActionBtn}>
             <Text style={styles.rideShortcutActionText}>Book Now</Text>
-            <Ionicons name="arrow-forward" size={13} color="#2563EB" />
+            <Ionicons name="arrow-forward" size={12} color="#2563EB" />
           </View>
         </TouchableOpacity>
 
-        {/* 8. TODAY'S DEALS & COMBOS SECTION */}
+        {/* 8. TODAY'S SPECIALS & DEALS */}
         {todayDeals.length > 0 && (
           <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeaderRow}>
-              <View>
-                <Text style={[styles.sectionHeading, { color: currentColors.textMain }]}>
-                  {language === 'hi' ? 'आज के विशेष ऑफर्स एवं थाली' : "Today's Deals & Combos"}
-                </Text>
-                <Text style={[styles.sectionSubheading, { color: currentColors.textMuted }]}>
-                  {language === 'hi' ? 'ताज़ा भोजन सीधे शीर्ष रेस्तरां से' : 'Fresh discounts from verified kitchens'}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Food')}>
-                <Text style={styles.seeAllText}>See all</Text>
-              </TouchableOpacity>
-            </View>
+            <SectionHeader
+              title={language === 'hi' ? 'आज के विशेष ऑफर्स' : "Today's Specials"}
+              subtitle={
+                language === 'hi'
+                  ? 'ताज़ा भोजन सीधे शीर्ष रेस्तरां से'
+                  : 'Handpicked discounts from verified kitchens'
+              }
+              actionText="See all"
+              onAction={() => navigation.navigate('Food')}
+            />
 
             <ScrollView
               horizontal
@@ -808,14 +661,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   style={[
                     styles.dealCard,
                     {
-                      backgroundColor: currentColors.card,
-                      borderColor: currentColors.cardBorder,
+                      backgroundColor: theme.card,
+                      borderColor: theme.cardBorder,
                     },
+                    AppShadows.subtle,
                   ]}
                 >
                   <TouchableOpacity
                     activeOpacity={0.9}
-                    onPress={() => navigation.navigate('RestaurantDetail', { restaurantId: deal.restaurantId.toString() })}
+                    onPress={() =>
+                      navigation.navigate('RestaurantDetail', {
+                        restaurantId: deal.restaurantId.toString(),
+                      })
+                    }
                   >
                     <Image
                       source={{ uri: resolveRestaurantImage(deal.imageUrl) }}
@@ -828,19 +686,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   </TouchableOpacity>
 
                   <View style={styles.dealCardContent}>
-                    <Text style={[styles.dealRestName, { color: currentColors.textMuted }]} numberOfLines={1}>
+                    <Text
+                      style={[styles.dealRestName, { color: theme.textTertiary }]}
+                      numberOfLines={1}
+                    >
                       {deal.restaurantName}
                     </Text>
-                    <Text style={[styles.dealItemName, { color: currentColors.textMain }]} numberOfLines={1}>
+                    <Text
+                      style={[styles.dealItemName, { color: theme.textPrimary }]}
+                      numberOfLines={1}
+                    >
                       {deal.name}
                     </Text>
 
                     <View style={styles.dealPriceRow}>
-                      <Text style={[styles.dealPrice, { color: currentColors.textMain }]}>
+                      <Text style={[styles.dealPrice, { color: theme.primary }]}>
                         ₹{deal.discountedPrice.toFixed(0)}
                       </Text>
                       {deal.basePrice > deal.discountedPrice && (
-                        <Text style={[styles.dealBasePrice, { color: currentColors.textMuted }]}>
+                        <Text style={[styles.dealBasePrice, { color: theme.textTertiary }]}>
                           ₹{deal.basePrice.toFixed(0)}
                         </Text>
                       )}
@@ -863,19 +727,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
         {/* 9. FOOD DISCOVERY CUISINES */}
         <View style={styles.sectionContainer}>
-          <View style={styles.sectionHeaderRow}>
-            <View>
-              <Text style={[styles.sectionHeading, { color: currentColors.textMain }]}>
-                {language === 'hi' ? 'स्वादिष्ट श्रेणियां' : 'Cuisine Discovery'}
-              </Text>
-              <Text style={[styles.sectionSubheading, { color: currentColors.textMuted }]}>
-                {language === 'hi' ? 'लोकप्रिय भोजन विकल्प' : 'Curated dishes & beverage delights'}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => navigation.navigate('Food')}>
-              <Text style={styles.seeAllText}>Explore</Text>
-            </TouchableOpacity>
-          </View>
+          <SectionHeader
+            title={language === 'hi' ? 'स्वादिष्ट श्रेणियां' : 'Cuisine Discovery'}
+            subtitle={
+              language === 'hi'
+                ? 'लोकप्रिय भोजन श्रेणियां'
+                : 'Browse trending dishes & specialties'
+            }
+            actionText="Explore"
+            onAction={() => navigation.navigate('Food')}
+          />
 
           <ScrollView
             horizontal
@@ -888,18 +749,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 style={[
                   styles.cuisinePill,
                   {
-                    backgroundColor: currentColors.card,
-                    borderColor: currentColors.cardBorder,
+                    backgroundColor: theme.card,
+                    borderColor: theme.cardBorder,
                   },
+                  AppShadows.subtle,
                 ]}
                 activeOpacity={0.8}
                 onPress={() => navigation.navigate('Food')}
               >
-                <View style={[styles.cuisineIconCircle, { backgroundColor: `${c.color}1E` }]}>
+                <View style={[styles.cuisineIconCircle, { backgroundColor: `${c.color}18` }]}>
                   <Ionicons name={c.icon as any} size={20} color={c.color} />
                 </View>
-                <Text style={[styles.cuisineName, { color: currentColors.textMain }]}>{c.name}</Text>
-                <Text style={[styles.cuisineCount, { color: currentColors.textMuted }]}>{c.count}</Text>
+                <Text style={[styles.cuisineName, { color: theme.textPrimary }]}>{c.name}</Text>
+                <Text style={[styles.cuisineCount, { color: theme.textTertiary }]}>{c.count}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -907,19 +769,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
         {/* 10. POPULAR RESTAURANTS */}
         <View style={styles.sectionContainer}>
-          <View style={styles.sectionHeaderRow}>
-            <View>
-              <Text style={[styles.sectionHeading, { color: currentColors.textMain }]}>
-                {language === 'hi' ? 'नजदीकी लोकप्रिय रेस्तरां' : 'Top Restaurants Near You'}
-              </Text>
-              <Text style={[styles.sectionSubheading, { color: currentColors.textMuted }]}>
-                {language === 'hi' ? 'रेटेड भोजन एवं तेज़ डिलीवरी' : 'Fast doorstep drop with live tracking'}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => navigation.navigate('Food')}>
-              <Text style={styles.seeAllText}>View all ({restaurants.length})</Text>
-            </TouchableOpacity>
-          </View>
+          <SectionHeader
+            title={language === 'hi' ? 'नजदीकी लोकप्रिय रेस्तरां' : 'Top Restaurants Near You'}
+            subtitle={
+              language === 'hi'
+                ? 'रेटेड भोजन एवं तेज़ डिलीवरी'
+                : 'Speedy doorstep delivery with live tracking'
+            }
+            actionText={`View all (${restaurants.length})`}
+            onAction={() => navigation.navigate('Food')}
+          />
 
           {restaurants.slice(0, 4).map((restaurant) => (
             <TouchableOpacity
@@ -927,9 +786,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               style={[
                 styles.restCard,
                 {
-                  backgroundColor: currentColors.card,
-                  borderColor: currentColors.cardBorder,
+                  backgroundColor: theme.card,
+                  borderColor: theme.cardBorder,
                 },
+                AppShadows.subtle,
               ]}
               activeOpacity={0.9}
               onPress={() =>
@@ -945,30 +805,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               />
               <View style={styles.restInfo}>
                 <View style={styles.restTitleRow}>
-                  <Text style={[styles.restName, { color: currentColors.textMain }]} numberOfLines={1}>
+                  <Text style={[styles.restName, { color: theme.textPrimary }]} numberOfLines={1}>
                     {restaurant.name}
                   </Text>
                   <View style={styles.ratingBadge}>
                     <Ionicons name="star" size={10} color="#FFFFFF" />
-                    <Text style={styles.ratingText}>{Number(restaurant.rating || 4.5).toFixed(1)}</Text>
+                    <Text style={styles.ratingText}>
+                      {Number(restaurant.rating || 4.5).toFixed(1)}
+                    </Text>
                   </View>
                 </View>
 
-                <Text style={[styles.restCuisines, { color: currentColors.textMuted }]} numberOfLines={1}>
+                <Text style={[styles.restCuisines, { color: theme.textSecondary }]} numberOfLines={1}>
                   {restaurant.cuisines || restaurant.description || 'Multi-cuisine • Fast Food'}
                 </Text>
 
                 <View style={styles.restMetaRow}>
                   <View style={styles.restMetaItem}>
-                    <Ionicons name="time-outline" size={13} color={currentColors.textMuted} />
-                    <Text style={[styles.restMetaText, { color: currentColors.textMuted }]}>
+                    <Ionicons name="time-outline" size={13} color={theme.textTertiary} />
+                    <Text style={[styles.restMetaText, { color: theme.textTertiary }]}>
                       {restaurant.avgDeliveryTimeMinutes || 25} mins
                     </Text>
                   </View>
-                  <Text style={[styles.metaDot, { color: currentColors.textMuted }]}>•</Text>
+                  <Text style={[styles.metaDot, { color: theme.textTertiary }]}>•</Text>
                   <View style={styles.restMetaItem}>
-                    <Ionicons name="bicycle-outline" size={13} color={currentColors.textMuted} />
-                    <Text style={[styles.restMetaText, { color: currentColors.textMuted }]}>
+                    <Ionicons name="bicycle-outline" size={13} color={theme.textTertiary} />
+                    <Text style={[styles.restMetaText, { color: theme.textTertiary }]}>
                       {restaurant.deliveryFee === 0 ? 'Free Delivery' : `₹${restaurant.deliveryFee} drop`}
                     </Text>
                   </View>
@@ -980,20 +842,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
         {/* 11. BAZAAR PICKS */}
         {bazaarListings.length > 0 && (
-          <View style={[styles.sectionContainer, { marginBottom: 20 }]}>
-            <View style={styles.sectionHeaderRow}>
-              <View>
-                <Text style={[styles.sectionHeading, { color: currentColors.textMain }]}>
-                  {language === 'hi' ? 'स्थानीय कम्युनिटी बाज़ार' : 'Community Bazaar Finds'}
-                </Text>
-                <Text style={[styles.sectionSubheading, { color: currentColors.textMuted }]}>
-                  {language === 'hi' ? 'सत्यापित स्थानीय विक्रेताओं से' : 'Pre-loved & local verified listings'}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Bazaar')}>
-                <Text style={styles.seeAllText}>Browse</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={styles.sectionContainer}>
+            <SectionHeader
+              title={language === 'hi' ? 'स्थानीय कम्युनिटी बाज़ार' : 'Community Bazaar Finds'}
+              subtitle={
+                language === 'hi'
+                  ? 'सत्यापित स्थानीय विक्रेताओं से'
+                  : 'Pre-owned & verified deals from verified neighbours'
+              }
+              actionText="Browse"
+              onAction={() => navigation.navigate('Bazaar')}
+            />
 
             <ScrollView
               horizontal
@@ -1006,12 +865,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   style={[
                     styles.bazaarCard,
                     {
-                      backgroundColor: currentColors.card,
-                      borderColor: currentColors.cardBorder,
+                      backgroundColor: theme.card,
+                      borderColor: theme.cardBorder,
                     },
+                    AppShadows.subtle,
                   ]}
                   activeOpacity={0.88}
-                  onPress={() => navigation.navigate('ListingDetail', { listingId: String(listing.id) })}
+                  onPress={() =>
+                    navigation.navigate('ListingDetail', { listingId: String(listing.id) })
+                  }
                 >
                   <Image
                     source={{
@@ -1023,13 +885,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                     resizeMode="cover"
                   />
                   <View style={styles.bazaarCardContent}>
-                    <Text style={[styles.bazaarPrice, { color: currentColors.textMain }]}>
+                    <Text style={[styles.bazaarPrice, { color: theme.primary }]}>
                       ₹{Number(listing.price || 0).toFixed(0)}
                     </Text>
-                    <Text style={[styles.bazaarTitle, { color: currentColors.textMain }]} numberOfLines={1}>
+                    <Text style={[styles.bazaarTitle, { color: theme.textPrimary }]} numberOfLines={1}>
                       {listing.title}
                     </Text>
-                    <Text style={[styles.bazaarCategory, { color: currentColors.textMuted }]} numberOfLines={1}>
+                    <Text style={[styles.bazaarCategory, { color: theme.textTertiary }]} numberOfLines={1}>
                       {listing.categoryName || 'General'} • {listing.location || 'Local'}
                     </Text>
                   </View>
@@ -1040,12 +902,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         )}
       </ScrollView>
 
-      {/* GLOBAL SEARCH OVERLAY MODAL */}
-      <Modal visible={isSearchOpen} animationType="slide" onRequestClose={() => setIsSearchOpen(false)}>
-        <SafeAreaView style={[styles.searchModalContainer, { backgroundColor: currentColors.bg }]}>
-          <View style={[styles.searchModalHeader, { borderBottomColor: currentColors.cardBorder }]}>
+      {/* 12. GLOBAL MULTI-MODULE SEARCH OVERLAY MODAL */}
+      <Modal
+        visible={isSearchOpen}
+        animationType="slide"
+        onRequestClose={() => setIsSearchOpen(false)}
+      >
+        <SafeAreaView style={[styles.searchModalContainer, { backgroundColor: theme.background }]}>
+          <View style={[styles.searchModalHeader, { borderBottomColor: theme.cardBorder }]}>
             <TouchableOpacity onPress={() => setIsSearchOpen(false)} style={styles.searchBackBtn}>
-              <Ionicons name="arrow-back" size={24} color={currentColors.textMain} />
+              <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
             </TouchableOpacity>
             <View style={styles.searchModalInputWrapper}>
               <AppSearchBar
@@ -1058,7 +924,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          <View style={[styles.searchFilterRow, { borderBottomColor: currentColors.cardBorder }]}>
+          <View style={[styles.searchFilterRow, { borderBottomColor: theme.cardBorder }]}>
             {(['ALL', 'FOOD', 'BAZAAR'] as const).map((filter) => {
               const active = searchFilter === filter;
               return (
@@ -1067,8 +933,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   style={[
                     styles.searchFilterChip,
                     {
-                      backgroundColor: active ? AppColors.primary : currentColors.card,
-                      borderColor: active ? AppColors.primary : currentColors.cardBorder,
+                      backgroundColor: active ? theme.primary : theme.card,
+                      borderColor: active ? theme.primary : theme.cardBorder,
                     },
                   ]}
                   onPress={() => setSearchFilter(filter)}
@@ -1077,10 +943,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   <Text
                     style={[
                       styles.searchFilterText,
-                      { color: active ? '#FFFFFF' : currentColors.textMuted },
+                      { color: active ? '#FFFFFF' : theme.textSecondary },
                     ]}
                   >
-                    {filter === 'ALL' ? 'All Results' : filter === 'FOOD' ? 'Food & Restaurants' : 'Bazaar Products'}
+                    {filter === 'ALL'
+                      ? 'All'
+                      : filter === 'FOOD'
+                      ? 'Food & Dining'
+                      : 'Bazaar'}
                   </Text>
                 </TouchableOpacity>
               );
@@ -1089,9 +959,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
           {searchLoading ? (
             <View style={styles.searchLoaderContainer}>
-              <ActivityIndicator size="large" color={AppColors.primary} />
-              <Text style={[styles.searchLoaderText, { color: currentColors.textMuted }]}>
-                Loading live catalog...
+              <ActivityIndicator size="large" color={theme.primary} />
+              <Text style={[styles.searchLoaderText, { color: theme.textSecondary }]}>
+                Searching live catalog...
               </Text>
             </View>
           ) : (
@@ -1105,9 +975,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   style={[
                     styles.searchResultCard,
                     {
-                      backgroundColor: currentColors.card,
-                      borderColor: currentColors.cardBorder,
+                      backgroundColor: theme.card,
+                      borderColor: theme.cardBorder,
                     },
+                    AppShadows.subtle,
                   ]}
                   activeOpacity={0.7}
                   onPress={() => {
@@ -1122,36 +993,40 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   <View style={styles.searchResultBadge}>
                     <Ionicons
                       name={item.type === 'FOOD' ? 'restaurant' : 'pricetag'}
-                      size={13}
-                      color={item.type === 'FOOD' ? '#EA580C' : '#2563EB'}
+                      size={12}
+                      color={item.type === 'FOOD' ? '#FF5A1F' : '#2563EB'}
                     />
                     <Text
                       style={[
                         styles.searchResultBadgeText,
-                        { color: item.type === 'FOOD' ? '#EA580C' : '#2563EB' },
+                        { color: item.type === 'FOOD' ? '#FF5A1F' : '#2563EB' },
                       ]}
                     >
                       {item.type === 'FOOD' ? 'RESTAURANT' : 'MARKETPLACE'}
                     </Text>
                   </View>
-                  <Text style={[styles.searchResultTitle, { color: currentColors.textMain }]}>{item.title}</Text>
+                  <Text style={[styles.searchResultTitle, { color: theme.textPrimary }]}>
+                    {item.title}
+                  </Text>
                   {item.subtitle ? (
-                    <Text style={[styles.searchResultSubtitle, { color: currentColors.textMuted }]}>
+                    <Text style={[styles.searchResultSubtitle, { color: theme.textSecondary }]}>
                       {item.subtitle}
                     </Text>
                   ) : null}
                   {item.price != null ? (
-                    <Text style={styles.searchResultPrice}>₹{Number(item.price).toFixed(0)}</Text>
+                    <Text style={[styles.searchResultPrice, { color: theme.primary }]}>
+                      ₹{Number(item.price).toFixed(0)}
+                    </Text>
                   ) : null}
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
                 <View style={styles.searchEmptyBox}>
-                  <Ionicons name="search-outline" size={44} color={currentColors.textMuted} />
-                  <Text style={[styles.searchEmptyTitle, { color: currentColors.textMain }]}>
+                  <Ionicons name="search-outline" size={44} color={theme.textTertiary} />
+                  <Text style={[styles.searchEmptyTitle, { color: theme.textPrimary }]}>
                     {searchQuery.trim().length > 0 ? 'No matching items' : 'Type to search everything'}
                   </Text>
-                  <Text style={[styles.searchEmptySubtitle, { color: currentColors.textMuted }]}>
+                  <Text style={[styles.searchEmptySubtitle, { color: theme.textSecondary }]}>
                     Find verified restaurants, dishes, luxury hotel stays and community bazaar listings.
                   </Text>
                 </View>
@@ -1169,126 +1044,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 36,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  locationGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: AppRadius.lg,
-    borderWidth: 1,
-  },
-  locationIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  locationTextColumn: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  deliverToCaption: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#FF6B35',
-    letterSpacing: 0.8,
-  },
-  livePulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-    marginLeft: 6,
-  },
-  cityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 1,
-  },
-  cityName: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginRight: 3,
-    maxWidth: '85%',
-  },
-  headerRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  headerIconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  notifBadge: {
-    position: 'absolute',
-    top: -3,
-    right: -3,
-    minWidth: 17,
-    height: 17,
-    borderRadius: 8.5,
-    backgroundColor: '#EF4444',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: '#0A0E21',
-  },
-  notifBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  profileAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-  profileGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitials: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+    paddingHorizontal: AppSpacing.lg,
+    paddingTop: AppSpacing.sm,
+    paddingBottom: AppSpacing.huge,
   },
   searchWrapper: {
-    marginBottom: 14,
+    marginBottom: AppSpacing.md,
   },
   announcementCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(236, 72, 153, 0.12)',
-    borderRadius: 12,
+    borderRadius: AppRadius.md,
     borderWidth: 1,
     borderColor: 'rgba(244, 114, 182, 0.35)',
     paddingVertical: 7,
     paddingLeft: 10,
     paddingRight: 6,
-    marginBottom: 14,
+    marginBottom: AppSpacing.md,
   },
   announcementTapArea: {
     flex: 1,
@@ -1296,9 +1068,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   announcementIconWrap: {
-    width: 24,
-    height: 24,
-    borderRadius: 7,
+    width: 22,
+    height: 22,
+    borderRadius: 6,
     backgroundColor: 'rgba(236, 72, 153, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1318,20 +1090,27 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   liveRideCard: {
-    borderRadius: 16,
+    borderRadius: AppRadius.lg,
     borderWidth: 1,
-    padding: 14,
-    marginBottom: 16,
+    padding: AppSpacing.md,
+    marginBottom: AppSpacing.lg,
   },
   liveRideHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: AppSpacing.sm,
   },
   liveRideIndicatorGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+    marginRight: 6,
   },
   liveRideStatusText: {
     color: '#10B981',
@@ -1341,7 +1120,7 @@ const styles = StyleSheet.create({
   },
   etaPill: {
     backgroundColor: '#10B98122',
-    borderRadius: 8,
+    borderRadius: AppRadius.sm,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
@@ -1355,13 +1134,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   vehicleIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: AppRadius.md,
     backgroundColor: '#10B98120',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: AppSpacing.md,
   },
   liveRideDetails: {
     flex: 1,
@@ -1387,7 +1166,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#10B981',
-    borderRadius: 10,
+    borderRadius: AppRadius.md,
     paddingHorizontal: 12,
     paddingVertical: 7,
     gap: 3,
@@ -1397,138 +1176,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  bannerSection: {
-    marginBottom: 18,
-  },
-  bannersScroll: {
-    gap: 12,
-  },
-  bannerCard: {
-    width: SCREEN_WIDTH - 52,
-    height: 145,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  bannerImage: {
-    width: '100%',
-    height: '100%',
-  },
-  bannerImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 12,
-    justifyContent: 'flex-end',
-  },
-  bannerTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  bannerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  bannerCtaBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: AppColors.primary,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginTop: 6,
-  },
-  bannerCtaText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  sectionContainer: {
-    marginBottom: 20,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  sectionHeading: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  sectionSubheading: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  seeAllText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: AppColors.primary,
-  },
-  moduleGridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  moduleCard: {
-    width: '48.5%',
-    borderRadius: 16,
-    padding: 13,
-    marginBottom: 11,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  moduleCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  moduleIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moduleBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  moduleBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  moduleName: {
-    fontSize: 14,
-    fontWeight: '800',
-    marginTop: 10,
-    marginBottom: 2,
-  },
-  moduleDesc: {
-    fontSize: 11,
-    lineHeight: 15,
+  moduleSection: {
+    marginBottom: AppSpacing.lg,
   },
   rideShortcutStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 20,
+    borderRadius: AppRadius.lg,
+    padding: AppSpacing.md,
+    marginBottom: AppSpacing.lg,
   },
   rideShortcutLeft: {
     flexDirection: 'row',
@@ -1538,10 +1196,10 @@ const styles = StyleSheet.create({
   rideShortcutIconBox: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: AppRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: AppSpacing.sm,
   },
   rideShortcutTextCol: {
     flex: 1,
@@ -1560,20 +1218,23 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#2563EB18',
+    borderRadius: AppRadius.sm,
+    backgroundColor: '#2563EB15',
   },
   rideShortcutActionText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#2563EB',
   },
+  sectionContainer: {
+    marginBottom: AppSpacing.lg,
+  },
   horizontalCardList: {
-    gap: 12,
+    gap: AppSpacing.md,
   },
   dealCard: {
     width: 165,
-    borderRadius: 16,
+    borderRadius: AppRadius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -1586,7 +1247,7 @@ const styles = StyleSheet.create({
     top: 8,
     left: 8,
     backgroundColor: '#EF4444',
-    borderRadius: 6,
+    borderRadius: AppRadius.xs,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
@@ -1596,7 +1257,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   dealCardContent: {
-    padding: 10,
+    padding: AppSpacing.sm,
   },
   dealRestName: {
     fontSize: 10,
@@ -1626,8 +1287,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: AppColors.primary,
-    borderRadius: 8,
+    backgroundColor: '#FF5A1F',
+    borderRadius: AppRadius.sm,
     paddingVertical: 5,
     gap: 4,
   },
@@ -1637,13 +1298,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   cuisinesScroll: {
-    gap: 10,
+    gap: AppSpacing.sm,
   },
   cuisinePill: {
     alignItems: 'center',
     width: 86,
     paddingVertical: 10,
-    borderRadius: 14,
+    borderRadius: AppRadius.lg,
     borderWidth: 1,
   },
   cuisineIconCircle: {
@@ -1665,17 +1326,17 @@ const styles = StyleSheet.create({
   },
   restCard: {
     flexDirection: 'row',
-    borderRadius: 16,
+    borderRadius: AppRadius.lg,
     borderWidth: 1,
-    padding: 12,
-    marginBottom: 10,
+    padding: AppSpacing.md,
+    marginBottom: AppSpacing.sm,
     alignItems: 'center',
   },
   restImage: {
     width: 76,
     height: 76,
-    borderRadius: 12,
-    marginRight: 12,
+    borderRadius: AppRadius.md,
+    marginRight: AppSpacing.md,
   },
   restInfo: {
     flex: 1,
@@ -1696,7 +1357,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#16A34A',
-    borderRadius: 5,
+    borderRadius: AppRadius.xs,
     paddingHorizontal: 6,
     paddingVertical: 2,
     gap: 3,
@@ -1729,7 +1390,7 @@ const styles = StyleSheet.create({
   },
   bazaarCard: {
     width: 140,
-    borderRadius: 14,
+    borderRadius: AppRadius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -1738,7 +1399,7 @@ const styles = StyleSheet.create({
     height: 95,
   },
   bazaarCardContent: {
-    padding: 8,
+    padding: AppSpacing.sm,
   },
   bazaarPrice: {
     fontSize: 13,
@@ -1759,9 +1420,9 @@ const styles = StyleSheet.create({
   searchModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingHorizontal: AppSpacing.md,
+    paddingTop: AppSpacing.sm,
+    paddingBottom: AppSpacing.xs,
     borderBottomWidth: 1,
   },
   searchBackBtn: {
@@ -1773,15 +1434,15 @@ const styles = StyleSheet.create({
   },
   searchFilterRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: AppSpacing.lg,
     paddingVertical: 10,
-    gap: 8,
+    gap: AppSpacing.sm,
     borderBottomWidth: 1,
   },
   searchFilterChip: {
     paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: AppRadius.pill,
     borderWidth: 1,
   },
   searchFilterText: {
@@ -1789,12 +1450,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   searchResultsList: {
-    padding: 16,
-    gap: 12,
+    padding: AppSpacing.lg,
+    gap: AppSpacing.md,
   },
   searchResultCard: {
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: AppRadius.lg,
+    padding: AppSpacing.md,
     borderWidth: 1,
   },
   searchResultBadge: {
@@ -1819,7 +1480,6 @@ const styles = StyleSheet.create({
   searchResultPrice: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#10B981',
     marginTop: 6,
   },
   searchLoaderContainer: {

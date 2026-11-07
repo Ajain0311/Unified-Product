@@ -14,14 +14,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
+import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 
 interface WaterBottleSupply {
   id: string;
   brand: string;
   name: string;
   volume: string;
-  crateSize: number; // e.g. 24 bottles per case
-  casePrice: number; // in INR
+  crateSize: number;
+  casePrice: number;
   perBottlePrice: number;
   minOrderCases: number;
   imageUrl: string;
@@ -56,7 +57,7 @@ const WATER_SUPPLIES: WaterBottleSupply[] = [
   {
     id: 'wb-003',
     brand: 'Vedica Spring',
-    name: 'Spring Water from Uttarakhand',
+    name: 'Spring Water from Uttarakhand Hills',
     volume: '1000 ml',
     crateSize: 12,
     casePrice: 720,
@@ -110,10 +111,10 @@ export const B2BWaterSuppliesScreen: React.FC = () => {
       return;
     }
     Alert.alert(
-      language === 'hi' ? 'थोक ऑर्डर बुक हुआ' : 'Bulk Supply Order Confirmed',
+      language === 'hi' ? 'थोक ऑर्डर बुक हुआ' : 'B2B Wholesale Order Confirmed',
       language === 'hi'
-        ? `₹${totalAmount} का मिनरल वाटर ऑर्डर दर्ज हो गया है। डिलीवरी 24 घंटे में आपके होटल/रेस्तरां पर होगी।`
-        : `Your wholesale B2B water order of ₹${totalAmount} (${totalCases} crates) has been dispatched for hotel/restaurant delivery within 24 hours.`,
+        ? `₹${totalAmount} का मिनरल वाटर ऑर्डर दर्ज हो गया है। जीएसटी चालान सहित डिलीवरी 24 घंटे में आपके पते पर होगी।`
+        : `Your commercial water procurement order of ₹${totalAmount} (${totalCases} crates) has been dispatched. GST e-invoice generated.`,
       [{ text: 'OK', onPress: () => navigation.goBack() }]
     );
   };
@@ -121,36 +122,49 @@ export const B2BWaterSuppliesScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={[styles.backBtn, { backgroundColor: theme.surfaceHover }]}
+          style={[styles.backBtn, { backgroundColor: theme.chipBg, borderColor: theme.cardBorder }]}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons name="arrow-back" size={20} color={theme.textPrimary} />
         </TouchableOpacity>
+
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-            {language === 'hi' ? 'थोक पानी की बोतलें (होटल और बार)' : 'B2B Water Supplies for Hotels & Bars'}
+            {language === 'hi' ? 'थोक पानी की बोतलें' : 'B2B Water Procurement'}
           </Text>
           <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-            Wholesale crates, glass bottles & sparkling water for hotels, bars & restaurants
+            Wholesale crates, glass bottles & bar soda for hotels & lounges
           </Text>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Banner */}
-        <View style={[styles.bannerCard, { backgroundColor: '#0284C718', borderColor: '#0284C740' }]}>
-          <Ionicons name="water" size={26} color="#0284C7" style={{ marginRight: 10 }} />
+        <View
+          style={[
+            styles.bannerCard,
+            { backgroundColor: isDark ? '#082F4930' : '#F0F9FF', borderColor: '#0284C744' },
+          ]}
+        >
+          <View style={styles.bannerIconWrap}>
+            <Ionicons name="water" size={22} color="#0284C7" />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.bannerTitle, { color: '#0284C7' }]}>
-              {language === 'hi' ? 'होटल और रेस्तरां के लिए सीधी B2B आपूर्ति' : 'Direct Wholesale Rates for Hospitality'}
+              {language === 'hi' ? 'होटल और रेस्तरां के लिए सीधी B2B आपूर्ति' : 'Direct Manufacturer Rates & GST Input'}
             </Text>
             <Text style={[styles.bannerDesc, { color: theme.textSecondary }]}>
               {language === 'hi'
                 ? 'कांच की बोतलें, प्रीमियम मिनरल वाटर और बार स्पार्कलिंग वाटर। जीएसटी चालान शामिल।'
-                : 'Direct manufacturer wholesale pricing, recurring delivery, GST invoices & bulk payment settlement.'}
+                : 'Bulk cases delivered directly with verified GST input invoices & next-day scheduled dispatch.'}
             </Text>
           </View>
         </View>
@@ -164,14 +178,20 @@ export const B2BWaterSuppliesScreen: React.FC = () => {
           return (
             <View
               key={item.id}
-              style={[styles.itemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              style={[
+                styles.itemCard,
+                { backgroundColor: theme.card, borderColor: theme.cardBorder },
+                AppShadows.subtle,
+              ]}
             >
-              <Image source={{ uri: item.imageUrl }} style={styles.itemImage} resizeMode="cover" />
-              {item.isPopular && (
-                <View style={styles.popularBadge}>
-                  <Text style={styles.popularBadgeText}>Best Seller</Text>
-                </View>
-              )}
+              <View style={styles.imageWrap}>
+                <Image source={{ uri: item.imageUrl }} style={styles.itemImage} resizeMode="cover" />
+                {item.isPopular && (
+                  <View style={styles.popularBadge}>
+                    <Text style={styles.popularBadgeText}>TOP CHOICE</Text>
+                  </View>
+                )}
+              </View>
 
               <View style={styles.itemBody}>
                 <Text style={[styles.brandText, { color: '#0284C7' }]}>{item.brand}</Text>
@@ -184,24 +204,26 @@ export const B2BWaterSuppliesScreen: React.FC = () => {
                   <View>
                     <Text style={[styles.casePrice, { color: theme.primary }]}>
                       ₹{item.casePrice}
-                      <Text style={[styles.perCaseText, { color: theme.textSecondary }]}> / crate</Text>
+                      <Text style={[styles.perCaseText, { color: theme.textTertiary }]}> / crate</Text>
                     </Text>
                     <Text style={[styles.bottlePrice, { color: theme.textTertiary }]}>
-                      (₹{item.perBottlePrice} / bottle • Min {item.minOrderCases} crates)
+                      (₹{item.perBottlePrice}/btl • Min {item.minOrderCases} crates)
                     </Text>
                   </View>
 
                   <View style={styles.qtyControl}>
                     <TouchableOpacity
                       onPress={() => updateQuantity(item.id, -1, item.minOrderCases)}
-                      style={[styles.qtyBtn, { backgroundColor: theme.surfaceHover }]}
+                      style={[styles.qtyBtn, { backgroundColor: theme.chipBg }]}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                       <Ionicons name="remove" size={16} color={theme.textPrimary} />
                     </TouchableOpacity>
                     <Text style={[styles.qtyValue, { color: theme.textPrimary }]}>{qty}</Text>
                     <TouchableOpacity
                       onPress={() => updateQuantity(item.id, 1, item.minOrderCases)}
-                      style={[styles.qtyBtn, { backgroundColor: theme.surfaceHover }]}
+                      style={[styles.qtyBtn, { backgroundColor: theme.chipBg }]}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                       <Ionicons name="add" size={16} color={theme.textPrimary} />
                     </TouchableOpacity>
@@ -215,18 +237,25 @@ export const B2BWaterSuppliesScreen: React.FC = () => {
 
       {/* Floating Bottom Order Bar */}
       {totalCases > 0 && (
-        <View style={[styles.bottomBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+        <View
+          style={[
+            styles.bottomBar,
+            { backgroundColor: theme.surface, borderTopColor: theme.cardBorder },
+            AppShadows.float,
+          ]}
+        >
           <View>
-            <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>
+            <Text style={[styles.totalLabel, { color: theme.textTertiary }]}>
               {totalCases} Crates Selected
             </Text>
-            <Text style={[styles.totalAmount, { color: theme.primary }]}>₹{totalAmount}</Text>
+            <Text style={[styles.totalAmount, { color: theme.textPrimary }]}>₹{totalAmount}</Text>
           </View>
           <TouchableOpacity
             onPress={handleOrderSupplies}
             style={[styles.orderBtn, { backgroundColor: '#0284C7' }]}
+            activeOpacity={0.88}
           >
-            <Ionicons name="cart" size={18} color="#FFF" style={{ marginRight: 6 }} />
+            <Ionicons name="cart" size={16} color="#FFF" style={{ marginRight: 6 }} />
             <Text style={styles.orderBtnText}>
               {language === 'hi' ? 'थोक ऑर्डर दें' : 'Order Wholesale'}
             </Text>
@@ -242,57 +271,81 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: AppSpacing.lg,
+    paddingVertical: AppSpacing.md,
     borderBottomWidth: 1,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: AppSpacing.md,
+  },
+  headerTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
+  headerSubtitle: { fontSize: 11, marginTop: 1 },
+  scrollContent: {
+    paddingHorizontal: AppSpacing.lg,
+    paddingTop: AppSpacing.md,
+    paddingBottom: 110,
+  },
+  bannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: AppSpacing.md,
+    borderRadius: AppRadius.lg,
+    borderWidth: 1,
+    marginBottom: AppSpacing.md,
+  },
+  bannerIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: AppRadius.md,
+    backgroundColor: '#0284C720',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
-  headerTitle: { fontSize: 16, fontWeight: '700' },
-  headerSubtitle: { fontSize: 11, marginTop: 1 },
-  scrollContent: { padding: 16, paddingBottom: 100 },
-  bannerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 16,
-  },
   bannerTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
   bannerDesc: { fontSize: 11, lineHeight: 15 },
-  sectionHeading: { fontSize: 16, fontWeight: '800', marginBottom: 12 },
-  itemCard: { borderRadius: 14, borderWidth: 1, marginBottom: 14, overflow: 'hidden' },
-  itemImage: { width: '100%', height: 140 },
+  sectionHeading: { fontSize: 16, fontWeight: '700', marginBottom: AppSpacing.md },
+  itemCard: {
+    borderRadius: AppRadius.lg,
+    borderWidth: 1,
+    marginBottom: AppSpacing.md,
+    overflow: 'hidden',
+  },
+  imageWrap: {
+    width: '100%',
+    height: 140,
+    position: 'relative',
+  },
+  itemImage: { width: '100%', height: '100%' },
   popularBadge: {
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: 'rgba(2, 132, 199, 0.9)',
+    backgroundColor: '#0284C7',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: AppRadius.xs,
   },
-  popularBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '700' },
-  itemBody: { padding: 14 },
-  brandText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', marginBottom: 2 },
+  popularBadgeText: { color: '#FFF', fontSize: 9, fontWeight: '800' },
+  itemBody: { padding: AppSpacing.md },
+  brandText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 2 },
   itemName: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
   specText: { fontSize: 12, marginBottom: 10 },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   casePrice: { fontSize: 17, fontWeight: '800' },
   perCaseText: { fontSize: 11, fontWeight: '400' },
-  bottlePrice: { fontSize: 10, marginTop: 2 },
+  bottlePrice: { fontSize: 11, marginTop: 2 },
   qtyControl: { flexDirection: 'row', alignItems: 'center' },
   qtyBtn: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: AppRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -305,8 +358,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: AppSpacing.lg,
+    paddingVertical: AppSpacing.md,
     borderTopWidth: 1,
   },
   totalLabel: { fontSize: 11 },
@@ -316,7 +369,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: AppRadius.lg,
   },
-  orderBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  orderBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
 });

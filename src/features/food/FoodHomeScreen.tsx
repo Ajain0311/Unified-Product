@@ -8,11 +8,11 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AppColors } from '../../theme/colors';
-import { AppRadius } from '../../theme/spacing';
+import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 import { AppSearchBar } from '../../components/common/AppSearchBar';
 import { RatingBadge } from '../../components/common/RatingBadge';
 import { apiClient } from '../../services/apiClient';
@@ -21,6 +21,8 @@ import { FoodCatalogItem, RestaurantSummary } from '../../models/food';
 import { useFocusEffect } from '@react-navigation/native';
 import { absoluteImageUrl } from '../../services/documentService';
 import { useCartStore } from '../../store/cartStore';
+import { useAppTheme } from '../../theme/themeStore';
+import { useLanguageStore } from '../../store/languageStore';
 
 const DEFAULT_RESTAURANT_IMAGE = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600';
 const DEFAULT_DISH_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600';
@@ -128,6 +130,9 @@ const CATEGORIES = [
 ];
 
 export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
+  const { language } = useLanguageStore();
+
   const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(0);
   const [filterVegOnly, setFilterVegOnly] = useState(false);
   const [filterRating4Plus, setFilterRating4Plus] = useState(false);
@@ -227,7 +232,8 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
     });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -235,30 +241,55 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
         {/* Top Location Bar */}
         <View style={styles.topBar}>
           <TouchableOpacity
-            style={styles.locationGroup}
+            style={[
+              styles.locationGroup,
+              { backgroundColor: theme.card, borderColor: theme.cardBorder },
+              AppShadows.subtle,
+            ]}
             onPress={() => navigation.navigate('SavedAddresses')}
             activeOpacity={0.8}
           >
             <View style={styles.locationIconBox}>
-              <Ionicons name="location-sharp" size={20} color={AppColors.error} />
+              <Ionicons name="location-sharp" size={17} color="#FF5A1F" />
             </View>
             <View style={styles.locationTextColumn}>
-              <Text style={styles.deliverToCaption}>DELIVER TO</Text>
+              <Text style={styles.deliverToCaption}>
+                {language === 'hi' ? 'डिलीवरी पता' : 'DELIVER TO'}
+              </Text>
               <View style={styles.cityRow}>
-                <Text style={styles.cityName} numberOfLines={1}>
+                <Text
+                  style={[styles.cityName, { color: theme.textPrimary }]}
+                  numberOfLines={1}
+                >
                   {deliverTo}
                 </Text>
-                <Ionicons name="chevron-down" size={16} color={AppColors.textSecondary} />
+                <Ionicons name="chevron-down" size={14} color={theme.textTertiary} />
               </View>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.profileAvatar}
-            onPress={() => navigation.navigate('Profile')}
+            style={[
+              styles.cartIconButton,
+              { backgroundColor: theme.card, borderColor: theme.cardBorder },
+              AppShadows.subtle,
+            ]}
+            onPress={() => {
+              const rid = useCartStore.getState().restaurantId;
+              if (rid) {
+                navigation.navigate('RestaurantDetail', { restaurantId: String(rid) });
+              } else {
+                navigation.navigate('Profile');
+              }
+            }}
             activeOpacity={0.8}
           >
-            <Text style={styles.avatarInitials}>JD</Text>
+            <Ionicons name="bag-handle-outline" size={20} color={theme.textPrimary} />
+            {cartCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -266,13 +297,17 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
         <View style={styles.searchWrapper}>
           <AppSearchBar
             testID="food-search-input"
-            placeholder="Search Biryani, Burgers, Domino's..."
+            placeholder={
+              language === 'hi'
+                ? 'रेस्तरां, बिरयानी, पिज़्ज़ा खोजें...'
+                : 'Search dishes, restaurants, cuisines...'
+            }
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
 
-        {/* Filter Chips */}
+        {/* Quick Filter Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -280,68 +315,116 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
         >
           {/* Rating 4.0+ */}
           <TouchableOpacity
-            style={[styles.filterChip, filterRating4Plus ? styles.filterChipActive : null]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor: filterRating4Plus ? theme.primary : theme.card,
+                borderColor: filterRating4Plus ? theme.primary : theme.cardBorder,
+              },
+              AppShadows.subtle,
+            ]}
             onPress={() => setFilterRating4Plus(!filterRating4Plus)}
             activeOpacity={0.8}
           >
             <Ionicons
               name="star"
-              size={14}
-              color={filterRating4Plus ? '#FFFFFF' : AppColors.textSecondary}
+              size={13}
+              color={filterRating4Plus ? '#FFFFFF' : '#F59E0B'}
               style={styles.chipIcon}
             />
-            <Text style={[styles.filterChipText, filterRating4Plus ? styles.filterChipTextActive : null]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                { color: filterRating4Plus ? '#FFFFFF' : theme.textPrimary },
+              ]}
+            >
               Rating 4.0+
             </Text>
           </TouchableOpacity>
 
           {/* Fast Delivery */}
           <TouchableOpacity
-            style={[styles.filterChip, filterFastDelivery ? styles.filterChipActive : null]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor: filterFastDelivery ? theme.primary : theme.card,
+                borderColor: filterFastDelivery ? theme.primary : theme.cardBorder,
+              },
+              AppShadows.subtle,
+            ]}
             onPress={() => setFilterFastDelivery(!filterFastDelivery)}
             activeOpacity={0.8}
           >
             <Ionicons
               name="flash"
-              size={14}
-              color={filterFastDelivery ? '#FFFFFF' : AppColors.textSecondary}
+              size={13}
+              color={filterFastDelivery ? '#FFFFFF' : '#3B82F6'}
               style={styles.chipIcon}
             />
-            <Text style={[styles.filterChipText, filterFastDelivery ? styles.filterChipTextActive : null]}>
-              Fast Delivery (≤25m)
+            <Text
+              style={[
+                styles.filterChipText,
+                { color: filterFastDelivery ? '#FFFFFF' : theme.textPrimary },
+              ]}
+            >
+              Fast (≤25m)
             </Text>
           </TouchableOpacity>
 
           {/* Pure Veg */}
           <TouchableOpacity
-            style={[styles.filterChip, filterVegOnly ? styles.filterChipActive : null]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor: filterVegOnly ? theme.primary : theme.card,
+                borderColor: filterVegOnly ? theme.primary : theme.cardBorder,
+              },
+              AppShadows.subtle,
+            ]}
             onPress={() => setFilterVegOnly(!filterVegOnly)}
             activeOpacity={0.8}
           >
             <Ionicons
               name="leaf"
-              size={14}
-              color={filterVegOnly ? '#FFFFFF' : AppColors.textSecondary}
+              size={13}
+              color={filterVegOnly ? '#FFFFFF' : '#10B981'}
               style={styles.chipIcon}
             />
-            <Text style={[styles.filterChipText, filterVegOnly ? styles.filterChipTextActive : null]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                { color: filterVegOnly ? '#FFFFFF' : theme.textPrimary },
+              ]}
+            >
               Pure Veg
             </Text>
           </TouchableOpacity>
 
           {/* Offers */}
           <TouchableOpacity
-            style={[styles.filterChip, filterOffers ? styles.filterChipActive : null]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor: filterOffers ? theme.primary : theme.card,
+                borderColor: filterOffers ? theme.primary : theme.cardBorder,
+              },
+              AppShadows.subtle,
+            ]}
             onPress={() => setFilterOffers(!filterOffers)}
             activeOpacity={0.8}
           >
             <Ionicons
               name="pricetag"
-              size={14}
-              color={filterOffers ? '#FFFFFF' : AppColors.textSecondary}
+              size={13}
+              color={filterOffers ? '#FFFFFF' : '#EC4899'}
               style={styles.chipIcon}
             />
-            <Text style={[styles.filterChipText, filterOffers ? styles.filterChipTextActive : null]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                { color: filterOffers ? '#FFFFFF' : theme.textPrimary },
+              ]}
+            >
               Offers
             </Text>
           </TouchableOpacity>
@@ -358,12 +441,22 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
             return (
               <TouchableOpacity
                 key={index}
-                style={[styles.categoryPill, isSelected ? styles.categoryPillActive : null]}
+                style={[
+                  styles.categoryPill,
+                  {
+                    backgroundColor: isSelected ? theme.primary : theme.card,
+                    borderColor: isSelected ? theme.primary : theme.cardBorder,
+                  },
+                  AppShadows.subtle,
+                ]}
                 onPress={() => setSelectedCategoryIndex(index)}
                 activeOpacity={0.8}
               >
                 <Text
-                  style={[styles.categoryPillText, isSelected ? styles.categoryPillTextActive : null]}
+                  style={[
+                    styles.categoryPillText,
+                    { color: isSelected ? '#FFFFFF' : theme.textSecondary },
+                  ]}
                 >
                   {cat}
                 </Text>
@@ -374,8 +467,8 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
 
         {/* Section Header */}
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionHeaderTitle}>
-            POPULAR DISHES NEAR YOU ({filteredFoods.length})
+          <Text style={[styles.sectionHeaderTitle, { color: theme.textPrimary }]}>
+            POPULAR DISHES ({filteredFoods.length})
           </Text>
           <TouchableOpacity
             onPress={() => {
@@ -385,8 +478,8 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.sortByText}>
-              Sort by: {sortBy === 'rating' ? 'Rating ★' : sortBy === 'deliveryTime' ? 'Fast Delivery ⏱' : 'Default'} ▼
+            <Text style={[styles.sortByText, { color: theme.primary }]}>
+              Sort: {sortBy === 'rating' ? 'Rating ★' : sortBy === 'deliveryTime' ? 'Time ⏱' : 'Default'} ▼
             </Text>
           </TouchableOpacity>
         </View>
@@ -394,8 +487,8 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
         {/* Loading State */}
         {isLoading && (
           <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 48 }}>
-            <ActivityIndicator size="large" color={AppColors.primary} />
-            <Text style={{ ...styles.restaurantName, marginTop: 12, color: AppColors.textSecondary }}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={{ marginTop: 12, color: theme.textSecondary, fontSize: 13 }}>
               Finding great dishes near you...
             </Text>
           </View>
@@ -404,15 +497,15 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
         {/* Error State */}
         {loadError && !isLoading && (
           <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40, paddingHorizontal: 24 }}>
-            <Ionicons name="alert-circle-outline" size={48} color={AppColors.error} />
-            <Text style={{ ...styles.restaurantName, marginTop: 12, color: AppColors.error, textAlign: 'center' }}>
+            <Ionicons name="alert-circle-outline" size={44} color={theme.error} />
+            <Text style={{ marginTop: 12, color: theme.error, textAlign: 'center', fontSize: 13 }}>
               {loadError}
             </Text>
             <TouchableOpacity
-              style={[styles.filterChipActive, { marginTop: 14, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 16 }]}
+              style={[styles.retryBtn, { backgroundColor: theme.primary }]}
               onPress={loadFoods}
             >
-              <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Retry</Text>
+              <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>Retry</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -420,24 +513,27 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
         {/* Empty State */}
         {!isLoading && !loadError && filteredFoods.length === 0 && (
           <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 48 }}>
-            <Ionicons name="fast-food-outline" size={48} color={AppColors.textTertiary} />
-            <Text style={{ ...styles.restaurantName, marginTop: 12, color: AppColors.textSecondary }}>
-              No dishes currently available
+            <Ionicons name="fast-food-outline" size={44} color={theme.textTertiary} />
+            <Text style={{ marginTop: 12, color: theme.textPrimary, fontSize: 15, fontWeight: '700' }}>
+              No dishes found
             </Text>
-            <Text style={{ fontSize: 13, color: AppColors.textTertiary, marginTop: 4 }}>
-              Please check back soon or try another filter.
+            <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 4 }}>
+              Try adjusting your filters or search query.
             </Text>
           </View>
         )}
 
-        {/* Food Cards (direct dishes — tap opens that hotel menu) */}
+        {/* Food Dish Cards */}
         {filteredFoods.map((food) => (
           <TouchableOpacity
             key={`${food.restaurantId}-${food.id}`}
-            style={styles.restaurantCard}
+            style={[
+              styles.restaurantCard,
+              { backgroundColor: theme.card, borderColor: theme.cardBorder },
+              AppShadows.subtle,
+            ]}
             activeOpacity={0.9}
             accessibilityRole="button"
-            accessibilityLabel={`Dish ${food.name} from ${food.restaurantName}`}
             testID={`food-card-${food.id}`}
             onPress={() =>
               navigation.navigate('RestaurantDetail', {
@@ -457,7 +553,7 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
               />
 
               <View style={styles.deliveryTimeBadge}>
-                <Ionicons name="time" size={13} color="#FFFFFF" />
+                <Ionicons name="time" size={12} color="#FFFFFF" />
                 <Text style={styles.deliveryTimeText}>
                   {food.avgDeliveryTimeMinutes || 20} mins
                 </Text>
@@ -465,13 +561,13 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
 
               {food.isVeg && (
                 <View style={styles.pureVegTag}>
-                  <Ionicons name="leaf" size={12} color="#FFFFFF" />
+                  <Ionicons name="leaf" size={11} color="#FFFFFF" />
                   <Text style={styles.pureVegTagText}>PURE VEG</Text>
                 </View>
               )}
 
               <View style={styles.offerBanner}>
-                <Ionicons name="pricetag" size={12} color="#FFFFFF" />
+                <Ionicons name="pricetag" size={11} color="#FFFFFF" />
                 <Text style={styles.offerBannerText}>
                   {food.discountPercent && food.discountPercent > 0
                     ? `${food.discountPercent}% OFF`
@@ -484,42 +580,46 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
 
             <View style={styles.infoSection}>
               <View style={styles.nameRatingRow}>
-                <Text style={styles.restaurantName} numberOfLines={1}>
+                <Text style={[styles.restaurantName, { color: theme.textPrimary }]} numberOfLines={1}>
                   {food.name}
                 </Text>
                 <RatingBadge rating={food.restaurantRating} />
               </View>
 
-              <Text style={styles.cuisinesText} numberOfLines={1}>
+              <Text style={[styles.cuisinesText, { color: theme.textTertiary }]} numberOfLines={1}>
                 {food.restaurantName}
                 {food.categoryName ? ` • ${food.categoryName}` : ''}
               </Text>
 
               <View style={styles.bottomInfoRow}>
-                <Text style={styles.priceForTwoText}>
-                  ₹{Number(food.discountedPrice || food.basePrice || 0).toFixed(0)}
-                </Text>
+                <View style={styles.priceContainer}>
+                  <Text style={[styles.priceForTwoText, { color: theme.textPrimary }]}>
+                    ₹{Number(food.discountedPrice || food.basePrice || 0).toFixed(0)}
+                  </Text>
+                  {food.basePrice && food.discountedPrice && food.basePrice > food.discountedPrice ? (
+                    <Text style={[styles.basePriceStrike, { color: theme.textTertiary }]}>
+                      ₹{Number(food.basePrice).toFixed(0)}
+                    </Text>
+                  ) : null}
+                </View>
                 <View style={styles.viewMenuLink}>
-                  <Text style={styles.viewMenuText}>Add from menu</Text>
-                  <Ionicons name="arrow-forward" size={13} color={AppColors.primary} />
+                  <Text style={[styles.viewMenuText, { color: theme.primary }]}>View Menu</Text>
+                  <Ionicons name="arrow-forward" size={12} color={theme.primary} />
                 </View>
               </View>
             </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Floating Bottom Cart Bar */}
       {cartCount > 0 && (
         <TouchableOpacity
-          style={{
-            position: 'absolute',
-            left: 16,
-            right: 16,
-            bottom: 16,
-            backgroundColor: AppColors.primary,
-            borderRadius: 14,
-            paddingVertical: 14,
-            alignItems: 'center',
-          }}
+          style={[
+            styles.floatingCartBar,
+            { backgroundColor: theme.primary },
+            AppShadows.float,
+          ]}
           onPress={() => {
             const rid = useCartStore.getState().restaurantId;
             if (rid) {
@@ -528,7 +628,18 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
           }}
           activeOpacity={0.9}
         >
-          <Text style={{ color: '#fff', fontWeight: '700' }}>View cart ({cartCount})</Text>
+          <View style={styles.cartBarContent}>
+            <View style={styles.cartBarLeft}>
+              <View style={styles.cartCountPill}>
+                <Text style={styles.cartCountPillText}>{cartCount}</Text>
+              </View>
+              <Text style={styles.cartBarLabel}>View Food Cart</Text>
+            </View>
+            <View style={styles.cartBarRight}>
+              <Text style={styles.cartBarAction}>Checkout</Text>
+              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+            </View>
+          </View>
         </TouchableOpacity>
       )}
     </SafeAreaView>
@@ -538,156 +649,151 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: AppColors.background,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingHorizontal: AppSpacing.lg,
+    paddingTop: AppSpacing.sm,
+    paddingBottom: 80,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: AppSpacing.md,
+    gap: AppSpacing.sm,
   },
   locationGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: AppRadius.lg,
+    borderWidth: 1,
   },
   locationIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: `${AppColors.error}33`,
+    width: 32,
+    height: 32,
+    borderRadius: AppRadius.md,
+    backgroundColor: '#FF5A1F18',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   locationTextColumn: {
+    flex: 1,
     justifyContent: 'center',
   },
   deliverToCaption: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: AppColors.textTertiary,
-    letterSpacing: 1.2,
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FF5A1F',
+    letterSpacing: 0.8,
   },
   cityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
   cityName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: AppColors.textPrimary,
-    marginRight: 4,
-  },
-  profileAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: AppColors.surfaceLight,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitials: {
-    color: AppColors.textPrimary,
     fontSize: 13,
     fontWeight: '700',
+    marginRight: 4,
+    maxWidth: '85%',
+  },
+  cartIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  cartBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
   searchWrapper: {
-    marginBottom: 14,
+    marginBottom: AppSpacing.md,
   },
   filterChipsRow: {
-    paddingRight: 16,
-    marginBottom: 14,
+    gap: AppSpacing.sm,
+    marginBottom: AppSpacing.md,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: AppColors.surfaceLight,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 7,
-    marginRight: 10,
-  },
-  filterChipActive: {
-    backgroundColor: AppColors.primary,
-    borderColor: AppColors.primary,
+    borderRadius: AppRadius.pill,
+    borderWidth: 1,
   },
   chipIcon: {
     marginRight: 5,
   },
   filterChipText: {
-    color: AppColors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  filterChipTextActive: {
-    color: '#FFFFFF',
-  },
-  categoryPillsRow: {
-    paddingRight: 16,
-    marginBottom: 20,
-  },
-  categoryPill: {
-    backgroundColor: AppColors.surfaceLight,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-  },
-  categoryPillActive: {
-    backgroundColor: AppColors.primary,
-    borderColor: AppColors.primary,
-  },
-  categoryPillText: {
-    color: AppColors.textSecondary,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  categoryPillTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  sectionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionHeaderTitle: {
-    color: AppColors.textPrimary,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  sortByText: {
-    color: AppColors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
-  restaurantCard: {
-    backgroundColor: AppColors.surface,
-    borderRadius: 20,
+  categoryPillsRow: {
+    gap: AppSpacing.sm,
+    marginBottom: AppSpacing.md,
+  },
+  categoryPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: AppRadius.pill,
     borderWidth: 1,
-    borderColor: AppColors.border,
+  },
+  categoryPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: AppSpacing.md,
+    marginTop: AppSpacing.xs,
+  },
+  sectionHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  sortByText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  retryBtn: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: AppRadius.sm,
+  },
+  restaurantCard: {
+    borderRadius: AppRadius.lg,
+    borderWidth: 1,
     overflow: 'hidden',
-    marginBottom: 18,
+    marginBottom: AppSpacing.md,
   },
   imageHeader: {
-    height: 180,
+    height: 140,
     width: '100%',
     position: 'relative',
-    backgroundColor: AppColors.surfaceLight,
   },
   restaurantImage: {
     width: '100%',
@@ -695,96 +801,146 @@ const styles = StyleSheet.create({
   },
   deliveryTimeBadge: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    bottom: 10,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: AppRadius.sm,
+    gap: 4,
   },
   deliveryTimeText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
-    marginLeft: 4,
   },
   pureVegTag: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: 10,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#047857',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: AppRadius.xs,
+    gap: 3,
   },
   pureVegTagText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
-    marginLeft: 4,
   },
   offerBanner: {
     position: 'absolute',
-    bottom: 12,
-    left: 12,
+    bottom: 10,
+    right: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: AppColors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: '#FF5A1F',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: AppRadius.sm,
+    gap: 4,
   },
   offerBannerText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
-    marginLeft: 4,
   },
   infoSection: {
-    padding: 16,
+    padding: AppSpacing.md,
   },
   nameRatingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
   restaurantName: {
-    flex: 1,
-    color: AppColors.textPrimary,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
+    flex: 1,
     marginRight: 8,
   },
   cuisinesText: {
-    color: AppColors.textSecondary,
-    fontSize: 13,
-    marginBottom: 12,
+    fontSize: 12,
+    marginBottom: 8,
   },
   bottomInfoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   priceForTwoText: {
-    color: AppColors.textTertiary,
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  basePriceStrike: {
+    fontSize: 12,
+    textDecorationLine: 'line-through',
   },
   viewMenuLink: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 3,
   },
   viewMenuText: {
-    color: AppColors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  floatingCartBar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+    borderRadius: AppRadius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  cartBarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cartBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cartCountPill: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartCountPillText: {
+    color: '#FF5A1F',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  cartBarLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cartBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  cartBarAction: {
+    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
-    marginRight: 2,
   },
 });

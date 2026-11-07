@@ -24,6 +24,8 @@ import { locationService } from '../../services/locationService';
 import { LocationMapPicker } from '../../components/maps/LocationMapPicker';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { mapboxService, SelectedMapPlace } from '../../services/mapboxService';
+import { useAppTheme } from '../../theme/themeStore';
+import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 
 interface VehicleOption {
   type: string;
@@ -73,6 +75,7 @@ const VEHICLES: VehicleOption[] = [
 
 export const RideBookingScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { theme, isDark } = useAppTheme();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [vehicles, setVehicles] = useState<VehicleOption[]>(VEHICLES);
   const [routeMetrics, setRouteMetrics] = useState<string | null>(null);
@@ -418,25 +421,25 @@ export const RideBookingScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: theme.chipBg }]}
           onPress={() => {
-            // Prefer sibling tab jump; avoid nested MainTabs navigate which can remount web stack.
             if (navigation.canGoBack()) {
               navigation.goBack();
               return;
             }
             navigation.navigate('MainTabs', { screen: 'Home' });
           }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MaterialIcons name="chevron-left" size={28} color={colors.textPrimary} />
+          <MaterialIcons name="chevron-left" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Find Your Ride</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Find Your Ride</Text>
         <TouchableOpacity
           style={[
             styles.gpsChip,
@@ -449,24 +452,24 @@ export const RideBookingScreen: React.FC = () => {
           <MaterialIcons
             name={gpsStatus === 'DENIED' ? 'location-off' : isLocating ? 'sync' : 'gps-fixed'}
             size={13}
-            color={gpsStatus === 'DENIED' ? colors.error : isLocating ? colors.blue : colors.secondary}
+            color={gpsStatus === 'DENIED' ? theme.error : isLocating ? '#2563EB' : '#10B981'}
           />
           <Text
             style={[
               styles.gpsText,
-              gpsStatus === 'DENIED' && { color: colors.error },
-              gpsStatus === 'LOCATING' && { color: colors.blue },
+              gpsStatus === 'DENIED' && { color: theme.error },
+              gpsStatus === 'LOCATING' && { color: '#2563EB' },
             ]}
           >
-            {isLocating ? 'Locating...' : gpsStatus === 'DENIED' ? 'GPS Denied' : 'GPS Online'}
+            {isLocating ? 'Locating...' : gpsStatus === 'DENIED' ? 'GPS Denied' : 'GPS Active'}
           </Text>
         </TouchableOpacity>
       </View>
 
       <FormKeyboardAvoid>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Rapido-Style Location Inputs Card */}
-        <View style={styles.card}>
+        {/* Location Inputs Card */}
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
           {/* Pickup Row */}
           <View style={styles.inputRow}>
             <View style={[styles.dot, { backgroundColor: colors.secondary }]} />
@@ -641,7 +644,7 @@ export const RideBookingScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <Text style={styles.sectionHeader}>AVAILABLE VEHICLES</Text>
+        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>AVAILABLE VEHICLES</Text>
 
         {/* Vehicles List */}
         {vehicles.map((vehicle, index) => {
@@ -649,17 +652,19 @@ export const RideBookingScreen: React.FC = () => {
           return (
             <TouchableOpacity
               key={vehicle.type}
-              activeOpacity={0.8}
+              activeOpacity={0.88}
               style={[
                 styles.vehicleCard,
-                isSelected && styles.vehicleCardSelected,
+                { backgroundColor: theme.card, borderColor: theme.cardBorder },
+                isSelected && { borderColor: '#2563EB', borderWidth: 1.5, backgroundColor: isDark ? '#1E293B' : '#EFF6FF' },
+                AppShadows.subtle,
               ]}
               onPress={() => setSelectedIndex(index)}
             >
               <View
                 style={[
                   styles.vehicleIconContainer,
-                  { backgroundColor: `${vehicle.tagColor}26` },
+                  { backgroundColor: `${vehicle.tagColor}18` },
                 ]}
               >
                 <MaterialIcons name={vehicle.icon as any} size={24} color={vehicle.tagColor} />
@@ -670,6 +675,7 @@ export const RideBookingScreen: React.FC = () => {
                   <Text
                     style={[
                       styles.vehicleName,
+                      { color: theme.textPrimary },
                       isSelected && { fontWeight: '800' },
                     ]}
                   >
@@ -678,7 +684,7 @@ export const RideBookingScreen: React.FC = () => {
                   <View
                     style={[
                       styles.tagBadge,
-                      { backgroundColor: `${vehicle.tagColor}33` },
+                      { backgroundColor: `${vehicle.tagColor}20` },
                     ]}
                   >
                     <Text style={[styles.tagText, { color: vehicle.tagColor }]}>
@@ -686,13 +692,14 @@ export const RideBookingScreen: React.FC = () => {
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.vehicleSubtitle}>{vehicle.subtitle}</Text>
+                <Text style={[styles.vehicleSubtitle, { color: theme.textTertiary }]}>{vehicle.subtitle}</Text>
               </View>
 
               <Text
                 style={[
                   styles.vehicleFare,
-                  isSelected && { color: colors.primary },
+                  { color: theme.textPrimary },
+                  isSelected && { color: '#2563EB', fontWeight: '800' },
                 ]}
               >
                 {vehicle.fare > 0 ? `₹${vehicle.fare.toFixed(0)}` : '--'}
@@ -703,16 +710,18 @@ export const RideBookingScreen: React.FC = () => {
 
         {/* Bottom Action Bar */}
         <View style={styles.actionBar}>
-          <View style={styles.paymentButton}>
-            <MaterialIcons name="payment" size={18} color={colors.textSecondary} />
-            <Text style={styles.paymentText}>Cash / UPI ▼</Text>
+          <View style={[styles.paymentButton, { backgroundColor: theme.chipBg, borderColor: theme.cardBorder }]}>
+            <MaterialIcons name="payment" size={17} color={theme.textSecondary} />
+            <Text style={[styles.paymentText, { color: theme.textPrimary }]}>Cash / UPI ▼</Text>
           </View>
 
           <TouchableOpacity
-            activeOpacity={0.8}
+            activeOpacity={0.88}
             style={[
               styles.bookButton,
-              (isBooking || !dropoffCoords) && { opacity: 0.6 },
+              { backgroundColor: '#2563EB' },
+              (isBooking || !dropoffCoords) && { opacity: 0.5 },
+              AppShadows.md,
             ]}
             disabled={isBooking || !dropoffCoords}
             onPress={handleBookRide}
