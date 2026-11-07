@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SuperApp.API.Data;
 using SuperApp.API.DTOs;
@@ -50,6 +51,7 @@ public class MarketplaceController : ControllerBase
     /// Get all marketplace categories with listing count
     /// </summary>
     [HttpGet("categories")]
+    [EnableRateLimiting("search-policy")]
     public async Task<ActionResult<ApiResponse<List<MarketplaceCategoryDto>>>> GetCategories()
     {
         var categories = await _db.MarketplaceCategories
@@ -72,6 +74,7 @@ public class MarketplaceController : ControllerBase
     /// Search and filter marketplace listings
     /// </summary>
     [HttpGet]
+    [EnableRateLimiting("search-policy")]
     public async Task<ActionResult<ApiResponse<PagedResult<ListingSummaryDto>>>> GetListings(
         [FromQuery] int? categoryId,
         [FromQuery] string? search,
@@ -170,6 +173,7 @@ public class MarketplaceController : ControllerBase
     /// Get single listing details with seller profile and photos
     /// </summary>
     [HttpGet("{id}")]
+    [EnableRateLimiting("search-policy")]
     public async Task<ActionResult<ApiResponse<ListingDetailDto>>> GetListingById(long id)
     {
         var currentUserId = GetCurrentUserId();
@@ -1074,6 +1078,7 @@ public class MarketplaceController : ControllerBase
     /// Open or get conversation for a listing between buyer (current user) and seller
     /// </summary>
     [HttpPost("listings/{id:long}/chat")]
+    [EnableRateLimiting("checkout-policy")]
     public async Task<ActionResult<ApiResponse<ChatConversationDto>>> OpenChat(long id)
     {
         var currentUserId = GetCurrentUserId();
@@ -1165,6 +1170,7 @@ public class MarketplaceController : ControllerBase
     /// Send message in a chat conversation
     /// </summary>
     [HttpPost("conversations/{id:long}/messages")]
+    [EnableRateLimiting("checkout-policy")]
     public async Task<ActionResult<ApiResponse<ChatMessageDto>>> SendMessage(long id, [FromBody] SendChatMessageRequest request)
     {
         var currentUserId = GetCurrentUserId();

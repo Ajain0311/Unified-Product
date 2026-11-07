@@ -53,6 +53,57 @@ export class LocationService {
 
 
   private activeWatcherSubscription: Location.LocationSubscription | null = null;
+  private bookingLocationRequest: Promise<LocationCoordinates> | null = null;
+
+  async getBookingGradeLocation(options: {
+    timeoutMs: number;
+    maxAgeSeconds: number;
+    maxAccuracyMeters: number;
+  }): Promise<LocationCoordinates> {
+    if (this.bookingLocationRequest) return this.bookingLocationRequest;
+    const request = (async () => {
+      if (!Number.isFinite(options.maxAgeSeconds) || options.maxAgeSeconds <= 0 ||
+          !Number.isFinite(options.maxAccuracyMeters) || options.maxAccuracyMeters <= 0) {
+        throw new Error('GPS quality settings are unavailable. Select your pickup point on the map.');
+      }
+      const enabled = await this.isLocationServicesEnabled();
+      if (!enabled) throw new Error('Location services are disabled. Select your pickup point on the map.');
+      if (await this.requestPermission() !== 'granted')
+        throw new Error('Location permission is unavailable. Select your pickup point on the map.');
+
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const timeout = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('GPS request timed out. Select your pickup point on the map.')), options.timeoutMs);
+        });
+        const position = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+          timeout,
+        ]);
+        const ageMs = Date.now() - position.timestamp;
+        const { latitude, longitude, accuracy } = position.coords;
+        if (!Number.isFinite(ageMs) || ageMs < -5000 || ageMs > options.maxAgeSeconds * 1000)
+          throw new Error('GPS fix is stale. Try again or select your pickup point on the map.');
+        if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+            !Number.isFinite(longitude) || longitude < -180 || longitude > 180)
+          throw new Error('GPS returned invalid coordinates. Select your pickup point on the map.');
+        if (accuracy == null || !Number.isFinite(accuracy) || accuracy > options.maxAccuracyMeters)
+          throw new Error('GPS accuracy is too low. Try again or select your pickup point on the map.');
+
+        let formattedAddress = `${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°`;
+        try {
+          const address = await this.reverseGeocode(latitude, longitude);
+          if (address?.trim()) formattedAddress = address;
+        } catch { /* Valid GPS coordinates remain usable if reverse geocoding fails. */ }
+        return { latitude, longitude, formattedAddress, accuracy, timestamp: position.timestamp, isFallback: false };
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    })();
+    this.bookingLocationRequest = request;
+    try { return await request; }
+    finally { if (this.bookingLocationRequest === request) this.bookingLocationRequest = null; }
+  }
 
   /**
    * Opens the device app settings screen so user can unblock permanently denied permissions
@@ -166,7 +217,7 @@ export class LocationService {
               speed: lastKnown.coords.speed,
               heading: lastKnown.coords.heading,
               timestamp: lastKnown.timestamp,
-              isFallback: false,
+              isFallback: true,
             },
           };
         }

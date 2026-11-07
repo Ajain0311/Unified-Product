@@ -10,16 +10,18 @@ public class RideEstimateRequest
     public string PickupAddress { get; set; } = string.Empty;
 
     [JsonPropertyName("pickupLatitude")]
-    public decimal PickupLatitude { get; set; } = 28.6315m;
+    [Required]
+    public decimal? PickupLatitude { get; set; }
 
     [JsonPropertyName("pickupLat")]
-    public decimal PickupLat { set => PickupLatitude = value; }
+    public decimal? PickupLat { set => PickupLatitude = value; }
 
     [JsonPropertyName("pickupLongitude")]
-    public decimal PickupLongitude { get; set; } = 77.2167m;
+    [Required]
+    public decimal? PickupLongitude { get; set; }
 
     [JsonPropertyName("pickupLng")]
-    public decimal PickupLng { set => PickupLongitude = value; }
+    public decimal? PickupLng { set => PickupLongitude = value; }
 
     [Required]
     [JsonPropertyName("dropoffAddress")]
@@ -29,16 +31,18 @@ public class RideEstimateRequest
     public string DestinationAddress { set => DropoffAddress = value; }
 
     [JsonPropertyName("dropoffLatitude")]
-    public decimal DropoffLatitude { get; set; } = 28.5562m;
+    [Required]
+    public decimal? DropoffLatitude { get; set; }
 
     [JsonPropertyName("destinationLat")]
-    public decimal DestinationLat { set => DropoffLatitude = value; }
+    public decimal? DestinationLat { set => DropoffLatitude = value; }
 
     [JsonPropertyName("dropoffLongitude")]
-    public decimal DropoffLongitude { get; set; } = 77.1000m;
+    [Required]
+    public decimal? DropoffLongitude { get; set; }
 
     [JsonPropertyName("destinationLng")]
-    public decimal DestinationLng { set => DropoffLongitude = value; }
+    public decimal? DestinationLng { set => DropoffLongitude = value; }
 
     public List<string> OptionCodes { get; set; } = new();
 }
@@ -86,13 +90,17 @@ public class BookRideRequest
     public string VehicleType { get; set; } = "BIKE"; // BIKE, AUTO, CAB
     [Required]
     public string PickupAddress { get; set; } = string.Empty;
-    public decimal PickupLatitude { get; set; } = 28.6315m;
-    public decimal PickupLongitude { get; set; } = 77.2167m;
+    [Required]
+    public decimal? PickupLatitude { get; set; }
+    [Required]
+    public decimal? PickupLongitude { get; set; }
 
     [Required]
     public string DropoffAddress { get; set; } = string.Empty;
-    public decimal DropoffLatitude { get; set; } = 28.5562m;
-    public decimal DropoffLongitude { get; set; } = 77.1000m;
+    [Required]
+    public decimal? DropoffLatitude { get; set; }
+    [Required]
+    public decimal? DropoffLongitude { get; set; }
 
     public string PaymentMethod { get; set; } = "CASH";
     public List<string> OptionCodes { get; set; } = new();

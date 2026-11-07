@@ -80,6 +80,9 @@ public class AdminRestaurantActionRequest
     public bool? IsFeatured { get; set; }
     public decimal? MinOrderAmount { get; set; }
     public decimal? DeliveryFee { get; set; }
+    public decimal? DeliveryRadiusKm { get; set; }
+    public decimal? Latitude { get; set; }
+    public decimal? Longitude { get; set; }
 }
 
 public class AdminDriverActionRequest

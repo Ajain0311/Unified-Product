@@ -183,7 +183,7 @@ public static class CouponEngine
             var quote = Evaluate(coupon, module, aggregateAmount, null, uses, DateTime.UtcNow);
             if (!quote.IsValid || quote.Coupon == null)
                 return quote;
-            if (relational)
+            if (relational && db.Database.CurrentTransaction is null)
                 tx = await db.Database.BeginTransactionAsync();
             quote.Coupon.CurrentUsageCount += 1;
             quote.Coupon.UpdatedAt = DateTime.UtcNow;
@@ -202,7 +202,7 @@ public static class CouponEngine
         {
             if (tx != null)
                 await tx.RollbackAsync();
-            else
+            else if (db.Database.CurrentTransaction is null)
                 DiscardStagedCoupon(db, coupon);
             throw;
         }
@@ -237,7 +237,7 @@ public static class CouponEngine
             if (!quote.IsValid || quote.Coupon == null)
                 return quote;
 
-            if (relational)
+            if (relational && db.Database.CurrentTransaction is null)
                 tx = await db.Database.BeginTransactionAsync();
 
             quote.Coupon.CurrentUsageCount += 1;
@@ -257,7 +257,7 @@ public static class CouponEngine
         {
             if (tx != null)
                 await tx.RollbackAsync();
-            else
+            else if (db.Database.CurrentTransaction is null)
                 DiscardStagedCoupon(db, coupon);
             throw;
         }

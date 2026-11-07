@@ -1,5 +1,11 @@
 namespace SuperApp.API.Services;
 
+public sealed class RouteProviderUnavailableException : Exception
+{
+    public RouteProviderUnavailableException(string message) : base(message) { }
+    public RouteProviderUnavailableException(string message, Exception innerException) : base(message, innerException) { }
+}
+
 public class RouteEstimationResult
 {
     public double DistanceKm { get; set; }

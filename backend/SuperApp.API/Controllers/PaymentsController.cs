@@ -123,6 +123,7 @@ public class PaymentsController : ControllerBase
 
     [Authorize]
     [HttpPost("create-order")]
+    [ServiceFilter(typeof(IdempotencyActionFilter))]
     public async Task<ActionResult<ApiResponse<PaymentOrderResult>>> CreateOrder([FromBody] CreatePaymentRequest request)
     {
         var authenticatedUserId = GetCurrentUserId();

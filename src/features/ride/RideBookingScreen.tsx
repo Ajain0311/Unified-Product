@@ -18,20 +18,14 @@ import { RootStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
-import { apiClient } from '../../services/apiClient';
+import { apiClient, createIdempotencyKey } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { locationService } from '../../services/locationService';
+import { configService } from '../../services/configService';
 import { LocationMapPicker } from '../../components/maps/LocationMapPicker';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { mapboxService, SelectedMapPlace } from '../../services/mapboxService';
 import { useAppTheme, ThemePalette } from '../../theme/themeStore';
-import {
-  isCoordinatesWithinServiceRegion,
-  CHITTORGARH_SERVICE_REGION,
-  calculateHaversineDistanceKm,
-  MANDPHIYA_SERVICE_CONSTRAINTS,
-  MANDPHIYA_SERVICE_CENTER,
-} from '../../config/serviceRegion';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthModalStore } from '../../store/authModalStore';
 import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
@@ -94,6 +88,7 @@ export const RideBookingScreen: React.FC = () => {
   // Real Customer Device GPS State - initialized empty without hardcoded dummy locations
   const [pickupCoords, setPickupCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [pickupAddress, setPickupAddress] = useState('Locating your position...');
+  const [pickupLocationKind, setPickupLocationKind] = useState<'GPS fresh' | 'GPS cached' | 'Manual' | null>(null);
   const [dropoffCoords, setDropoffCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [dropoffAddress, setDropoffAddress] = useState('Tap map to set destination');
   const [activePoint, setActivePoint] = useState<'pickup' | 'dropoff'>('dropoff');
@@ -114,6 +109,7 @@ export const RideBookingScreen: React.FC = () => {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pickupInputRef = useRef<TextInput | null>(null);
   const dropoffInputRef = useRef<TextInput | null>(null);
+  const rideIdempotencyKeyRef = useRef<{ fingerprint: string; key: string } | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -131,17 +127,6 @@ export const RideBookingScreen: React.FC = () => {
   ) => {
     if (!pickup || !dropoff) {
       setRouteMetrics(null);
-      return;
-    }
-
-    const directDistance = calculateHaversineDistanceKm(
-      pickup.latitude,
-      pickup.longitude,
-      dropoff.latitude,
-      dropoff.longitude
-    );
-    if (directDistance > MANDPHIYA_SERVICE_CONSTRAINTS.maxRideDistanceKm) {
-      setRouteMetrics(`Distance (${directDistance.toFixed(1)} km) exceeds 20 km local ride limit`);
       return;
     }
 
@@ -200,8 +185,9 @@ export const RideBookingScreen: React.FC = () => {
           }
         }
       })
-      .catch(() => {
-        setRouteMetrics('Fare could not be calculated. Check the connection and try again.');
+      .catch((error: any) => {
+        const message = error?.response?.data?.message || error?.response?.data?.data?.message;
+        setRouteMetrics(message || 'Fare could not be calculated. Check the connection and try again.');
       });
   };
 
@@ -226,17 +212,10 @@ export const RideBookingScreen: React.FC = () => {
           `${result.coordinates.latitude.toFixed(4)}°, ${result.coordinates.longitude.toFixed(4)}°`;
 
         setPickupCoords(newCoords);
+        setPickupLocationKind(result.coordinates.isFallback ? 'GPS cached' : 'GPS fresh');
         setPickupAddress(newAddress);
         setPickupInput(newAddress);
         setGpsStatus('ONLINE');
-
-        const inRegion = isCoordinatesWithinServiceRegion(newCoords.latitude, newCoords.longitude);
-        if (!inRegion && isInteractive) {
-          Alert.alert(
-            'Out of Service Region',
-            `Your current location is outside ${CHITTORGARH_SERVICE_REGION.displayName}. SuperApp rides are currently active within Chittorgarh District & Mandphiya.`
-          );
-        }
 
         if (dropoffCoords) {
           fetchEstimate(newCoords, newAddress, dropoffCoords, dropoffAddress);
@@ -331,6 +310,7 @@ export const RideBookingScreen: React.FC = () => {
 
     if (target === 'pickup') {
       setPickupCoords(coords);
+      setPickupLocationKind('Manual');
       setPickupAddress(resolvedAddress);
       setPickupInput(resolvedAddress);
       if (dropoffCoords) {
@@ -369,6 +349,7 @@ export const RideBookingScreen: React.FC = () => {
       setPickupInput(text);
       // Invalidate confirmed place coordinates since query was edited
       setPickupCoords(null);
+      setPickupLocationKind(null);
       setPickupAddress(text);
     } else {
       setDropoffInput(text);
@@ -472,41 +453,46 @@ export const RideBookingScreen: React.FC = () => {
       return;
     }
 
-    if (!isCoordinatesWithinServiceRegion(pickupCoords.latitude, pickupCoords.longitude)) {
-      Alert.alert(
-        'Outside Service Region',
-        `Rides are currently active only within ${CHITTORGARH_SERVICE_REGION.displayName}. Please select a pickup point within the district.`
-      );
-      return;
-    }
-
-    const directDist = calculateHaversineDistanceKm(
-      pickupCoords.latitude,
-      pickupCoords.longitude,
-      dropoffCoords.latitude,
-      dropoffCoords.longitude
-    );
-    if (directDist > MANDPHIYA_SERVICE_CONSTRAINTS.maxRideDistanceKm) {
-      Alert.alert(
-        'Distance Limit Exceeded',
-        `Local rides are currently limited to ${MANDPHIYA_SERVICE_CONSTRAINTS.maxRideDistanceKm} km around Mandphiya & Chittorgarh. Your route is ${directDist.toFixed(1)} km.`
-      );
-      return;
-    }
-
     setIsBooking(true);
     try {
-      const res = await apiClient.post<any>(ApiEndpoints.ride.book, {
+      let confirmedPickup = pickupCoords;
+      let confirmedPickupAddress = pickupAddress;
+      if (pickupLocationKind === 'GPS fresh' || pickupLocationKind === 'GPS cached') {
+        const config = await configService.fetchConfig(true);
+        const maxAgeSeconds = config?.gpsMaxCachedAgeSeconds;
+        const maxAccuracyMeters = config?.gpsMaxAccuracyMeters;
+        if (!Number.isFinite(maxAgeSeconds) || !Number.isFinite(maxAccuracyMeters))
+          throw new Error('Could not verify GPS quality rules. Select your pickup point on the map.');
+        const freshFix = await locationService.getBookingGradeLocation({
+          timeoutMs: 10000,
+          maxAgeSeconds: maxAgeSeconds!,
+          maxAccuracyMeters: maxAccuracyMeters!,
+        });
+        confirmedPickup = { latitude: freshFix.latitude, longitude: freshFix.longitude };
+        confirmedPickupAddress = freshFix.formattedAddress;
+        setPickupCoords(confirmedPickup);
+        setPickupAddress(confirmedPickupAddress);
+        setPickupLocationKind('GPS fresh');
+      }
+      const requestPayload = {
         vehicleType: selectedVehicle.type,
-        pickupAddress,
-        pickupLatitude: pickupCoords.latitude,
-        pickupLongitude: pickupCoords.longitude,
+        pickupAddress: confirmedPickupAddress,
+        pickupLatitude: confirmedPickup!.latitude,
+        pickupLongitude: confirmedPickup!.longitude,
         dropoffAddress,
         dropoffLatitude: dropoffCoords.latitude,
         dropoffLongitude: dropoffCoords.longitude,
         paymentMethod: 'CASH',
         optionCodes: selectedOptions,
+      };
+      const fingerprint = JSON.stringify(requestPayload);
+      if (rideIdempotencyKeyRef.current?.fingerprint !== fingerprint) {
+        rideIdempotencyKeyRef.current = { fingerprint, key: createIdempotencyKey() };
+      }
+      const res = await apiClient.post<any>(ApiEndpoints.ride.book, requestPayload, {
+        headers: { 'Idempotency-Key': rideIdempotencyKeyRef.current.key },
       });
+      rideIdempotencyKeyRef.current = null;
       const data = res.data?.data || res.data;
       const rideId = data?.rideNumber || `RD-${data?.id || 'NEW'}`;
       const rideNumericId = data?.id;
@@ -616,6 +602,11 @@ export const RideBookingScreen: React.FC = () => {
                   </TouchableOpacity>
                 )}
               </View>
+              {pickupLocationKind && (
+                <Text style={{ color: theme.textTertiary, fontSize: 11, marginTop: 4 }}>
+                  {pickupLocationKind} location{pickupLocationKind === 'GPS cached' ? ' · refreshed before booking' : ''}
+                </Text>
+              )}
             </View>
             <TouchableOpacity
               style={styles.pinMapBtn}

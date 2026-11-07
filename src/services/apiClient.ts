@@ -13,6 +13,13 @@ export interface AppError {
   errors?: string[];
 }
 
+export const createIdempotencyKey = (): string =>
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = character === 'x' ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+
 export class ApiError extends Error implements AppError {
   statusCode?: number;
   isNetworkError?: boolean;
@@ -108,6 +115,12 @@ class ApiClient {
 
         if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
           delete config.headers['Content-Type'];
+        }
+
+        const method = config.method?.toLowerCase();
+        if (method && ['post', 'put', 'patch', 'delete'].includes(method) &&
+            !config.headers['Idempotency-Key']) {
+          config.headers['Idempotency-Key'] = createIdempotencyKey();
         }
 
         const token = await storage.getToken();

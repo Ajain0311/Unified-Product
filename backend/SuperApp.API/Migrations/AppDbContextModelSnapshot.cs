@@ -192,6 +192,67 @@ namespace SuperApp.API.Migrations
                     b.ToTable("app_settings", (string)null);
                 });
 
+            modelBuilder.Entity("SuperApp.API.Models.IdempotencyRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("operation");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("RequestKey")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)")
+                        .HasColumnName("request_key");
+
+                    b.Property<string>("ResponseJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("response_json");
+
+                    b.Property<int>("ResponseStatusCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("response_status_code");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_idempotency_records");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_idempotency_records_expires_at");
+
+                    b.HasIndex("UserId", "Operation", "RequestKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_idempotency_records_user_id_operation_request_key");
+
+                    b.ToTable("idempotency_records", (string)null);
+                });
+
             modelBuilder.Entity("SuperApp.API.Models.Banner", b =>
                 {
                     b.Property<long>("Id")
@@ -725,6 +786,10 @@ namespace SuperApp.API.Migrations
                     b.Property<decimal>("DeliveryFee")
                         .HasColumnType("decimal(10,2)")
                         .HasColumnName("delivery_fee");
+
+                    b.Property<decimal?>("DeliveryRadiusKm")
+                        .HasColumnType("decimal(6,2)")
+                        .HasColumnName("delivery_radius_km");
 
                     b.Property<decimal>("DiscountAmount")
                         .HasColumnType("decimal(10,2)")

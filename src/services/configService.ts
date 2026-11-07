@@ -11,18 +11,20 @@ export interface RemoteClientConfig {
   showTestOtp: boolean;
   apiBaseUrl: string;
   signalRHubUrl: string;
+  gpsMaxCachedAgeSeconds?: number;
+  gpsMaxAccuracyMeters?: number;
 }
 
 let cachedRemoteConfig: RemoteClientConfig | null = null;
 let fetchPromise: Promise<RemoteClientConfig | null> | null = null;
 
 export const configService = {
-  async fetchConfig(): Promise<RemoteClientConfig | null> {
-    if (cachedRemoteConfig) {
+  async fetchConfig(forceRefresh = false): Promise<RemoteClientConfig | null> {
+    if (!forceRefresh && cachedRemoteConfig) {
       return cachedRemoteConfig;
     }
 
-    if (fetchPromise) {
+    if (!forceRefresh && fetchPromise) {
       return fetchPromise;
     }
 

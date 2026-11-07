@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using SuperApp.API.Common;
 using SuperApp.API.Data;
 using SuperApp.API.DTOs;
 using SuperApp.API.Models;
@@ -21,17 +20,20 @@ public class RidesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IHubContext<RideTrackingHub> _rideHub;
     private readonly IMapService _mapService;
+    private readonly ServiceAreaPolicyProvider _serviceAreaPolicyProvider;
     private readonly INotificationService? _notificationService;
 
     public RidesController(
         AppDbContext db,
         IHubContext<RideTrackingHub> rideHub,
         IMapService mapService,
+        ServiceAreaPolicyProvider serviceAreaPolicyProvider,
         INotificationService? notificationService = null)
     {
         _db = db;
         _rideHub = rideHub;
         _mapService = mapService;
+        _serviceAreaPolicyProvider = serviceAreaPolicyProvider;
         _notificationService = notificationService;
     }
 
@@ -42,6 +44,17 @@ public class RidesController : ControllerBase
             return id;
         return null;
     }
+
+    private static string GetServiceabilityMessage(ServiceabilityFailure failure) => failure switch
+    {
+        ServiceabilityFailure.InvalidCoordinates => "Pickup and destination must include valid coordinates.",
+        ServiceabilityFailure.InvalidCoverageConfiguration => "Ride coverage is temporarily unavailable.",
+        ServiceabilityFailure.PickupOutsideCoverage => "Pickup is outside the configured pickup service radius.",
+        ServiceabilityFailure.DestinationOutsideCoverage => "Destination is outside the supported ride service zone.",
+        ServiceabilityFailure.RideRouteTooLong => "Road route exceeds the configured maximum ride distance.",
+        ServiceabilityFailure.RouteUnavailable => "A road route could not be verified. Please try again.",
+        _ => "Ride is serviceable."
+    };
 
     private async Task<(List<RideFareRule> rules, List<RideFareOption> options)> LoadFareConfigAsync()
     {
@@ -174,37 +187,39 @@ public class RidesController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpPost("estimate")]
+    [EnableRateLimiting("search-policy")]
     public async Task<ActionResult<ApiResponse<RideEstimateResponse>>> GetEstimate([FromBody] RideEstimateRequest request)
     {
-        var route = await _mapService.EstimateRouteAsync(
-            request.PickupLatitude,
-            request.PickupLongitude,
-            request.DropoffLatitude,
-            request.DropoffLongitude);
+        if (!ServiceabilityService.AreValidCoordinates((double)request.PickupLatitude!.Value, (double)request.PickupLongitude!.Value) ||
+            !ServiceabilityService.AreValidCoordinates((double)request.DropoffLatitude!.Value, (double)request.DropoffLongitude!.Value))
+            return BadRequest(ApiResponse<RideEstimateResponse>.Fail("Pickup and destination must include valid coordinates."));
+
+        RouteEstimationResult route;
+        try
+        {
+            route = await _mapService.EstimateRouteAsync(
+                request.PickupLatitude!.Value,
+                request.PickupLongitude!.Value,
+                request.DropoffLatitude!.Value,
+                request.DropoffLongitude!.Value);
+        }
+        catch (RouteProviderUnavailableException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                ApiResponse<RideEstimateResponse>.Fail("Road route could not be verified. Please retry shortly."));
+        }
 
         var distanceKm = (decimal)route.DistanceKm;
         var estimatedMinutes = route.EstimatedDurationMinutes;
         if (distanceKm < 0.15m)
             return BadRequest(ApiResponse<RideEstimateResponse>.Fail("Pickup and destination are the same place"));
 
-        // Serviceability & maximum distance enforcement
-        if (!ServiceAreaConfig.IsWithinRegionBounds((double)request.PickupLatitude, (double)request.PickupLongitude))
-        {
-            return BadRequest(ApiResponse<RideEstimateResponse>.Fail(
-                $"Pickup location is outside the supported service area ({ServiceAreaConfig.OperatingRegionName})."));
-        }
-
-        if (!ServiceAreaConfig.IsWithinRegionBounds((double)request.DropoffLatitude, (double)request.DropoffLongitude))
-        {
-            return BadRequest(ApiResponse<RideEstimateResponse>.Fail(
-                $"Destination is outside the supported service area ({ServiceAreaConfig.OperatingRegionName}). Unsupported long-distance routes are not serviceable."));
-        }
-
-        if (distanceKm > (decimal)ServiceAreaConfig.RideMaxDistanceKm)
-        {
-            return BadRequest(ApiResponse<RideEstimateResponse>.Fail(
-                $"Estimated distance ({distanceKm:F1} km) exceeds the maximum supported ride limit of {ServiceAreaConfig.RideMaxDistanceKm:F0} km for {ServiceAreaConfig.OperatingRegionName}."));
-        }
+        var policy = await _serviceAreaPolicyProvider.GetPolicyAsync(refresh: true, cancellationToken: HttpContext.RequestAborted);
+        var serviceability = new ServiceabilityService(policy).CheckRide(
+            (double)request.PickupLatitude!.Value, (double)request.PickupLongitude!.Value,
+            (double)request.DropoffLatitude!.Value, (double)request.DropoffLongitude!.Value, route.DistanceKm);
+        if (!serviceability.IsServiceable)
+            return BadRequest(ApiResponse<RideEstimateResponse>.Fail(GetServiceabilityMessage(serviceability.Failure)));
 
         List<VehicleEstimateDto> options;
         List<RideOptionDto> addons;
@@ -232,6 +247,7 @@ public class RidesController : ControllerBase
     /// </summary>
     [HttpPost("book")]
     [EnableRateLimiting("checkout-policy")]
+    [ServiceFilter(typeof(IdempotencyActionFilter))]
     public async Task<ActionResult<ApiResponse<RideDto>>> BookRide([FromBody] BookRideRequest request)
     {
         var userId = GetCurrentUserId();
@@ -244,33 +260,34 @@ public class RidesController : ControllerBase
         var rideOtp = random.Next(1000, 9999).ToString();
         var rideNumber = $"RD-{Guid.NewGuid().ToString("N")[..16]}";
 
-        var route = await _mapService.EstimateRouteAsync(
-            request.PickupLatitude,
-            request.PickupLongitude,
-            request.DropoffLatitude,
-            request.DropoffLongitude);
+        if (!ServiceabilityService.AreValidCoordinates((double)request.PickupLatitude!.Value, (double)request.PickupLongitude!.Value) ||
+            !ServiceabilityService.AreValidCoordinates((double)request.DropoffLatitude!.Value, (double)request.DropoffLongitude!.Value))
+            return BadRequest(ApiResponse<RideDto>.Fail("Pickup and destination must include valid coordinates."));
+
+        RouteEstimationResult route;
+        try
+        {
+            route = await _mapService.EstimateRouteAsync(
+                request.PickupLatitude!.Value,
+                request.PickupLongitude!.Value,
+                request.DropoffLatitude!.Value,
+                request.DropoffLongitude!.Value);
+        }
+        catch (RouteProviderUnavailableException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                ApiResponse<RideDto>.Fail("Road route could not be verified. Please retry shortly."));
+        }
         var distanceKm = (decimal)route.DistanceKm;
         if (distanceKm < 0.15m)
             return BadRequest(ApiResponse<RideDto>.Fail("Pickup and destination are the same place"));
 
-        // Serviceability & maximum distance enforcement
-        if (!ServiceAreaConfig.IsWithinRegionBounds((double)request.PickupLatitude, (double)request.PickupLongitude))
-        {
-            return BadRequest(ApiResponse<RideDto>.Fail(
-                $"Pickup location is outside the supported service area ({ServiceAreaConfig.OperatingRegionName})."));
-        }
-
-        if (!ServiceAreaConfig.IsWithinRegionBounds((double)request.DropoffLatitude, (double)request.DropoffLongitude))
-        {
-            return BadRequest(ApiResponse<RideDto>.Fail(
-                $"Destination is outside the supported service area ({ServiceAreaConfig.OperatingRegionName}). Cross-country or unsupported long-distance routes are not permitted."));
-        }
-
-        if (distanceKm > (decimal)ServiceAreaConfig.RideMaxDistanceKm)
-        {
-            return BadRequest(ApiResponse<RideDto>.Fail(
-                $"Requested ride distance ({distanceKm:F1} km) exceeds the maximum supported ride limit of {ServiceAreaConfig.RideMaxDistanceKm:F0} km for {ServiceAreaConfig.OperatingRegionName}."));
-        }
+        var policy = await _serviceAreaPolicyProvider.GetPolicyAsync(refresh: true, cancellationToken: HttpContext.RequestAborted);
+        var serviceability = new ServiceabilityService(policy).CheckRide(
+            (double)request.PickupLatitude!.Value, (double)request.PickupLongitude!.Value,
+            (double)request.DropoffLatitude!.Value, (double)request.DropoffLongitude!.Value, route.DistanceKm);
+        if (!serviceability.IsServiceable)
+            return BadRequest(ApiResponse<RideDto>.Fail(GetServiceabilityMessage(serviceability.Failure)));
 
         if (!VehicleTypes.TryNormalize(request.VehicleType, out var vehicleType))
             return BadRequest(ApiResponse<RideDto>.Fail("Unsupported vehicle type. Allowed values: BIKE, AUTO, CAB."));
@@ -294,11 +311,11 @@ public class RidesController : ControllerBase
             UserId = userId.Value,
             VehicleType = vehicleType,
             PickupAddress = request.PickupAddress,
-            PickupLatitude = request.PickupLatitude,
-            PickupLongitude = request.PickupLongitude,
+            PickupLatitude = request.PickupLatitude!.Value,
+            PickupLongitude = request.PickupLongitude!.Value,
             DropoffAddress = request.DropoffAddress,
-            DropoffLatitude = request.DropoffLatitude,
-            DropoffLongitude = request.DropoffLongitude,
+            DropoffLatitude = request.DropoffLatitude!.Value,
+            DropoffLongitude = request.DropoffLongitude!.Value,
             DistanceKm = distanceKm,
             EstimatedFare = quote.Total,
             FareBreakdown = $"base={quote.BaseFare};distance={quote.DistanceFare};time={quote.TimeFare};booking={quote.BookingFee};platform={quote.PlatformFee};options={quote.OptionsTotal};tax={quote.Tax};total={quote.Total}",
@@ -312,36 +329,37 @@ public class RidesController : ControllerBase
         _db.Rides.Add(ride);
         await _db.SaveChangesAsync();
 
-        if (_notificationService != null)
+        IdempotencyActionFilter.EnqueueAfterCommit(HttpContext, async () =>
         {
-            await _notificationService.SendPushNotificationAsync(
-                userId.Value,
-                "Ride Requested 🚖",
-                $"Your {ride.VehicleType} ride {ride.RideNumber} has been requested. Looking for nearby drivers...",
-                "RIDE",
-                ride.Id.ToString());
-
-            // Broadcast real push notification to ALL registered captains (regardless of online/offline status)
-            try
+            if (_notificationService != null)
             {
-                await _notificationService.BroadcastRideToAllCaptainsAsync(ride);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[PushDispatch] Error broadcasting ride {ride.Id} to captains: {ex.Message}");
-            }
-        }
+                await _notificationService.SendPushNotificationAsync(
+                    userId.Value,
+                    "Ride Requested 🚖",
+                    $"Your {ride.VehicleType} ride {ride.RideNumber} has been requested. Looking for nearby drivers...",
+                    "RIDE",
+                    ride.Id.ToString());
 
-        // Broadcast to all drivers in drivers-pool via SignalR for connected captains
-        await _rideHub.Clients.Group("drivers-pool").SendAsync("RideRequested", new
-        {
-            id = ride.Id,
-            rideNumber = ride.RideNumber,
-            pickupAddress = ride.PickupAddress,
-            dropoffAddress = ride.DropoffAddress,
-            fare = ride.EstimatedFare,
-            status = ride.Status,
-            createdAt = ride.CreatedAt
+                try
+                {
+                    await _notificationService.BroadcastRideToAllCaptainsAsync(ride);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[PushDispatch] Error broadcasting ride {ride.Id} to captains: {ex.Message}");
+                }
+            }
+
+            await _rideHub.Clients.Group("drivers-pool").SendAsync("RideRequested", new
+            {
+                id = ride.Id,
+                rideNumber = ride.RideNumber,
+                pickupAddress = ride.PickupAddress,
+                dropoffAddress = ride.DropoffAddress,
+                fare = ride.EstimatedFare,
+                status = ride.Status,
+                createdAt = ride.CreatedAt
+            });
         });
 
         return Ok(ApiResponse<RideDto>.Ok(new RideDto

@@ -52,6 +52,9 @@ public class Restaurant
     [Column(TypeName = "decimal(10,2)")]
     public decimal DeliveryFee { get; set; } = 0;
 
+    [Column(TypeName = "decimal(6,2)")]
+    public decimal? DeliveryRadiusKm { get; set; }
+
     [Column(TypeName = "decimal(5,2)")]
     public decimal? CommissionRatePercent { get; set; }
     

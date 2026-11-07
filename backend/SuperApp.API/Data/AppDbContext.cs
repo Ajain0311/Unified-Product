@@ -34,6 +34,7 @@ public class AppDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
     public DbSet<UserDeviceToken> UserDeviceTokens => Set<UserDeviceToken>();
     public DbSet<MarketplaceOffer> MarketplaceOffers => Set<MarketplaceOffer>();
     public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
@@ -50,6 +51,12 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<IdempotencyRecord>(entity =>
+        {
+            entity.HasIndex(record => new { record.UserId, record.Operation, record.RequestKey }).IsUnique();
+            entity.HasIndex(record => record.ExpiresAt);
+        });
         
         // User
         modelBuilder.Entity<User>(entity =>

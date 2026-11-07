@@ -539,6 +539,12 @@ public class AdminController : ControllerBase
     [HttpPost("restaurants")]
     public async Task<ActionResult<ApiResponse<Restaurant>>> ManageRestaurant([FromBody] AdminRestaurantActionRequest request)
     {
+        if (request.DeliveryRadiusKm is < 0.01m or > 500m)
+            return BadRequest(ApiResponse<Restaurant>.Fail("Delivery radius must be between 0.01 and 500 km."));
+        if (request.Latitude.HasValue != request.Longitude.HasValue ||
+            (request.Latitude.HasValue && (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180)))
+            return BadRequest(ApiResponse<Restaurant>.Fail("Restaurant coordinates must be supplied together and fall within valid latitude/longitude ranges."));
+
         switch (request.Action?.ToUpperInvariant())
         {
             case "ADD":
@@ -557,6 +563,9 @@ public class AdminController : ControllerBase
                     IsFeatured = request.IsFeatured ?? false,
                     MinOrderAmount = request.MinOrderAmount ?? 100,
                     DeliveryFee = request.DeliveryFee ?? 25,
+                    DeliveryRadiusKm = request.DeliveryRadiusKm,
+                    Latitude = request.Latitude,
+                    Longitude = request.Longitude,
                     CreatedAt = DateTime.UtcNow
                 };
                 _db.Restaurants.Add(newRest);
@@ -579,6 +588,12 @@ public class AdminController : ControllerBase
                 if (request.IsVeg.HasValue) rest.IsVeg = request.IsVeg.Value;
                 if (request.MinOrderAmount.HasValue) rest.MinOrderAmount = request.MinOrderAmount.Value;
                 if (request.DeliveryFee.HasValue) rest.DeliveryFee = request.DeliveryFee.Value;
+                if (request.DeliveryRadiusKm.HasValue) rest.DeliveryRadiusKm = request.DeliveryRadiusKm.Value;
+                if (request.Latitude.HasValue && request.Longitude.HasValue)
+                {
+                    rest.Latitude = request.Latitude.Value;
+                    rest.Longitude = request.Longitude.Value;
+                }
                 rest.UpdatedAt = DateTime.UtcNow;
 
                 await _db.SaveChangesAsync();
@@ -1387,7 +1402,12 @@ public class AdminController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Key))
             return BadRequest(ApiResponse.Fail("Setting key is required"));
 
-        var setting = await _db.AppSettings.FirstOrDefaultAsync(s => s.SettingKey == request.Key.Trim());
+        var settingKey = request.Key.Trim();
+        var validationError = ServiceAreaPolicyProvider.ValidateSetting(settingKey, request.Value?.Trim());
+        if (validationError is not null)
+            return BadRequest(ApiResponse.Fail(validationError));
+
+        var setting = await _db.AppSettings.FirstOrDefaultAsync(s => s.SettingKey == settingKey);
         if (setting == null)
         {
             setting = new AppSetting
@@ -1408,6 +1428,11 @@ public class AdminController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
+        if (settingKey.StartsWith("serviceability_", StringComparison.Ordinal) ||
+            settingKey.StartsWith("food_default_service_", StringComparison.Ordinal) ||
+            settingKey.StartsWith("ride_", StringComparison.Ordinal) ||
+            settingKey.StartsWith("gps_", StringComparison.Ordinal))
+            HttpContext.RequestServices.GetRequiredService<ServiceAreaPolicyProvider>().Invalidate();
         return Ok(ApiResponse.Ok($"Setting '{setting.SettingKey}' updated successfully"));
     }
 

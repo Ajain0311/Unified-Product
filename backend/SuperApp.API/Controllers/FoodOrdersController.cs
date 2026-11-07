@@ -5,13 +5,11 @@ using Microsoft.EntityFrameworkCore;
 using SuperApp.API.Data;
 using SuperApp.API.DTOs;
 using SuperApp.API.Models;
-
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using SuperApp.API.Hubs;
 using SuperApp.API.Services;
 using Microsoft.AspNetCore.RateLimiting;
-using SuperApp.API.Common;
 
 namespace SuperApp.API.Controllers;
 
@@ -25,16 +23,19 @@ public class FoodOrdersController : ControllerBase
     private readonly IHubContext<RideTrackingHub>? _rideHub;
     private readonly IPaymentService? _payments;
     private readonly INotificationService? _notifications;
-
+    private readonly ServiceAreaPolicyProvider _serviceAreaPolicyProvider;
+
     public FoodOrdersController(
         AppDbContext db,
         IHubContext<OrderStatusHub> orderHub,
+        ServiceAreaPolicyProvider serviceAreaPolicyProvider,
         IPaymentService? payments = null,
         IHubContext<RideTrackingHub>? rideHub = null,
         INotificationService? notifications = null)
     {
         _db = db;
         _orderHub = orderHub;
+        _serviceAreaPolicyProvider = serviceAreaPolicyProvider;
         _payments = payments;
         _rideHub = rideHub;
         _notifications = notifications;
@@ -68,6 +69,8 @@ public class FoodOrdersController : ControllerBase
     /// Place a food order with server-side price validation
     /// </summary>
     [HttpPost]
+    [EnableRateLimiting("checkout-policy")]
+    [ServiceFilter(typeof(IdempotencyActionFilter))]
     public async Task<ActionResult<ApiResponse<FoodOrderDto>>> PlaceOrder([FromBody] PlaceFoodOrderRequest request)
     {
         if (request.Items == null || !request.Items.Any())
@@ -116,26 +119,21 @@ public class FoodOrdersController : ControllerBase
             return BadRequest(ApiResponse<FoodOrderDto>.Fail("Delivery address is incomplete (missing street line or city)"));
         }
 
-        if (validatedAddress.Latitude.HasValue && validatedAddress.Longitude.HasValue)
-        {
-            var isDeliverable = ServiceAreaConfig.IsWithinDeliveryRadius(
-                (double)validatedAddress.Latitude.Value,
-                (double)validatedAddress.Longitude.Value,
-                ServiceAreaConfig.FoodMaxDeliveryRadiusKm);
-
-            if (!isDeliverable)
-            {
-                var distance = ServiceAreaConfig.CalculateDistanceKm(
-                    ServiceAreaConfig.MandphiyaCenterLatitude,
-                    ServiceAreaConfig.MandphiyaCenterLongitude,
-                    (double)validatedAddress.Latitude.Value,
-                    (double)validatedAddress.Longitude.Value);
-
-                return BadRequest(ApiResponse<FoodOrderDto>.Fail(
-                    $"Delivery address is outside the supported {ServiceAreaConfig.FoodMaxDeliveryRadiusKm:F0} km service radius of {ServiceAreaConfig.OperatingRegionName} (Distance: {distance:F1} km). Food delivery is only available within 20 km of Mandphiya."));
-            }
-        }
-
+        var policy = await _serviceAreaPolicyProvider.GetPolicyAsync(refresh: true, cancellationToken: HttpContext.RequestAborted);
+        var serviceability = new ServiceabilityService(policy).CheckFoodDelivery(
+            validatedAddress.Latitude.HasValue ? (double)validatedAddress.Latitude.Value : null,
+            validatedAddress.Longitude.HasValue ? (double)validatedAddress.Longitude.Value : null,
+            restaurant.DeliveryRadiusKm.HasValue
+                ? new RestaurantDeliveryCoverage(
+                    restaurant.Latitude.HasValue ? (double)restaurant.Latitude.Value : null,
+                    restaurant.Longitude.HasValue ? (double)restaurant.Longitude.Value : null,
+                    (double)restaurant.DeliveryRadiusKm.Value)
+                : null);
+        if (!serviceability.IsServiceable)
+            return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail(serviceability.Failure == ServiceabilityFailure.InvalidCoordinates
+                ? "Delivery address needs a valid confirmed map location before checkout."
+                : "Delivery address is outside the currently supported service area."));
+
         // Auto-accept: For COD, immediately confirm valid order to Accepted. For ONLINE, keep Pending until verified payment.
         var initialOrderStatus = paymentMethod == "ONLINE" ? OrderStatus.Pending : OrderStatus.Accepted;
         var initialPaymentStatus = paymentMethod == "ONLINE" ? "PENDING_PAYMENT" : "PENDING";
@@ -299,6 +297,8 @@ public class FoodOrdersController : ControllerBase
         // Only dispatch immediately if COD or already PAID. Unpaid online orders await verified payment callback.
         if (order.PaymentMethod == "COD" || order.PaymentStatus == "PAID")
         {
+            IdempotencyActionFilter.EnqueueAfterCommit(HttpContext, async () =>
+            {
             try
             {
                 await _orderHub.Clients.Group($"restaurant-{restaurant.Id}").SendAsync("NewIncomingOrder", orderDto);
@@ -329,9 +329,9 @@ public class FoodOrdersController : ControllerBase
                     }
                 }
                 catch { /* non-critical */ }
-            }
+            }
+            });
         }
-
         return Ok(ApiResponse<FoodOrderDto>.Ok(orderDto));
     }
 
@@ -340,6 +340,8 @@ public class FoodOrdersController : ControllerBase
     /// ONLINE + coupon are single-restaurant only (safe). COD supports multiple hotels in one request.
     /// </summary>
     [HttpPost("checkout")]
+    [EnableRateLimiting("checkout-policy")]
+    [ServiceFilter(typeof(IdempotencyActionFilter))]
     public async Task<ActionResult<ApiResponse<FoodCheckoutResultDto>>> Checkout([FromBody] FoodCheckoutRequest request)
     {
         if (request.Items == null || !request.Items.Any())
@@ -367,26 +369,37 @@ public class FoodOrdersController : ControllerBase
         if (string.IsNullOrWhiteSpace(validatedAddress.AddressLine1) || string.IsNullOrWhiteSpace(validatedAddress.City))
             return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail("Delivery address is incomplete (missing street line or city)"));
 
-        if (validatedAddress.Latitude.HasValue && validatedAddress.Longitude.HasValue)
+        var policy = await _serviceAreaPolicyProvider.GetPolicyAsync(refresh: true, cancellationToken: HttpContext.RequestAborted);
+        var foodItemIds = request.Items.Select(item => item.FoodItemId).Distinct().ToList();
+        var restaurantIds = await _db.FoodItems.AsNoTracking()
+            .Where(item => foodItemIds.Contains(item.Id))
+            .Select(item => item.RestaurantId)
+            .Distinct()
+            .ToListAsync(HttpContext.RequestAborted);
+        var restaurants = await _db.Restaurants.AsNoTracking()
+            .Where(item => restaurantIds.Contains(item.Id))
+            .ToListAsync(HttpContext.RequestAborted);
+        if (restaurantIds.Count == 0 || restaurants.Count != restaurantIds.Count)
+            return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail("One or more cart items are not available."));
+        var serviceabilityService = new ServiceabilityService(policy);
+        foreach (var restaurant in restaurants)
         {
-            var isDeliverable = ServiceAreaConfig.IsWithinDeliveryRadius(
-                (double)validatedAddress.Latitude.Value,
-                (double)validatedAddress.Longitude.Value,
-                ServiceAreaConfig.FoodMaxDeliveryRadiusKm);
-
-            if (!isDeliverable)
-            {
-                var distance = ServiceAreaConfig.CalculateDistanceKm(
-                    ServiceAreaConfig.MandphiyaCenterLatitude,
-                    ServiceAreaConfig.MandphiyaCenterLongitude,
-                    (double)validatedAddress.Latitude.Value,
-                    (double)validatedAddress.Longitude.Value);
-
-                return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail(
-                    $"Delivery address is outside the supported {ServiceAreaConfig.FoodMaxDeliveryRadiusKm:F0} km service radius of {ServiceAreaConfig.OperatingRegionName} (Distance: {distance:F1} km). Food delivery is only available within 20 km of Mandphiya."));
-            }
+            var serviceability = serviceabilityService.CheckFoodDelivery(
+                validatedAddress.Latitude.HasValue ? (double)validatedAddress.Latitude.Value : null,
+                validatedAddress.Longitude.HasValue ? (double)validatedAddress.Longitude.Value : null,
+                restaurant.DeliveryRadiusKm.HasValue
+                    ? new RestaurantDeliveryCoverage(
+                        restaurant.Latitude.HasValue ? (double)restaurant.Latitude.Value : null,
+                        restaurant.Longitude.HasValue ? (double)restaurant.Longitude.Value : null,
+                        (double)restaurant.DeliveryRadiusKm.Value)
+                    : null);
+            if (!serviceability.IsServiceable)
+                return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail(serviceability.Failure == ServiceabilityFailure.InvalidCoordinates
+                    ? "Delivery address needs a valid confirmed map location before checkout."
+                    : "Delivery address is outside one or more restaurant service areas."));
         }
 
+
         if (request.Items.Count > 50)
             return BadRequest(ApiResponse<FoodCheckoutResultDto>.Fail("Cart size exceeds maximum limit of 50 items"));
 
@@ -629,6 +642,8 @@ public class FoodOrdersController : ControllerBase
             // Notify hotel kitchen immediately if COD or auto-accepted
             if (paymentMethod == "COD")
             {
+                IdempotencyActionFilter.EnqueueAfterCommit(HttpContext, async () =>
+                {
                 try
                 {
                     await _orderHub.Clients.Group($"restaurant-{restaurant.Id}").SendAsync("NewIncomingOrder", dto);
@@ -656,10 +671,10 @@ public class FoodOrdersController : ControllerBase
                         }
                     }
                     catch { /* non-critical */ }
-                }
-            }
+                }
+                });
+            }
         }
-
         var grandTotal = dtos.Sum(o => o.GrandTotal);
         PaymentOrderResult? groupPaymentOrder = null;
 
@@ -887,6 +902,8 @@ public class FoodOrdersController : ControllerBase
     /// The order stays PENDING_PAYMENT until the gateway verifies the payment.
     /// </summary>
     [HttpPost("{id:long}/pay")]
+    [EnableRateLimiting("checkout-policy")]
+    [ServiceFilter(typeof(IdempotencyActionFilter))]
     public async Task<ActionResult<ApiResponse<PaymentOrderResult>>> StartOnlinePayment(long id)
     {
         var userId = GetCurrentUserId();
@@ -1020,4 +1037,3 @@ public class FoodOrdersController : ControllerBase
         };
     }
 }
-

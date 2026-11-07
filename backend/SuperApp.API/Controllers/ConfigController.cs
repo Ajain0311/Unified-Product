@@ -13,11 +13,13 @@ public class ConfigController : ControllerBase
 {
     private readonly IConfiguration _config;
     private readonly AppDbContext _db;
+    private readonly ServiceAreaPolicyProvider _serviceAreaPolicyProvider;
 
-    public ConfigController(IConfiguration config, AppDbContext db)
+    public ConfigController(IConfiguration config, AppDbContext db, ServiceAreaPolicyProvider serviceAreaPolicyProvider)
     {
         _config = config;
         _db = db;
+        _serviceAreaPolicyProvider = serviceAreaPolicyProvider;
     }
 
     /// <summary>
@@ -71,6 +73,7 @@ public class ConfigController : ControllerBase
             ?? "Production";
 
         var showTestOtp = string.Equals(Environment.GetEnvironmentVariable("SHOW_TEST_OTP"), "true", StringComparison.OrdinalIgnoreCase);
+        var serviceability = await _serviceAreaPolicyProvider.GetPolicyAsync(cancellationToken: HttpContext.RequestAborted);
 
         var dto = new ClientConfigDto
         {
@@ -81,7 +84,9 @@ public class ConfigController : ControllerBase
             Environment = env,
             ShowTestOtp = showTestOtp,
             ApiBaseUrl = $"{Request.Scheme}://{Request.Host}/api",
-            SignalRHubUrl = $"{Request.Scheme}://{Request.Host}"
+            SignalRHubUrl = $"{Request.Scheme}://{Request.Host}",
+            GpsMaxCachedAgeSeconds = serviceability.GpsMaxCachedAgeSeconds,
+            GpsMaxAccuracyMeters = serviceability.GpsMaxAccuracyMeters
         };
 
         return Ok(ApiResponse<ClientConfigDto>.Ok(dto));

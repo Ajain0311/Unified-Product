@@ -6,14 +6,14 @@ namespace SuperApp.API.Services;
 
 /// <summary>
 /// Mapbox Directions + Geocoding implementation of IMapService.
-/// Falls back to Haversine (+ urban factor) when Mapbox is unreachable.
+/// Road route distance is never synthesized when the routing provider is unavailable.
 /// </summary>
 public class MapboxMapService : IMapService
 {
     private readonly HttpClient _http;
     private readonly string _accessToken;
     private readonly ILogger<MapboxMapService> _logger;
-    private readonly MockMapService _fallback = new();
+    private readonly MockMapService _geocodeFallback = new();
     private static readonly GeometryFactory GeometryFactory = new(new PrecisionModel(), 4326);
 
     public MapboxMapService(HttpClient http, IConfiguration configuration, ILogger<MapboxMapService> logger)
@@ -30,7 +30,7 @@ public class MapboxMapService : IMapService
     {
         // Lightweight NTS distance (degrees → meters via Geographic approximation using Haversine fallback).
         // Prefer Haversine urban factor for road-ish estimates when Directions is not called.
-        return _fallback.CalculateDistanceKm(startLat, startLng, endLat, endLng);
+        return ServiceabilityService.DistanceKm((double)startLat, (double)startLng, (double)endLat, (double)endLng);
     }
 
     public async Task<RouteEstimationResult> EstimateRouteAsync(
@@ -41,7 +41,7 @@ public class MapboxMapService : IMapService
     {
         if (string.IsNullOrWhiteSpace(_accessToken))
         {
-            return await _fallback.EstimateRouteAsync(startLat, startLng, endLat, endLng);
+            throw new RouteProviderUnavailableException("Road routing is not configured.");
         }
 
         try
@@ -56,7 +56,7 @@ public class MapboxMapService : IMapService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Mapbox Directions failed with {Status}", response.StatusCode);
-                return await _fallback.EstimateRouteAsync(startLat, startLng, endLat, endLng);
+                throw new RouteProviderUnavailableException($"Road routing returned {(int)response.StatusCode}.");
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync();
@@ -64,7 +64,7 @@ public class MapboxMapService : IMapService
             var root = doc.RootElement;
             if (!root.TryGetProperty("routes", out var routes) || routes.GetArrayLength() == 0)
             {
-                return await _fallback.EstimateRouteAsync(startLat, startLng, endLat, endLng);
+                throw new RouteProviderUnavailableException("Road routing returned no route.");
             }
 
             var route = routes[0];
@@ -87,8 +87,9 @@ public class MapboxMapService : IMapService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Mapbox Directions error; using Haversine fallback");
-            return await _fallback.EstimateRouteAsync(startLat, startLng, endLat, endLng);
+            _logger.LogWarning(ex, "Mapbox Directions error");
+            if (ex is RouteProviderUnavailableException) throw;
+            throw new RouteProviderUnavailableException("Road routing could not be verified.", ex);
         }
     }
 
@@ -96,7 +97,7 @@ public class MapboxMapService : IMapService
     {
         if (string.IsNullOrWhiteSpace(_accessToken))
         {
-            return await _fallback.ReverseGeocodeAsync(latitude, longitude);
+            return await _geocodeFallback.ReverseGeocodeAsync(latitude, longitude);
         }
 
         try
@@ -108,25 +109,25 @@ public class MapboxMapService : IMapService
             using var response = await _http.GetAsync(url);
             if (!response.IsSuccessStatusCode)
             {
-                return await _fallback.ReverseGeocodeAsync(latitude, longitude);
+                return await _geocodeFallback.ReverseGeocodeAsync(latitude, longitude);
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync();
             using var doc = await JsonDocument.ParseAsync(stream);
             if (!doc.RootElement.TryGetProperty("features", out var features) || features.GetArrayLength() == 0)
             {
-                return await _fallback.ReverseGeocodeAsync(latitude, longitude);
+                return await _geocodeFallback.ReverseGeocodeAsync(latitude, longitude);
             }
 
             var placeName = features[0].GetProperty("place_name").GetString();
             return string.IsNullOrWhiteSpace(placeName)
-                ? await _fallback.ReverseGeocodeAsync(latitude, longitude)
+                ? await _geocodeFallback.ReverseGeocodeAsync(latitude, longitude)
                 : placeName;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Mapbox reverse geocode error; using mock fallback");
-            return await _fallback.ReverseGeocodeAsync(latitude, longitude);
+            return await _geocodeFallback.ReverseGeocodeAsync(latitude, longitude);
         }
     }
 

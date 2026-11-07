@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SuperApp.API.Data;
 using SuperApp.API.DTOs;
@@ -21,6 +22,7 @@ public class RestaurantsController : ControllerBase
     /// List restaurants with optional search, veg filter, city filter, and pagination
     /// </summary>
     [HttpGet]
+    [EnableRateLimiting("search-policy")]
     public async Task<ActionResult<ApiResponse<PagedResult<RestaurantSummaryDto>>>> GetRestaurants(
         [FromQuery] string? search,
         [FromQuery] bool? isVegOnly,
@@ -90,6 +92,7 @@ public class RestaurantsController : ControllerBase
     /// Must be declared before {id:long} so "foods" is not parsed as an id.
     /// </summary>
     [HttpGet("foods")]
+    [EnableRateLimiting("search-policy")]
     public async Task<ActionResult<ApiResponse<PagedResult<FoodCatalogItemDto>>>> GetFoods(
         [FromQuery] string? search,
         [FromQuery] string? category,
@@ -191,6 +194,7 @@ public class RestaurantsController : ControllerBase
     /// Get restaurant detail with categories, food items, variants, and add-ons
     /// </summary>
     [HttpGet("{id:long}")]
+    [EnableRateLimiting("search-policy")]
     public async Task<ActionResult<ApiResponse<RestaurantDetailDto>>> GetRestaurant(long id)
     {
         var restaurant = await _db.Restaurants

@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using SuperApp.API.Common;
 using SuperApp.API.Data;
 using SuperApp.API.Hubs;
 using SuperApp.API.Middleware;
@@ -161,6 +160,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 
 builder.Services.AddAuthorization();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ServiceAreaPolicyProvider>();
+builder.Services.AddScoped<IdempotencyActionFilter>();
 
 
 // --- Provider-Agnostic External Service Abstractions ---
@@ -341,38 +343,40 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.OnRejected = async (context, token) =>
     {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            context.HttpContext.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds)).ToString();
         context.HttpContext.Response.ContentType = "application/json";
         await context.HttpContext.Response.WriteAsync(
             "{\"success\":false,\"message\":\"Too many requests. Please slow down and try again in a few moments.\",\"statusCode\":429}",
             token);
     };
 
-    // 1. Strict rate limit for OTP generation & verification (5 requests per minute per IP)
-    options.AddFixedWindowLimiter("otp-policy", opt =>
-    {
-        opt.PermitLimit = 5;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 0;
-    });
+    // Partition by the direct socket IP. Forwarded headers are intentionally not trusted until proxy ranges are configured.
+    var otpLimit = builder.Configuration.GetValue<int>("RateLimiting:OtpPermitLimit");
+    var otpWindow = builder.Configuration.GetValue<int>("RateLimiting:OtpWindowSeconds");
+    var searchLimit = builder.Configuration.GetValue<int>("RateLimiting:SearchPermitLimit");
+    var searchWindow = builder.Configuration.GetValue<int>("RateLimiting:SearchWindowSeconds");
+    var checkoutLimit = builder.Configuration.GetValue<int>("RateLimiting:CheckoutPermitLimit");
+    var checkoutWindow = builder.Configuration.GetValue<int>("RateLimiting:CheckoutWindowSeconds");
+    if (new[] { otpLimit, otpWindow, searchLimit, searchWindow, checkoutLimit, checkoutWindow }.Any(value => value <= 0))
+        throw new InvalidOperationException("All RateLimiting permit and window settings must be positive.");
 
-    // 2. Public search, categories and catalog feeds (60 requests per minute per IP)
-    options.AddFixedWindowLimiter("search-policy", opt =>
+    static string RateLimitIp(HttpContext context) => context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    static FixedWindowRateLimiterOptions FixedWindow(int permits, int seconds) => new()
     {
-        opt.PermitLimit = 60;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 2;
-    });
+        PermitLimit = permits,
+        Window = TimeSpan.FromSeconds(seconds),
+        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+        QueueLimit = 0,
+        AutoReplenishment = true
+    };
 
-    // 3. Checkout, orders and ride booking mutations (20 requests per minute per IP)
-    options.AddFixedWindowLimiter("checkout-policy", opt =>
-    {
-        opt.PermitLimit = 20;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 0;
-    });
+    options.AddPolicy("otp-policy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(RateLimitIp(context), _ => FixedWindow(otpLimit, otpWindow)));
+    options.AddPolicy("search-policy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(RateLimitIp(context), _ => FixedWindow(searchLimit, searchWindow)));
+    options.AddPolicy("checkout-policy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(RateLimitIp(context), _ => FixedWindow(checkoutLimit, checkoutWindow)));
 });
 
 // --- Swagger ---
