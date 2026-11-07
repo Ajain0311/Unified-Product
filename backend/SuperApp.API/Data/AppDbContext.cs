@@ -55,6 +55,7 @@ public class AppDbContext : DbContext
     public DbSet<MarketplaceCommissionLedger> MarketplaceCommissionLedgers => Set<MarketplaceCommissionLedger>();
     public DbSet<RoleApplication> RoleApplications => Set<RoleApplication>();
     public DbSet<BusinessRequest> BusinessRequests => Set<BusinessRequest>();
+    public DbSet<NotificationCampaign> NotificationCampaigns => Set<NotificationCampaign>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

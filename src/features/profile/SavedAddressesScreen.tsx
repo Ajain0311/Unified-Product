@@ -26,6 +26,8 @@ import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { locationService } from '../../services/locationService';
 import { mapboxService } from '../../services/mapboxService';
 import { SelectedMapPlace } from '../../services/mapboxService';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthModalStore } from '../../store/authModalStore';
 
 type SavedAddress = {
   id: number;
@@ -57,6 +59,7 @@ const emptyForm = {
 export const SavedAddressesScreen: React.FC = () => {
   const navigation = useNavigation();
   const { theme, isDark } = useAppTheme();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,10 +71,16 @@ export const SavedAddressesScreen: React.FC = () => {
   const [form, setForm] = useState(emptyForm);
 
   const load = useCallback(async () => {
+    if (!useAuthStore.getState().isAuthenticated) {
+      setAddresses([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const res = await apiClient.get<any>(ApiEndpoints.common.addresses);
+      const res = await apiClient.get<any>(ApiEndpoints.common.addresses, { suppressAuthPrompt: true });
       const payload = res?.data ?? res;
       const items = Array.isArray(payload) ? payload : [];
       setAddresses(items);
@@ -85,8 +94,14 @@ export const SavedAddressesScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
+      if (!isAuthenticated) {
+        setAddresses([]);
+        setLoading(false);
+        setError(null);
+        return;
+      }
       void load();
-    }, [load])
+    }, [load, isAuthenticated])
   );
 
   const openAdd = () => {
@@ -254,6 +269,42 @@ export const SavedAddressesScreen: React.FC = () => {
       Alert.alert('Could not update', e instanceof ApiError ? e.message : 'Try again.');
     }
   };
+
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background} />
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <MaterialIcons name="chevron-left" size={28} color={theme.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Saved Addresses</Text>
+          <View style={{ width: 28 }} />
+        </View>
+        <View style={styles.guestBox}>
+          <MaterialIcons name="location-off" size={48} color={theme.textTertiary} />
+          <Text style={[styles.guestTitle, { color: theme.textPrimary }]}>Sign in to save addresses</Text>
+          <Text style={[styles.guestSubtitle, { color: theme.textSecondary }]}>
+            Save Home or Work once and use it at checkout.
+          </Text>
+          <TouchableOpacity
+            style={[styles.guestSignInBtn, { backgroundColor: theme.primary }]}
+            onPress={() =>
+              useAuthModalStore.getState().openAuthModal({
+                title: 'Sign In to Continue',
+                subtitle: 'Sign in to manage your saved addresses.',
+                onSuccess: () => {
+                  void load();
+                },
+              })
+            }
+          >
+            <Text style={styles.guestSignInText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -444,6 +495,11 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
     backButton: { padding: spacing.xs },
     headerTitle: { ...typography.h2, color: theme.textPrimary },
     scroll: { padding: spacing.md, paddingBottom: spacing.xxxl },
+    guestBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 56, paddingHorizontal: 24 },
+    guestTitle: { ...typography.h3, marginTop: 16, textAlign: 'center' },
+    guestSubtitle: { marginTop: 8, textAlign: 'center', lineHeight: 20 },
+    guestSignInBtn: { marginTop: 20, borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 },
+    guestSignInText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
     errorText: { color: theme.error, marginBottom: spacing.md },
     emptyText: { color: theme.textSecondary, marginBottom: spacing.md, lineHeight: 20 },
     card: {

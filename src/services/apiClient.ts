@@ -13,6 +13,10 @@ export interface AppError {
   errors?: string[];
 }
 
+export interface AppRequestConfig extends AxiosRequestConfig {
+  suppressAuthPrompt?: boolean;
+}
+
 export const createIdempotencyKey = (): string =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
     const random = Math.floor(Math.random() * 16);
@@ -149,7 +153,8 @@ class ApiClient {
         const normalized = this.normalizeError(error);
 
         // Ordinary network errors should NEVER trigger logout
-        if (normalized.isUnauthorized) {
+        const requestConfig = error.config as AppRequestConfig | undefined;
+        if (normalized.isUnauthorized && !requestConfig?.suppressAuthPrompt) {
           if (this.onUnauthorizedCallback) {
             this.onUnauthorizedCallback();
           }
@@ -265,7 +270,7 @@ class ApiClient {
     }
   }
 
-  async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  async get<T = any>(url: string, config?: AppRequestConfig): Promise<T> {
     const cacheKey = this.getCacheKey(url, config);
     const isNoCache = config?.headers?.['Cache-Control'] === 'no-cache';
 
@@ -305,19 +310,19 @@ class ApiClient {
     return promise;
   }
 
-  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+  async post<T = any>(url: string, data?: any, config?: AppRequestConfig): Promise<T> {
     this.invalidateCacheOnMutation(url);
     const response = await this.client.post<T>(url, data, config);
     return response.data;
   }
 
-  async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+  async put<T = any>(url: string, data?: any, config?: AppRequestConfig): Promise<T> {
     this.invalidateCacheOnMutation(url);
     const response = await this.client.put<T>(url, data, config);
     return response.data;
   }
 
-  async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  async delete<T = any>(url: string, config?: AppRequestConfig): Promise<T> {
     this.invalidateCacheOnMutation(url);
     const response = await this.client.delete<T>(url, config);
     return response.data;

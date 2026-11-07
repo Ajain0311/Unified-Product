@@ -29,7 +29,9 @@ import { ApiEndpoints } from '../../constants/api';
 import { OfflineBanner } from '../../components/common/OfflineBanner';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { useAuthStore } from '../../store/authStore';
+import { useAuthModalStore } from '../../store/authModalStore';
 import { useAppTheme, ThemePalette } from '../../theme/themeStore';
+import { isAuthenticationError } from '../../utils/authErrors';
 
 const { width } = Dimensions.get('window');
 
@@ -155,13 +157,8 @@ export const ListingDetailScreen: React.FC = () => {
   const canRemoveListing = isOwner || isAdmin;
   const canContactSeller = detail != null && !isOwner;
 
-  const handleSendOffer = async () => {
-    if (!detail || isOwner) return;
-    const price = Number(offerPrice);
-    if (!Number.isFinite(price) || price <= 0) {
-      Alert.alert('Invalid Offer', 'Enter a valid offer amount greater than zero.');
-      return;
-    }
+  const submitOffer = async (price: number) => {
+    if (!detail) return;
     setIsSubmittingOffer(true);
     try {
       await apiClient.post(ApiEndpoints.marketplace.makeOffer(detail.id), {
@@ -170,10 +167,38 @@ export const ListingDetailScreen: React.FC = () => {
       setShowOfferModal(false);
       Alert.alert('Offer Sent', `Offer of ₹${price} sent to ${detail.sellerName || 'seller'}.`);
     } catch (err: any) {
+      if (isAuthenticationError(err)) {
+        useAuthModalStore.getState().openAuthModal({
+          title: 'Sign in to make an offer',
+          subtitle: 'Verify your phone number to send this offer.',
+          onSuccess: () => { void submitOffer(price); },
+        });
+        return;
+      }
       Alert.alert('Error', err.message || 'Could not send offer');
     } finally {
       setIsSubmittingOffer(false);
     }
+  };
+
+  const handleSendOffer = async () => {
+    if (!detail || isOwner) return;
+    const price = Number(offerPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      Alert.alert('Invalid Offer', 'Enter a valid offer amount greater than zero.');
+      return;
+    }
+
+    if (!useAuthStore.getState().isAuthenticated) {
+      useAuthModalStore.getState().openAuthModal({
+        title: 'Sign in to make an offer',
+        subtitle: 'Verify your phone number to send this offer.',
+        onSuccess: () => { void submitOffer(price); },
+      });
+      return;
+    }
+
+    await submitOffer(price);
   };
 
   const handleRemoveListing = () => {

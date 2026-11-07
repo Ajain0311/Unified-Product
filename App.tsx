@@ -7,7 +7,6 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { navigationRef } from './src/navigation/navigationRef';
 import { colors } from './src/theme/colors';
 import { notificationService } from './src/services/notificationService';
-import { locationService } from './src/services/locationService';
 import { AppEnvironment } from './src/config/environment';
 import { mapboxService } from './src/services/mapboxService';
 import { configService } from './src/services/configService';
@@ -56,20 +55,12 @@ export default function App() {
       }
     });
 
-    if ((Platform.OS === 'ios' || Platform.OS === 'android') && AppEnvironment.hasMapboxToken) {
-      try {
-        // Native Mapbox SDK — requires Expo Dev Client / prebuild (not Expo Go).
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const Mapbox = require('@rnmapbox/maps').default;
-        Mapbox?.setAccessToken?.(mapboxService.getAccessToken());
-      } catch (error) {
-        console.warn('[Mapbox] Native maps unavailable in this runtime:', error);
-      }
-    }
-
     // Wire up global 401 unauthorized interceptor to open in-place AuthOtpModal
     apiClient.registerUnauthorizedHandler(() => {
-      useAuthModalStore.getState().openAuthModal({
+      if (!useAuthStore.getState().isAuthenticated) return;
+      const modalState = useAuthModalStore.getState();
+      if (modalState.isOpen) return;
+      modalState.openAuthModal({
         title: 'Sign In to Continue',
         subtitle: 'Please verify your phone number to continue seamlessly without losing your progress.',
       });
@@ -80,7 +71,6 @@ export default function App() {
       return;
     }
 
-    void locationService.requestPermission().catch(() => {});
     notificationService.getExpoPushToken().then((token) => {
       if (token) {
         notificationService.registerDeviceTokenWithBackend(token);

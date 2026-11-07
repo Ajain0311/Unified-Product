@@ -95,19 +95,19 @@ export const ACTIVE_SERVICE_REGION: ServiceRegion = CHITTORGARH_SERVICE_REGION;
  * Initial Launch Operating Hub: Mandphiya, Rajasthan (Shri Sanwaliya Seth Temple)
  * Primary operating epicenter for food delivery (20 km), rides (20 km), and hotel discovery.
  */
-export const MANDPHIYA_SERVICE_CENTER = {
-  name: 'Mandphiya (Shri Sanwaliya Ji), Rajasthan',
-  latitude: 24.6600,
-  longitude: 74.4000,
-  foodMaxDeliveryRadiusKm: 20,
-  rideMaxDistanceKm: 20,
-  hotelDefaultRadiusKm: 20,
-};
-
 export const MANDPHIYA_SERVICE_CONSTRAINTS = {
   maxDeliveryRadiusKm: 20,
   maxRideDistanceKm: 20,
   defaultHotelRadiusKm: 20,
+} as const;
+
+export const MANDPHIYA_SERVICE_CENTER = {
+  name: 'Mandphiya (Shri Sanwaliya Ji), Rajasthan',
+  latitude: 24.6600,
+  longitude: 74.4000,
+  foodMaxDeliveryRadiusKm: MANDPHIYA_SERVICE_CONSTRAINTS.maxDeliveryRadiusKm,
+  rideMaxDistanceKm: MANDPHIYA_SERVICE_CONSTRAINTS.maxRideDistanceKm,
+  hotelDefaultRadiusKm: MANDPHIYA_SERVICE_CONSTRAINTS.defaultHotelRadiusKm,
 };
 
 /**

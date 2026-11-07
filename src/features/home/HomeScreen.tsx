@@ -29,13 +29,14 @@ import { MarqueeText } from '../../components/common/MarqueeText';
 import { useCartStore } from '../../store/cartStore';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
+import { useAuthStore } from '../../store/authStore';
 import { BUSINESS_MODULES } from '../../config/businessModules';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { AppEnvironment } from '../../config/environment';
 import { RestaurantSummary, FoodItem } from '../../models/food';
 import { ListingSummary } from '../../models/marketplace';
-import { DEFAULT_RESTAURANTS, resolveRestaurantImage } from '../food/FoodHomeScreen';
+import { resolveRestaurantImage } from '../food/FoodHomeScreen';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -110,11 +111,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const addItemToCart = useCartStore((state) => state.addItem);
   const { theme, isDark } = useAppTheme();
   const { language, t } = useLanguageStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const [activeRide, setActiveRide] = useState<any>(null);
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [deliverTo, setDeliverTo] = useState<string>('Select Delivery Address');
-  const [restaurants, setRestaurants] = useState<RestaurantSummary[]>(DEFAULT_RESTAURANTS);
+  const [restaurants, setRestaurants] = useState<RestaurantSummary[]>([]);
   const [todayDeals, setTodayDeals] = useState<TodayDealItem[]>([]);
   const [bazaarListings, setBazaarListings] = useState<ListingSummary[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
@@ -139,8 +141,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         apiClient.get<any>(ApiEndpoints.common.banners),
         apiClient.get<any>(ApiEndpoints.food.restaurants),
         apiClient.get<any>(ApiEndpoints.marketplace.listings),
-        apiClient.get<any>(ApiEndpoints.ride.myRides),
-        apiClient.get<any>(ApiEndpoints.common.notifications),
+        isAuthenticated
+          ? apiClient.get<any>(ApiEndpoints.ride.myRides, { suppressAuthPrompt: true })
+          : Promise.resolve(null),
+        isAuthenticated
+          ? apiClient.get<any>(ApiEndpoints.common.notifications, { suppressAuthPrompt: true })
+          : Promise.resolve(null),
         apiClient.get<any>(ApiEndpoints.common.support),
       ]);
 
@@ -156,7 +162,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       }
 
       // Announcements / Broadcasts
-      if (notifsRes.status === 'fulfilled') {
+      if (!isAuthenticated) {
+        setUnreadNotifCount(0);
+        setHomeAnnouncement(null);
+      } else if (notifsRes.status === 'fulfilled') {
         const raw = notifsRes.value?.data?.data || notifsRes.value?.data;
         const items = Array.isArray(raw?.items) ? raw.items : Array.isArray(raw) ? raw : [];
         const isUnread = (n: any) => !(n.isRead ?? n.IsRead ?? false);
@@ -190,41 +199,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       // Banners
       if (bannersRes.status === 'fulfilled') {
         const data = bannersRes.value?.data?.data || bannersRes.value?.data;
-        if (Array.isArray(data) && data.length > 0) {
-          setBanners(data);
-        } else {
-          // Curated default banners for premium feel
-          setBanners([
-            {
-              id: 'promo-1',
-              title: 'SuperApp Exclusive Discounts',
-              subtitle: 'Up to 50% OFF on gourmet meals & boutique stays',
-              ctaText: 'Discover',
-              badge: 'LIMITED TIME',
-              gradient: ['#FF5A1F', '#FF7A45'],
-            },
-            {
-              id: 'promo-2',
-              title: 'Instant Rides at Zero Surge',
-              subtitle: 'Verified local captains • Fixed transparent pricing',
-              ctaText: 'Book Cab',
-              badge: 'FASTEST',
-              gradient: ['#2563EB', '#3B82F6'],
-            },
-          ]);
-        }
+        setBanners(Array.isArray(data) ? data : []);
       }
 
       // Restaurants & Deals
-      let loadedRests: RestaurantSummary[] = DEFAULT_RESTAURANTS;
+      let loadedRests: RestaurantSummary[] = [];
       if (restsRes.status === 'fulfilled') {
         const payload = restsRes.value?.data?.data || restsRes.value?.data;
         const items = payload?.items || payload;
-        if (Array.isArray(items) && items.length > 0) {
+        if (Array.isArray(items)) {
           loadedRests = items;
-          setRestaurants(items);
         }
       }
+      setRestaurants(loadedRests);
 
       // Bazaar Listings
       if (listingsRes.status === 'fulfilled') {
@@ -288,43 +275,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 }
               }
             }
-            if (deals.length > 0) {
-              setTodayDeals(deals);
-            }
+            setTodayDeals(deals);
           }
         }).catch(() => {});
-      }
-
-      // Live Ride
-      if (ridesRes.status === 'fulfilled') {
-        const rawRides = ridesRes.value?.data?.data || ridesRes.value?.data;
-        const ridesList = Array.isArray(rawRides) ? rawRides : [];
-        const live = ridesList.find(
-          (r: any) =>
-            r.status === 'REQUESTED' ||
-            r.status === 'SEARCHING' ||
-            r.status === 'ACCEPTED' ||
-            r.status === 'ARRIVED' ||
-            r.status === 'STARTED',
-        );
-        setActiveRide(live || null);
+      } else {
+        setTodayDeals([]);
       }
     } catch {
       // Quiet background fallback
     }
-  }, [dismissedAnnouncementId]);
+  }, [dismissedAnnouncementId, isAuthenticated]);
 
   useEffect(() => {
     loadHomeData();
-    // Fetch Saved Addresses
+  }, [loadHomeData]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setDeliverTo('Select Delivery Address');
+      return;
+    }
     apiClient
-      .get<any>(ApiEndpoints.common.addresses)
+      .get<any>(ApiEndpoints.common.addresses, { suppressAuthPrompt: true })
       .then((res) => {
         const payload = res.data?.data || res.data;
         setDeliverTo(resolveDeliveryAddress(payload));
       })
       .catch(() => {});
-  }, [loadHomeData]);
+  }, [isAuthenticated]);
 
   const openSearch = async () => {
     setIsSearchOpen(true);
@@ -825,11 +803,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 ? 'रेटेड भोजन एवं तेज़ डिलीवरी'
                 : 'Speedy doorstep delivery with live tracking'
             }
-            actionText={`View all (${restaurants.length})`}
+            actionText={restaurants.length > 0 ? `View all (${restaurants.length})` : undefined}
             onAction={() => navigation.navigate('Food')}
           />
 
-          {restaurants.slice(0, 4).map((restaurant) => (
+          {restaurants.length === 0 ? (
+            <View style={[styles.emptyRestCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+              <Ionicons name="storefront-outline" size={28} color={theme.textTertiary} />
+              <Text style={[styles.emptyRestTitle, { color: theme.textPrimary }]}>No restaurants are live yet</Text>
+              <Text style={[styles.emptyRestSubtitle, { color: theme.textSecondary }]}>
+                Restaurants will appear here once they are onboarded in your area.
+              </Text>
+            </View>
+          ) : restaurants.slice(0, 4).map((restaurant) => (
             <TouchableOpacity
               key={restaurant.id}
               style={[
@@ -1372,6 +1358,22 @@ const styles = StyleSheet.create({
   cuisineCount: {
     fontSize: 9,
     marginTop: 2,
+  },
+  emptyRestCard: {
+    borderRadius: AppRadius.lg,
+    borderWidth: 1,
+    padding: AppSpacing.lg,
+    alignItems: 'center',
+    gap: 6,
+  },
+  emptyRestTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  emptyRestSubtitle: {
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 17,
   },
   restCard: {
     flexDirection: 'row',

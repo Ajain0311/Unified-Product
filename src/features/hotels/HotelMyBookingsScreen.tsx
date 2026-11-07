@@ -133,8 +133,8 @@ export const HotelMyBookingsScreen: React.FC = () => {
             </Text>
             <Text style={[styles.emptyDesc, { color: theme.textSecondary }]}>
               {language === 'hi'
-                ? 'आपने अभी तक कोई होटल बुक नहीं किया है। शानदार होटल देखें!'
-                : 'Explore boutique stays and premium resorts with our anti-no-show guarantee.'}
+                ? 'ऑनलाइन होटल बुकिंग अभी उपलब्ध नहीं है। कृपया सीधे होटल से संपर्क करें।'
+                : 'Online hotel reservations are not available yet. Please contact the hotel directly.'}
             </Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('HotelHome')}

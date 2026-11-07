@@ -10,6 +10,7 @@ import { ApiEndpoints } from '../../constants/api';
 import { useAppTheme } from '../../theme/themeStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthModalStore } from '../../store/authModalStore';
+import { isAuthenticationError } from '../../utils/authErrors';
 import { AppRadius, AppSpacing } from '../../theme/spacing';
 
 type Product = { id: number; supplierId: number; supplierName: string; city: string; brand: string; name: string; bottleSize: string; bottlesPerCase: number; casePrice: number; minimumCases: number; availableCases: number };
@@ -37,8 +38,12 @@ export const B2BWaterSuppliesScreen: React.FC = () => {
     try {
       const [productsResponse, ordersResponse, quotesResponse] = await Promise.all([
         apiClient.get<any>(ApiEndpoints.water.products, { params: { page: 1, pageSize: 50 } }),
-        useAuthStore.getState().isAuthenticated ? apiClient.get<any>(ApiEndpoints.water.myOrders) : Promise.resolve(null),
-        useAuthStore.getState().isAuthenticated ? apiClient.get<any>(ApiEndpoints.water.myQuotes) : Promise.resolve(null),
+        useAuthStore.getState().isAuthenticated
+          ? apiClient.get<any>(ApiEndpoints.water.myOrders, { suppressAuthPrompt: true })
+          : Promise.resolve(null),
+        useAuthStore.getState().isAuthenticated
+          ? apiClient.get<any>(ApiEndpoints.water.myQuotes, { suppressAuthPrompt: true })
+          : Promise.resolve(null),
       ]);
       const p = productsResponse?.data ?? productsResponse;
       const items = p?.items ?? p?.data?.items ?? [];
@@ -91,7 +96,17 @@ export const B2BWaterSuppliesScreen: React.FC = () => {
       setCheckoutOpen(false); setQuantities({}); setDeliveryAddress('');
       Alert.alert(mode === 'ORDER' ? 'Order submitted' : 'Quote requested', mode === 'ORDER' ? 'The verified supplier must accept the order before it is fulfilled. Invoice status will be shown in order history.' : 'The supplier will return a line-item wholesale offer in your quote history.');
       await load(true);
-    } catch (e: any) { Alert.alert('Order not placed', e?.message || 'Please refresh and try again.'); }
+    } catch (e: any) {
+      if (isAuthenticationError(e)) {
+        useAuthModalStore.getState().openAuthModal({
+          title: 'Session expired',
+          subtitle: 'Verify your phone number to continue this order.',
+          onSuccess: () => { void submitProcurement(mode); },
+        });
+        return;
+      }
+      Alert.alert('Order not placed', e?.message || 'Please refresh and try again.');
+    }
     finally { setSubmitting(false); }
   };
 

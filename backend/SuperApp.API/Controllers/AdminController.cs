@@ -1583,6 +1583,108 @@ public class AdminController : ControllerBase
     }
 
     /// <summary>
+    /// Get notification campaigns history with status and metrics
+    /// </summary>
+    [HttpGet("notifications/campaigns")]
+    public async Task<ActionResult<ApiResponse<List<NotificationCampaignDto>>>> GetCampaigns()
+    {
+        var campaigns = await _db.NotificationCampaigns
+            .Include(c => c.SentByAdmin)
+            .OrderByDescending(c => c.CreatedAt)
+            .Take(100)
+            .ToListAsync();
+
+        var dtos = campaigns.Select(c =>
+        {
+            List<string> audiences;
+            try
+            {
+                audiences = System.Text.Json.JsonSerializer.Deserialize<List<string>>(c.TargetAudiences) ?? new List<string>();
+            }
+            catch
+            {
+                audiences = new List<string>();
+            }
+
+            return new NotificationCampaignDto
+            {
+                Id = c.Id,
+                Title = c.Title,
+                Body = c.Body,
+                ImageUrl = c.ImageUrl,
+                TargetAudiences = audiences,
+                DeepLink = c.DeepLink,
+                ScheduledFor = c.ScheduledFor,
+                Status = c.Status,
+                SentByAdminId = c.SentByAdminId,
+                SentByAdminName = c.SentByAdmin?.FullName ?? "Admin",
+                TotalTargeted = c.TotalTargeted,
+                AcceptedByFcm = c.AcceptedByFcm,
+                DeviceFailed = c.DeviceFailed,
+                DevicePruned = c.DevicePruned,
+                OpenedCount = c.OpenedCount,
+                FailureReason = c.FailureReason,
+                CreatedAt = c.CreatedAt,
+                SentAt = c.SentAt
+            };
+        }).ToList();
+
+        return Ok(ApiResponse<List<NotificationCampaignDto>>.Ok(dtos));
+    }
+
+    /// <summary>
+    /// Create and optionally dispatch a new push notification campaign
+    /// </summary>
+    [HttpPost("notifications/campaigns")]
+    public async Task<ActionResult<ApiResponse<NotificationCampaignDto>>> CreateCampaign([FromBody] CreateNotificationCampaignRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.Title) || string.IsNullOrWhiteSpace(request?.Body))
+            return BadRequest(ApiResponse<NotificationCampaignDto>.Fail("Title and Body are required."));
+
+        long? adminId = null;
+        var adminIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrWhiteSpace(adminIdClaim) && long.TryParse(adminIdClaim, out var parsedAdminId))
+        {
+            adminId = parsedAdminId;
+        }
+
+        var campaign = new NotificationCampaign
+        {
+            Title = request.Title.Trim(),
+            Body = request.Body.Trim(),
+            ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim(),
+            TargetAudiences = System.Text.Json.JsonSerializer.Serialize(request.TargetAudiences ?? new List<string> { "ALL_CUSTOMERS" }),
+            DeepLink = string.IsNullOrWhiteSpace(request.DeepLink) ? null : request.DeepLink.Trim(),
+            ScheduledFor = request.ScheduledFor,
+            Status = request.ScheduledFor.HasValue && request.ScheduledFor.Value > DateTime.UtcNow ? "SCHEDULED" : "PENDING",
+            SentByAdminId = adminId,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _db.NotificationCampaigns.Add(campaign);
+        await _db.SaveChangesAsync();
+
+        if (campaign.Status == "PENDING" && _notificationService != null)
+        {
+            var result = await _notificationService.ExecuteCampaignAsync(campaign.Id);
+            return Ok(ApiResponse<NotificationCampaignDto>.Ok(result, "Campaign dispatched successfully."));
+        }
+
+        return Ok(ApiResponse<NotificationCampaignDto>.Ok(new NotificationCampaignDto
+        {
+            Id = campaign.Id,
+            Title = campaign.Title,
+            Body = campaign.Body,
+            ImageUrl = campaign.ImageUrl,
+            TargetAudiences = request.TargetAudiences ?? new List<string>(),
+            DeepLink = campaign.DeepLink,
+            ScheduledFor = campaign.ScheduledFor,
+            Status = campaign.Status,
+            CreatedAt = campaign.CreatedAt
+        }, campaign.Status == "SCHEDULED" ? "Campaign scheduled successfully." : "Campaign saved."));
+    }
+
+    /// <summary>
     /// Clean up dummy test data and ensure phone numbers on real restaurants
     /// </summary>
     [HttpPost("cleanup-dummy-data")]

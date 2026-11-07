@@ -116,24 +116,24 @@ export const HotelHomeScreen: React.FC = () => {
           />
         }
       >
-        {/* Anti No-Show Safeguard Guarantee Banner */}
+        {/* Booking availability notice */}
         <View
           style={[
             styles.guaranteeBanner,
-            { backgroundColor: isDark ? '#064E3B25' : '#ECFDF5', borderColor: '#10B98144' },
+            { backgroundColor: isDark ? '#78350F25' : '#FFFBEB', borderColor: '#F59E0B44' },
           ]}
         >
-          <View style={styles.guaranteeIconWrap}>
-            <Ionicons name="shield-checkmark" size={18} color="#10B981" />
+          <View style={[styles.guaranteeIconWrap, { backgroundColor: '#F59E0B20' }]}>
+            <Ionicons name="information-circle" size={18} color="#D97706" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.bannerTitle, { color: '#059669' }]}>
-              {language === 'hi' ? 'नो-शो सुरक्षा और 100% रिफंड' : 'Anti-No-Show & 100% Room Assurance'}
+            <Text style={[styles.bannerTitle, { color: '#B45309' }]}>
+              {language === 'hi' ? 'ऑनलाइन बुकिंग अभी उपलब्ध नहीं है' : 'Online booking is not available yet'}
             </Text>
             <Text style={[styles.bannerText, { color: theme.textSecondary }]}>
               {language === 'hi'
-                ? 'शाम 6:00 बजे तक पे-एट-होटल होल्ड या टोकन एडवांस। कोई छिपे हुए शुल्क नहीं।'
-                : 'Guaranteed room hold until 6:00 PM for Pay-at-Hotel with instant confirmation.'}
+                ? 'होटल जानकारी उपलब्ध है, लेकिन ऑनलाइन आरक्षण अभी चालू नहीं है। कृपया सीधे होटल से संपर्क करें।'
+                : 'Hotel discovery is available, but reservations are not enabled. Please contact the hotel directly.'}
             </Text>
           </View>
         </View>
@@ -199,12 +199,12 @@ export const HotelHomeScreen: React.FC = () => {
           <View style={styles.emptyContainer}>
             <Ionicons name="bed-outline" size={44} color={theme.textTertiary} />
             <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
-              {language === 'hi' ? 'कोई होटल नहीं मिला' : 'No Stays Found'}
+              {language === 'hi' ? 'अभी कोई होटल उपलब्ध नहीं है' : 'No verified stays are live yet'}
             </Text>
             <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
               {language === 'hi'
-                ? 'कृपया दूसरा शहर या नाम खोजें।'
-                : 'Try clearing your search query or selecting a different city.'}
+                ? 'सत्यापित होटल जुड़ने के बाद यहाँ दिखाई देंगे।'
+                : 'Verified hotels will appear here once they are onboarded.'}
             </Text>
           </View>
         ) : (

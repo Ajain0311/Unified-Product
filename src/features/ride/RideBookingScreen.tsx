@@ -28,6 +28,7 @@ import { mapboxService, SelectedMapPlace } from '../../services/mapboxService';
 import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthModalStore } from '../../store/authModalStore';
+import { isAuthenticationError } from '../../utils/authErrors';
 import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 
 interface VehicleOption {
@@ -186,8 +187,7 @@ export const RideBookingScreen: React.FC = () => {
         }
       })
       .catch((error: any) => {
-        const message = error?.response?.data?.message || error?.response?.data?.data?.message;
-        setRouteMetrics(message || 'Fare could not be calculated. Check the connection and try again.');
+        setRouteMetrics(error?.message || 'Fare could not be calculated. Check the connection and try again.');
       });
   };
 
@@ -502,8 +502,17 @@ export const RideBookingScreen: React.FC = () => {
         rideData: data,
       });
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Unable to book ride. Please check connection and try again.';
-      Alert.alert('Booking Error', msg);
+      if (isAuthenticationError(err)) {
+        useAuthModalStore.getState().openAuthModal({
+          title: 'Session expired',
+          subtitle: 'Verify your phone number to continue booking this ride.',
+          onSuccess: () => {
+            void handleBookRide();
+          },
+        });
+        return;
+      }
+      Alert.alert('Booking Error', err?.message || 'Unable to book ride. Please check connection and try again.');
     } finally {
       setIsBooking(false);
     }

@@ -23,3 +23,6 @@ jobs:
         run: npx tsc --noEmit
       - name: Backend Build (.NET 10)
         run: dotnet build backend/SuperApp.sln
+
+      - name: Backend Tests
+        run: dotnet test backend/SuperApp.Tests/SuperApp.Tests.csproj

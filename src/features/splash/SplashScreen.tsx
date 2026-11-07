@@ -31,20 +31,29 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
       }),
     ]).start();
 
-    // Verify authentication and route
-    const timer = setTimeout(async () => {
-      const isAuthenticated = await checkAuth();
-      if (isAuthenticated) {
-        const roles = useAuthStore.getState().user?.roles ?? [];
-        const isAdmin = roles.some((role) => role.toUpperCase() === 'ADMIN');
-        navigation.replace(isAdmin ? 'AdminPortal' : 'MainTabs');
-      } else {
-        // Guest mode: route directly to MainTabs so users can freely explore
-        navigation.replace('MainTabs');
-      }
-    }, 1800);
+    // Verify authentication immediately and keep a short branded intro.
+    let cancelled = false;
+    const minimumIntro = new Promise((resolve) => setTimeout(resolve, 900));
 
-    return () => clearTimeout(timer);
+    Promise.all([checkAuth(), minimumIntro])
+      .then(([isAuthenticated]) => {
+        if (cancelled) return;
+        if (isAuthenticated) {
+          const roles = useAuthStore.getState().user?.roles ?? [];
+          const isAdmin = roles.some((role) => role.toUpperCase() === 'ADMIN');
+          navigation.replace(isAdmin ? 'AdminPortal' : 'MainTabs');
+        } else {
+          // Guest mode: route directly to MainTabs so users can freely explore
+          navigation.replace('MainTabs');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) navigation.replace('MainTabs');
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [navigation, checkAuth, fadeAnim, scaleAnim]);
 
   return (

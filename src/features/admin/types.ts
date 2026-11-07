@@ -126,4 +126,5 @@ export type AdminStackParamList = {
   AdminRoleApplications: undefined;
   AdminListings: undefined;
   AdminFreeDevManager: undefined;
+  AdminPushNotifications: undefined;
 };

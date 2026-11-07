@@ -109,8 +109,13 @@ case "$action" in
             cp "$CURRENT_VER_FILE" "$PREVIOUS_VER_FILE"
         fi
 
-        # 2. Pull latest git code if git repo is clean
+        # 2. Pull latest git code only when the worktree is clean
         cd "$APP_ROOT"
+        if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            log "❌ Working tree has uncommitted changes. Refusing to deploy because reset would discard them."
+            log "   Commit or stash the changes, then retry."
+            exit 1
+        fi
         log "📥 Pulling latest code from origin main..."
         git fetch origin main
         git reset --hard origin/main

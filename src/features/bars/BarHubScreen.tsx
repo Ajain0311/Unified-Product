@@ -11,6 +11,7 @@ import { ApiEndpoints } from '../../constants/api';
 import { useAppTheme } from '../../theme/themeStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthModalStore } from '../../store/authModalStore';
+import { isAuthenticationError } from '../../utils/authErrors';
 import { AppRadius, AppSpacing } from '../../theme/spacing';
 
 type Reservation = { id: number; restaurantName: string; reservationAt: string; partySize: number; status: string };
@@ -45,7 +46,9 @@ export const BarHubScreen: React.FC = () => {
     try {
       const [venuesResult, reservationsResult] = await Promise.all([
         apiClient.get<any>(ApiEndpoints.bars.venues, { params: { page: 1, pageSize: 30 } }),
-        useAuthStore.getState().isAuthenticated ? apiClient.get<any>(ApiEndpoints.bars.myReservations) : Promise.resolve(null),
+        useAuthStore.getState().isAuthenticated
+          ? apiClient.get<any>(ApiEndpoints.bars.myReservations, { suppressAuthPrompt: true })
+          : Promise.resolve(null),
       ]);
       const venuePayload = venuesResult?.data ?? venuesResult;
       const list = venuePayload?.items ?? venuePayload?.data?.items ?? [];
@@ -97,6 +100,14 @@ export const BarHubScreen: React.FC = () => {
       Alert.alert('Request sent', 'The venue will review your reservation request.');
       await load(true);
     } catch (e: any) {
+      if (isAuthenticationError(e)) {
+        useAuthModalStore.getState().openAuthModal({
+          title: 'Session expired',
+          subtitle: 'Verify your phone number to continue this reservation.',
+          onSuccess: () => { void reserve(venue); },
+        });
+        return;
+      }
       Alert.alert('Could not reserve', e?.message || 'Please try again.');
     } finally { setSubmitting(false); }
   };
@@ -105,7 +116,24 @@ export const BarHubScreen: React.FC = () => {
     { text: 'Keep', style: 'cancel' },
     { text: 'Cancel reservation', style: 'destructive', onPress: async () => {
       try { await apiClient.post(ApiEndpoints.bars.cancelReservation(id), {}); await load(true); }
-      catch (e: any) { Alert.alert('Could not cancel', e?.message || 'Please try again.'); }
+      catch (e: any) {
+        if (isAuthenticationError(e)) {
+          useAuthModalStore.getState().openAuthModal({
+            title: 'Session expired',
+            subtitle: 'Verify your phone number to cancel this reservation.',
+            onSuccess: async () => {
+              try {
+                await apiClient.post(ApiEndpoints.bars.cancelReservation(id), {});
+                await load(true);
+              } catch (retryError: any) {
+                Alert.alert('Could not cancel', retryError?.message || 'Please try again.');
+              }
+            },
+          });
+          return;
+        }
+        Alert.alert('Could not cancel', e?.message || 'Please try again.');
+      }
     } },
   ]);
 

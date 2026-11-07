@@ -3,9 +3,15 @@ import { AuthOtpModal } from './AuthOtpModal';
 import { useAuthModalStore } from '../../store/authModalStore';
 
 export const GlobalAuthModal: React.FC = () => {
-  const { isOpen, title, subtitle, onSuccessCallback, closeAuthModal } = useAuthModalStore();
+  const { isOpen, title, subtitle, closeAuthModal } = useAuthModalStore();
 
   if (!isOpen) return null;
+
+  const handleSuccess = () => {
+    const callback = useAuthModalStore.getState().onSuccessCallback;
+    closeAuthModal();
+    callback?.();
+  };
 
   return (
     <AuthOtpModal
@@ -13,11 +19,7 @@ export const GlobalAuthModal: React.FC = () => {
       title={title}
       subtitle={subtitle}
       onClose={closeAuthModal}
-      onSuccess={() => {
-        if (onSuccessCallback) {
-          onSuccessCallback();
-        }
-      }}
+      onSuccess={handleSuccess}
     />
   );
 };

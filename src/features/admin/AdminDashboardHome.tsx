@@ -8,9 +8,11 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { AdminDashboardData, AdminActivity } from './types';
@@ -20,6 +22,7 @@ interface AdminDashboardHomeProps {
 }
 
 export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigation }) => {
+  const { theme, isDark, toggleTheme } = useAppTheme();
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -75,16 +78,16 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={AppColors.primary} />
-        <Text style={styles.loadingText}>Loading Platform Metrics...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading Platform Metrics...</Text>
       </View>
     );
   }
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.contentContainer}
       refreshControl={
         <RefreshControl
@@ -93,83 +96,92 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             setIsRefreshing(true);
             fetchDashboard();
           }}
-          tintColor={AppColors.primary}
+          tintColor={theme.primary}
         />
       }
       showsVerticalScrollIndicator={false}
     >
       {/* Top Header Card */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <View style={styles.headerInfo}>
           <View style={styles.badgeRow}>
-            <View style={styles.adminBadge}>
+            <View style={[styles.adminBadge, { backgroundColor: theme.primary }]}>
               <Ionicons name="shield-checkmark" size={14} color="#FFFFFF" />
               <Text style={styles.adminBadgeText}>ADMIN CONSOLE</Text>
             </View>
           </View>
-          <Text style={styles.welcomeTitle}>SuperApp Overview</Text>
-          <Text style={styles.welcomeSubtitle}>
+          <Text style={[styles.welcomeTitle, { color: theme.textPrimary }]}>SuperApp Overview</Text>
+          <Text style={[styles.welcomeSubtitle, { color: theme.textSecondary }]}>
             Signed in as {user?.fullName || 'Super Administrator'} ({user?.mobileNumber || 'Live'})
           </Text>
         </View>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color={AppColors.red} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            style={[styles.themeBtn, { backgroundColor: theme.surfaceLight, borderColor: theme.border }]}
+            onPress={toggleTheme}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={isDark ? 'sunny' : 'moon'} size={18} color={isDark ? '#F59E0B' : '#6366F1'} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={20} color={AppColors.red} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* KPI Cards Grid */}
-      <Text style={styles.sectionHeader}>PLATFORM METRICS</Text>
+      <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>PLATFORM METRICS</Text>
       <View style={styles.kpiGrid}>
-        <View style={[styles.kpiCard, { borderColor: '#3B82F6' }]}>
-          <View style={[styles.kpiIconWrapper, { backgroundColor: '#3B82F615' }]}>
+        <View style={[styles.kpiCard, { backgroundColor: theme.card, borderColor: '#3B82F6' }]}>
+          <View style={[styles.kpiIconWrapper, { backgroundColor: '#3B82F620' }]}>
             <Ionicons name="people" size={22} color="#3B82F6" />
           </View>
-          <Text style={styles.kpiValue}>{data?.totalUsers ?? 0}</Text>
-          <Text style={styles.kpiLabel}>Total Users</Text>
+          <Text style={[styles.kpiValue, { color: theme.textPrimary }]}>{data?.totalUsers ?? 0}</Text>
+          <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>Total Users</Text>
         </View>
 
-        <View style={[styles.kpiCard, { borderColor: AppColors.secondary }]}>
-          <View style={[styles.kpiIconWrapper, { backgroundColor: AppColors.secondary + '15' }]}>
+        <View style={[styles.kpiCard, { backgroundColor: theme.card, borderColor: AppColors.secondary }]}>
+          <View style={[styles.kpiIconWrapper, { backgroundColor: AppColors.secondary + '20' }]}>
             <Ionicons name="car" size={22} color={AppColors.secondary} />
           </View>
-          <Text style={styles.kpiValue}>{data?.activeDrivers ?? 0}</Text>
-          <Text style={styles.kpiLabel}>Active Drivers</Text>
+          <Text style={[styles.kpiValue, { color: theme.textPrimary }]}>{data?.activeDrivers ?? 0}</Text>
+          <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>Active Drivers</Text>
         </View>
 
-        <View style={[styles.kpiCard, { borderColor: AppColors.yellow }]}>
-          <View style={[styles.kpiIconWrapper, { backgroundColor: AppColors.yellow + '15' }]}>
+        <View style={[styles.kpiCard, { backgroundColor: theme.card, borderColor: AppColors.yellow }]}>
+          <View style={[styles.kpiIconWrapper, { backgroundColor: AppColors.yellow + '20' }]}>
             <Ionicons name="restaurant" size={22} color={AppColors.yellow} />
           </View>
-          <Text style={styles.kpiValue}>{data?.totalRestaurants ?? 0}</Text>
-          <Text style={styles.kpiLabel}>Restaurants</Text>
+          <Text style={[styles.kpiValue, { color: theme.textPrimary }]}>{data?.totalRestaurants ?? 0}</Text>
+          <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>Restaurants</Text>
         </View>
 
-        <View style={[styles.kpiCard, { borderColor: AppColors.primary }]}>
-          <View style={[styles.kpiIconWrapper, { backgroundColor: AppColors.primary + '15' }]}>
+        <View style={[styles.kpiCard, { backgroundColor: theme.card, borderColor: AppColors.primary }]}>
+          <View style={[styles.kpiIconWrapper, { backgroundColor: AppColors.primary + '20' }]}>
             <Ionicons name="bag-handle" size={22} color={AppColors.primary} />
           </View>
-          <Text style={styles.kpiValue}>{data?.activeListings ?? 0}</Text>
-          <Text style={styles.kpiLabel}>Marketplace Ads</Text>
+          <Text style={[styles.kpiValue, { color: theme.textPrimary }]}>{data?.activeListings ?? 0}</Text>
+          <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>Marketplace Ads</Text>
         </View>
       </View>
 
       {/* Revenue Snapshot Card */}
-      <View style={styles.revenueCard}>
+      <View style={[styles.revenueCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <View style={styles.revenueHeader}>
           <Ionicons name="wallet-outline" size={18} color={AppColors.primary} />
           <Text style={styles.revenueHeaderText}>FINANCIAL SUMMARY</Text>
         </View>
         <View style={styles.revenueRow}>
           <View style={styles.revenueCol}>
-            <Text style={styles.revenueSublabel}>Food Sales</Text>
-            <Text style={styles.revenueValue}>₹{data?.grossFoodSales?.toLocaleString() ?? 0}</Text>
+            <Text style={[styles.revenueSublabel, { color: theme.textSecondary }]}>Food Sales</Text>
+            <Text style={[styles.revenueValue, { color: theme.textPrimary }]}>₹{data?.grossFoodSales?.toLocaleString() ?? 0}</Text>
           </View>
-          <View style={styles.revenueDivider} />
+          <View style={[styles.revenueDivider, { backgroundColor: theme.border }]} />
           <View style={styles.revenueCol}>
-            <Text style={styles.revenueSublabel}>Ride Volume</Text>
-            <Text style={styles.revenueValue}>₹{data?.grossRideFares?.toLocaleString() ?? 0}</Text>
+            <Text style={[styles.revenueSublabel, { color: theme.textSecondary }]}>Ride Volume</Text>
+            <Text style={[styles.revenueValue, { color: theme.textPrimary }]}>₹{data?.grossRideFares?.toLocaleString() ?? 0}</Text>
           </View>
-          <View style={styles.revenueDivider} />
+          <View style={[styles.revenueDivider, { backgroundColor: theme.border }]} />
           <View style={styles.revenueCol}>
             <Text style={[styles.revenueSublabel, { color: AppColors.primary }]}>Platform Net</Text>
             <Text style={[styles.revenueValue, { color: AppColors.primary }]}>
@@ -180,10 +192,25 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
       </View>
 
       {/* Quick Navigation Cards */}
-      <Text style={styles.sectionHeader}>MANAGEMENT SECTIONS</Text>
+      <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>MANAGEMENT SECTIONS</Text>
       <View style={styles.navGrid}>
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => navigation.navigate('AdminPushNotifications')}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.navIconBox, { backgroundColor: '#F43F5E20' }]}>
+            <Ionicons name="notifications" size={24} color="#F43F5E" />
+          </View>
+          <View style={styles.navCardInfo}>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Push Notifications (FCM)</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Targeted campaigns, segments & history</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminUsers')}
           activeOpacity={0.8}
         >
@@ -191,14 +218,14 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             <Ionicons name="people-outline" size={24} color="#3B82F6" />
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Users & Roles</Text>
-            <Text style={styles.navCardSubtitle}>Manage accounts, roles, and status</Text>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Users & Roles</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Manage accounts, roles, and status</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminListings')}
           activeOpacity={0.8}
         >
@@ -206,14 +233,14 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             <Ionicons name="list-outline" size={24} color="#F97316" />
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Food & Marketplace Listings</Text>
-            <Text style={styles.navCardSubtitle}>Search, edit, activate or delete on one page</Text>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Food & Marketplace Listings</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Search, edit, activate or delete on one page</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminRestaurants')}
           activeOpacity={0.8}
         >
@@ -221,14 +248,14 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             <Ionicons name="restaurant-outline" size={24} color={AppColors.yellow} />
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Restaurants</Text>
-            <Text style={styles.navCardSubtitle}>Directory, approvals, and menus</Text>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Restaurants</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Directory, approvals, and menus</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminDrivers')}
           activeOpacity={0.8}
         >
@@ -236,14 +263,14 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             <Ionicons name="car-outline" size={24} color={AppColors.secondary} />
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Drivers & Captains</Text>
-            <Text style={styles.navCardSubtitle}>Verification, vehicle reg, and duty</Text>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Drivers & Captains</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Verification, vehicle reg, and duty</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminOrders')}
           activeOpacity={0.8}
         >
@@ -251,14 +278,14 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             <Ionicons name="receipt-outline" size={24} color={AppColors.primary} />
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Orders & Rides</Text>
-            <Text style={styles.navCardSubtitle}>Live orders tracking and ride records</Text>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Orders & Rides</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Live orders tracking and ride records</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminPayments')}
           activeOpacity={0.8}
         >
@@ -266,14 +293,14 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             <Ionicons name="card-outline" size={24} color="#10B981" />
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Payments & Payouts</Text>
-            <Text style={styles.navCardSubtitle}>Razorpay settlements and gross intake</Text>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Payments & Payouts</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Razorpay settlements and gross intake</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminRoleApplications')}
           activeOpacity={0.8}
         >
@@ -290,18 +317,18 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             ) : null}
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Role Applications</Text>
-            <Text style={styles.navCardSubtitle}>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Role Applications</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>
               {(data?.pendingRoleApplications ?? 0) > 0
                 ? `${data?.pendingRoleApplications} waiting for approval`
                 : 'Approve rider / hotel requests from citizens'}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminCoupons')}
           activeOpacity={0.8}
         >
@@ -309,14 +336,14 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             <Ionicons name="pricetag-outline" size={24} color="#EC4899" />
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Coupons & Promos</Text>
-            <Text style={styles.navCardSubtitle}>Create, edit discounts & hotel limits</Text>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Coupons & Promos</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Create, edit discounts & hotel limits</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminHotelCommissions')}
           activeOpacity={0.8}
         >
@@ -324,14 +351,14 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             <Ionicons name="calculator-outline" size={24} color="#F59E0B" />
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Hotel Commission & Settlement</Text>
-            <Text style={styles.navCardSubtitle}>Ledger balances, rates & payout batches</Text>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Hotel Commission & Settlement</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Ledger balances, rates & payout batches</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminRideFares')}
           activeOpacity={0.8}
         >
@@ -339,14 +366,14 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             <Ionicons name="speedometer-outline" size={24} color="#06B6D4" />
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Ride Fare Configuration</Text>
-            <Text style={styles.navCardSubtitle}>Per-km, base fare, surge & vehicle tiers</Text>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Ride Fare Configuration</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Per-km, base fare, surge & vehicle tiers</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.navCard}
+          style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminSettings')}
           activeOpacity={0.8}
         >
@@ -354,22 +381,22 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
             <Ionicons name="settings-outline" size={24} color="#8B5CF6" />
           </View>
           <View style={styles.navCardInfo}>
-            <Text style={styles.navCardTitle}>Settings & Broadcast</Text>
-            <Text style={styles.navCardSubtitle}>Platform toggles and push alerts</Text>
+            <Text style={[styles.navCardTitle, { color: theme.textPrimary }]}>Settings & Broadcast</Text>
+            <Text style={[styles.navCardSubtitle, { color: theme.textSecondary }]}>Platform toggles and push alerts</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={AppColors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
 
       {/* Recent Platform Activities */}
-      <Text style={styles.sectionHeader}>RECENT ACTIVITIES</Text>
+      <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>RECENT ACTIVITIES</Text>
       {(!data?.recentActivities || data.recentActivities.length === 0) ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No recent activity logged</Text>
+        <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No recent activity logged</Text>
         </View>
       ) : (
         data.recentActivities.map((act: AdminActivity) => (
-          <View key={act.id} style={styles.activityItem}>
+          <View key={act.id} style={[styles.activityItem, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View
               style={[
                 styles.activityBadge,
@@ -386,10 +413,10 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
               </Text>
             </View>
             <View style={styles.activityMain}>
-              <Text style={styles.activityDesc} numberOfLines={1}>
+              <Text style={[styles.activityDesc, { color: theme.textPrimary }]} numberOfLines={1}>
                 {act.description}
               </Text>
-              <Text style={styles.activityTime}>
+              <Text style={[styles.activityTime, { color: theme.textSecondary }]}>
                 {new Date(act.timestamp).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -474,6 +501,13 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#371818',
     borderRadius: 12,
+  },
+  themeBtn: {
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionHeader: {
     fontSize: 12,

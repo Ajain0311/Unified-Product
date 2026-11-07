@@ -106,5 +106,32 @@ public class MockNotificationService : INotificationService
             tokensPruned: 0,
             message: $"Mock broadcast dispatched to {captainUserIds.Count} captains ({tokens.Count} tokens)");
     }
+
+    public async Task<NotificationCampaignDto> ExecuteCampaignAsync(long campaignId)
+    {
+        var campaign = await _db.NotificationCampaigns.FirstOrDefaultAsync(c => c.Id == campaignId);
+        if (campaign == null)
+            throw new InvalidOperationException("Campaign not found");
+
+        campaign.Status = "SENT";
+        campaign.SentAt = DateTime.UtcNow;
+        campaign.TotalTargeted = 10;
+        campaign.AcceptedByFcm = 10;
+        await _db.SaveChangesAsync();
+
+        return new NotificationCampaignDto
+        {
+            Id = campaign.Id,
+            Title = campaign.Title,
+            Body = campaign.Body,
+            ImageUrl = campaign.ImageUrl,
+            DeepLink = campaign.DeepLink,
+            Status = campaign.Status,
+            TotalTargeted = campaign.TotalTargeted,
+            AcceptedByFcm = campaign.AcceptedByFcm,
+            CreatedAt = campaign.CreatedAt,
+            SentAt = campaign.SentAt
+        };
+    }
 }
 

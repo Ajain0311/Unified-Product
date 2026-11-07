@@ -14,6 +14,7 @@ import { AdminRideFaresScreen } from './AdminRideFaresScreen';
 import { AdminRoleApplicationsScreen } from './AdminRoleApplicationsScreen';
 import { AdminListingsScreen } from './AdminListingsScreen';
 import { AdminFreeDevManagerScreen } from './AdminFreeDevManagerScreen';
+import { AdminPushNotificationsScreen } from './AdminPushNotificationsScreen';
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
 
@@ -27,6 +28,7 @@ export const AdminNavigator: React.FC = () => {
       }}
     >
       <Stack.Screen name="AdminDashboardHome" component={AdminDashboardHome} />
+      <Stack.Screen name="AdminPushNotifications" component={AdminPushNotificationsScreen} />
       <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />
       <Stack.Screen name="AdminRestaurants" component={AdminRestaurantsScreen} />
       <Stack.Screen name="AdminDrivers" component={AdminDriversScreen} />

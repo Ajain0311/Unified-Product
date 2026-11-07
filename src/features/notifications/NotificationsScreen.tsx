@@ -16,6 +16,8 @@ import { spacing } from '../../theme/spacing';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { notificationService } from '../../services/notificationService';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthModalStore } from '../../store/authModalStore';
 
 interface NotificationItem {
   id: string;
@@ -31,6 +33,7 @@ interface NotificationItem {
 
 export const NotificationsScreen: React.FC = () => {
   const navigation = useNavigation();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<string | null>(null);
@@ -38,8 +41,12 @@ export const NotificationsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
+    if (!useAuthStore.getState().isAuthenticated) {
+      setNotifications([]);
+      return;
+    }
     try {
-      const res = await apiClient.get<any>(ApiEndpoints.common.notifications);
+      const res = await apiClient.get<any>(ApiEndpoints.common.notifications, { suppressAuthPrompt: true });
       const data = res.data?.data || res.data;
       const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
       if (items.length > 0) {
@@ -85,11 +92,16 @@ export const NotificationsScreen: React.FC = () => {
       setPushToken(token);
     });
 
+    if (!isAuthenticated) {
+      setNotifications([]);
+      return;
+    }
+
     void fetchNotifications();
 
     // Mark all notifications as read when screen is opened
-    apiClient.put(ApiEndpoints.common.markAllNotificationsRead).catch(() => {});
-  }, [fetchNotifications]);
+    apiClient.put(ApiEndpoints.common.markAllNotificationsRead, undefined, { suppressAuthPrompt: true }).catch(() => {});
+  }, [fetchNotifications, isAuthenticated]);
 
   const handleTestOrderNotification = async () => {
     setTestStatus('Firing Food Order notification...');
@@ -296,6 +308,42 @@ export const NotificationsScreen: React.FC = () => {
       </View>
     );
   };
+
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <MaterialIcons name="chevron-left" size={28} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          <View style={{ width: 28 }} />
+        </View>
+        <View style={styles.emptyContainer}>
+          <MaterialIcons name="notifications-none" size={52} color={colors.textTertiary} />
+          <Text style={styles.emptyTitle}>Sign in for notifications</Text>
+          <Text style={styles.emptySubtitle}>
+            Order updates, ride alerts, and bazaar offers will appear here after you sign in.
+          </Text>
+          <TouchableOpacity
+            style={styles.guestSignInBtn}
+            onPress={() =>
+              useAuthModalStore.getState().openAuthModal({
+                title: 'Sign In to Continue',
+                subtitle: 'Sign in to see your notifications.',
+                onSuccess: () => {
+                  void fetchNotifications();
+                },
+              })
+            }
+          >
+            <Text style={styles.guestSignInText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -510,6 +558,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 56,
     paddingHorizontal: 24,
+  },
+  guestSignInBtn: {
+    marginTop: 20,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+  },
+  guestSignInText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
   emptyTitle: {
     ...typography.h3,

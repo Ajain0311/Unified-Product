@@ -49,10 +49,42 @@ export const HotelDetailScreen: React.FC = () => {
     loadData();
   }, [hotelId]);
 
-  if (loading || !hotel) {
+  if (loading) {
     return (
       <SafeAreaView style={[styles.centerArea, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!hotel) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={[styles.backBtn, { backgroundColor: theme.surfaceHover }]}
+          >
+            <Ionicons name="arrow-back" size={20} color={theme.textPrimary} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Hotel</Text>
+        </View>
+        <View style={styles.centerArea}>
+          <Ionicons name="business-outline" size={48} color={theme.textTertiary} />
+          <Text style={[styles.notFoundTitle, { color: theme.textPrimary }]}>
+            Hotel details are not available yet
+          </Text>
+          <Text style={[styles.notFoundBody, { color: theme.textSecondary }]}>
+            Verified hotel listings will appear here once they are onboarded.
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={[styles.notFoundBtn, { backgroundColor: theme.primary }]}
+          >
+            <Text style={styles.notFoundBtnText}>Go back</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -217,10 +249,10 @@ export const HotelDetailScreen: React.FC = () => {
 
                 <TouchableOpacity
                   onPress={() =>
-                    navigation.navigate('HotelCheckout', {
-                      hotelId: hotel.id,
-                      roomId: room.id,
-                    })
+                    Alert.alert(
+                      'Booking not available',
+                      'Online hotel reservations are not enabled yet. Please contact the hotel directly to reserve a room.',
+                    )
                   }
                   style={[styles.bookBtn, { backgroundColor: theme.primary }]}
                 >
@@ -238,7 +270,11 @@ export const HotelDetailScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  centerArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centerArea: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
+  notFoundTitle: { fontSize: 18, fontWeight: '800', marginTop: 14, textAlign: 'center' },
+  notFoundBody: { fontSize: 13, lineHeight: 20, marginTop: 8, textAlign: 'center' },
+  notFoundBtn: { marginTop: 20, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
+  notFoundBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -469,6 +469,242 @@ public class PushNotificationDispatcherService : INotificationService
         return (succeeded, failed, pruned);
     }
 
+    public async Task<NotificationCampaignDto> ExecuteCampaignAsync(long campaignId)
+    {
+        var campaign = await _db.NotificationCampaigns
+            .Include(c => c.SentByAdmin)
+            .FirstOrDefaultAsync(c => c.Id == campaignId);
+
+        if (campaign == null)
+            throw new KeyNotFoundException($"Campaign #{campaignId} not found.");
+
+        if (campaign.Status == "PROCESSING" || campaign.Status == "SENT")
+            throw new InvalidOperationException($"Campaign is already in '{campaign.Status}' state.");
+
+        campaign.Status = "PROCESSING";
+        await _db.SaveChangesAsync();
+
+        try
+        {
+            List<string> audiences;
+            try
+            {
+                audiences = JsonSerializer.Deserialize<List<string>>(campaign.TargetAudiences) ?? new List<string>();
+            }
+            catch
+            {
+                audiences = new List<string> { "ALL_CUSTOMERS" };
+            }
+
+            var targetUserIdsQuery = ResolveAudienceUserIds(audiences);
+            var targetUserIds = await targetUserIdsQuery.Distinct().ToListAsync();
+
+            campaign.TotalTargeted = targetUserIds.Count;
+
+            if (!targetUserIds.Any())
+            {
+                campaign.Status = "SENT";
+                campaign.SentAt = DateTime.UtcNow;
+                campaign.FailureReason = "No users matched the selected audience criteria.";
+                await _db.SaveChangesAsync();
+                return MapToDto(campaign);
+            }
+
+            // Persist In-App notifications for all target users
+            foreach (var uid in targetUserIds)
+            {
+                _db.Notifications.Add(new Notification
+                {
+                    UserId = uid,
+                    Title = campaign.Title,
+                    Body = campaign.Body,
+                    Type = "CAMPAIGN",
+                    ReferenceId = campaign.DeepLink ?? campaign.Id.ToString(),
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            await _db.SaveChangesAsync();
+
+            // Fetch active device tokens
+            var tokens = await _db.UserDeviceTokens
+                .Where(t => t.IsActive && targetUserIds.Contains(t.UserId) && !string.IsNullOrEmpty(t.DeviceToken))
+                .ToListAsync();
+
+            if (!tokens.Any())
+            {
+                campaign.Status = "SENT";
+                campaign.SentAt = DateTime.UtcNow;
+                campaign.FailureReason = "In-app notifications saved; no active device tokens found for target users.";
+                await _db.SaveChangesAsync();
+                return MapToDto(campaign);
+            }
+
+            var payload = new
+            {
+                title = campaign.Title,
+                body = campaign.Body,
+                imageUrl = campaign.ImageUrl,
+                data = new
+                {
+                    campaignId = campaign.Id,
+                    deepLink = campaign.DeepLink,
+                    imageUrl = campaign.ImageUrl,
+                    timestamp = DateTime.UtcNow.ToString("o")
+                }
+            };
+
+            var (succeeded, failed, pruned) = await SendToTokensAsync(tokens, payload);
+
+            campaign.Status = "SENT";
+            campaign.SentAt = DateTime.UtcNow;
+            campaign.AcceptedByFcm = succeeded;
+            campaign.DeviceFailed = failed;
+            campaign.DevicePruned = pruned;
+            if (succeeded == 0 && failed > 0)
+            {
+                campaign.FailureReason = "Failed to dispatch to external push gateways.";
+            }
+
+            await _db.SaveChangesAsync();
+            return MapToDto(campaign);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PushDispatch] Failed executing campaign #{CampaignId}", campaign.Id);
+            campaign.Status = "FAILED";
+            campaign.FailureReason = ex.Message;
+            await _db.SaveChangesAsync();
+            return MapToDto(campaign);
+        }
+    }
+
+    private IQueryable<long> ResolveAudienceUserIds(List<string> audiences)
+    {
+        var upperAudiences = audiences.Select(a => a.ToUpperInvariant()).ToHashSet();
+
+        if (upperAudiences.Contains("ALL") || upperAudiences.Contains("ALL_CUSTOMERS"))
+        {
+            return _db.Users.Where(u => u.IsActive).Select(u => u.Id);
+        }
+
+        var queries = new List<IQueryable<long>>();
+
+        if (upperAudiences.Contains("FOOD_CUSTOMERS"))
+        {
+            queries.Add(_db.FoodOrders.Select(o => o.UserId));
+        }
+
+        if (upperAudiences.Contains("RIDE_CUSTOMERS"))
+        {
+            queries.Add(_db.Rides.Select(r => r.UserId));
+        }
+
+        if (upperAudiences.Contains("MARKETPLACE_CUSTOMERS"))
+        {
+            queries.Add(_db.MarketplaceOffers.Select(m => m.BuyerId));
+        }
+
+        if (upperAudiences.Contains("RESTAURANT_OWNERS") || upperAudiences.Contains("HOTEL_OWNERS"))
+        {
+            queries.Add(_db.RestaurantUsers.Where(ru => ru.IsActive).Select(ru => ru.UserId));
+        }
+
+        if (upperAudiences.Contains("DRIVERS"))
+        {
+            queries.Add(_db.Drivers.Where(d => d.IsActive).Select(d => d.UserId));
+        }
+
+        if (upperAudiences.Contains("MARKETPLACE_SELLERS"))
+        {
+            queries.Add(_db.MarketplaceListings.Select(l => l.UserId));
+        }
+
+        if (upperAudiences.Contains("BAR_CUSTOMERS"))
+        {
+            queries.Add(_db.BarReservations.Select(b => b.UserId));
+        }
+
+        if (upperAudiences.Contains("BAR_OWNERS"))
+        {
+            queries.Add(_db.RestaurantUsers.Where(ru => ru.IsActive && ru.Restaurant.BusinessType == "BAR").Select(ru => ru.UserId));
+        }
+
+        if (upperAudiences.Contains("CAFE_CUSTOMERS"))
+        {
+            queries.Add(_db.FoodOrders.Where(o => o.Restaurant.BusinessType == "CAFE").Select(o => o.UserId));
+        }
+
+        if (upperAudiences.Contains("CAFE_OWNERS"))
+        {
+            queries.Add(_db.RestaurantUsers.Where(ru => ru.IsActive && ru.Restaurant.BusinessType == "CAFE").Select(ru => ru.UserId));
+        }
+
+        if (upperAudiences.Contains("B2B_WATER_CUSTOMERS"))
+        {
+            queries.Add(_db.WaterOrders.Select(w => w.CustomerId));
+        }
+
+        if (upperAudiences.Contains("B2B_SUPPLIERS"))
+        {
+            queries.Add(_db.WaterSuppliers.Where(s => s.Status == "APPROVED").Select(s => s.UserId));
+        }
+
+        if (upperAudiences.Contains("INACTIVE_USERS"))
+        {
+            var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+            queries.Add(_db.Users.Where(u => u.IsActive && (u.LastLoginAt == null || u.LastLoginAt < thirtyDaysAgo)).Select(u => u.Id));
+        }
+
+        if (!queries.Any())
+        {
+            return _db.Users.Where(u => u.IsActive).Select(u => u.Id);
+        }
+
+        var unionQuery = queries[0];
+        for (int i = 1; i < queries.Count; i++)
+        {
+            unionQuery = unionQuery.Union(queries[i]);
+        }
+
+        return unionQuery;
+    }
+
+    private static NotificationCampaignDto MapToDto(NotificationCampaign c)
+    {
+        List<string> audiences;
+        try
+        {
+            audiences = JsonSerializer.Deserialize<List<string>>(c.TargetAudiences) ?? new List<string>();
+        }
+        catch
+        {
+            audiences = new List<string>();
+        }
+
+        return new NotificationCampaignDto
+        {
+            Id = c.Id,
+            Title = c.Title,
+            Body = c.Body,
+            ImageUrl = c.ImageUrl,
+            TargetAudiences = audiences,
+            DeepLink = c.DeepLink,
+            ScheduledFor = c.ScheduledFor,
+            Status = c.Status,
+            SentByAdminId = c.SentByAdminId,
+            SentByAdminName = c.SentByAdmin?.FullName ?? "Admin",
+            TotalTargeted = c.TotalTargeted,
+            AcceptedByFcm = c.AcceptedByFcm,
+            DeviceFailed = c.DeviceFailed,
+            DevicePruned = c.DevicePruned,
+            OpenedCount = c.OpenedCount,
+            FailureReason = c.FailureReason,
+            CreatedAt = c.CreatedAt,
+            SentAt = c.SentAt
+        };
+    }
+
     private static object? GetProperty(object obj, string name)
     {
         var prop = obj.GetType().GetProperty(name);

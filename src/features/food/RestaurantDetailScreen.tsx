@@ -29,6 +29,7 @@ import { apiClient, createIdempotencyKey } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { absoluteImageUrl } from '../../services/documentService';
 import { shadowStyle } from '../../utils/platformStyles';
+import { isAuthenticationError } from '../../utils/authErrors';
 
 const DEFAULT_DISH_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600';
 
@@ -332,7 +333,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
     } catch (err: any) {
       console.error('[PlaceOrder Error]', err);
       // If 401 unauthorized or authentication expired, open in-place modal and retry
-      if (err?.statusCode === 401 || err?.isUnauthorized || String(err?.message || '').toLowerCase().includes('authentication expired') || String(err?.message || '').toLowerCase().includes('unauthorized')) {
+      if (isAuthenticationError(err)) {
         useAuthModalStore.getState().openAuthModal({
           title: 'Sign In to Complete Order',
           subtitle: 'Please verify your phone number right here to complete your order.',

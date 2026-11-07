@@ -9,6 +9,7 @@ import { ApiEndpoints } from '../../constants/api';
 import { documentService } from '../../services/documentService';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthModalStore } from '../../store/authModalStore';
+import { isAuthenticationError } from '../../utils/authErrors';
 import { useAppTheme } from '../../theme/themeStore';
 import { AppRadius, AppSpacing } from '../../theme/spacing';
 
@@ -33,6 +34,16 @@ export const WaterSupplierDashboardScreen: React.FC = () => {
   const [form, setForm] = useState({ businessName: '', contactPhone: '', address: '', city: '', deliveryCities: '', minimumDeliveryValue: '' });
   const [product, setProduct] = useState({ brand: '', name: '', bottleSize: '', bottlesPerCase: '', casePrice: '', minimumCases: '', availableCases: '' });
 
+  const withAuthRetry = (error: any, retry: () => void): boolean => {
+    if (!isAuthenticationError(error)) return false;
+    useAuthModalStore.getState().openAuthModal({
+      title: 'Session expired',
+      subtitle: 'Verify your phone number to continue.',
+      onSuccess: retry,
+    });
+    return true;
+  };
+
   const load = useCallback(async () => {
     if (!useAuthStore.getState().isAuthenticated) {
       setLoading(false);
@@ -41,20 +52,21 @@ export const WaterSupplierDashboardScreen: React.FC = () => {
     }
     setLoading(true);
     try {
-      const response = await apiClient.get<any>(ApiEndpoints.water.supplier);
+      const response = await apiClient.get<any>(ApiEndpoints.water.supplier, { suppressAuthPrompt: true });
       const current = payload(response);
       setSupplier(current);
       if (current?.status === 'APPROVED') {
         const [productResult, orderResult, quoteResult] = await Promise.all([
-          apiClient.get<any>(ApiEndpoints.water.supplierProducts),
-          apiClient.get<any>(ApiEndpoints.water.supplierOrders),
-          apiClient.get<any>(ApiEndpoints.water.supplierQuotes),
+          apiClient.get<any>(ApiEndpoints.water.supplierProducts, { suppressAuthPrompt: true }),
+          apiClient.get<any>(ApiEndpoints.water.supplierOrders, { suppressAuthPrompt: true }),
+          apiClient.get<any>(ApiEndpoints.water.supplierQuotes, { suppressAuthPrompt: true }),
         ]);
         setProducts(payload(productResult) || []);
         setOrders(payload(orderResult) || []);
         setQuotes(payload(quoteResult) || []);
       }
     } catch (error: any) {
+      if (withAuthRetry(error, () => { void load(); })) return;
       if (error?.statusCode !== 404) Alert.alert('Supplier portal unavailable', error?.message || 'Please retry.');
       setSupplier(null);
     } finally { setLoading(false); }
@@ -81,7 +93,10 @@ export const WaterSupplierDashboardScreen: React.FC = () => {
       await apiClient.post(ApiEndpoints.water.applySupplier, { ...form, minimumDeliveryValue: Number(form.minimumDeliveryValue || 0), businessDocumentNo: docNo });
       Alert.alert('Application submitted', 'An administrator will verify your business details before catalogue publication.');
       await load();
-    } catch (error: any) { Alert.alert('Could not submit', error?.message || 'Please review the details and retry.'); }
+    } catch (error: any) {
+      if (withAuthRetry(error, () => { void submitApplication(); })) return;
+      Alert.alert('Could not submit', error?.message || 'Please review the details and retry.');
+    }
     finally { setSaving(false); }
   };
 
@@ -90,7 +105,10 @@ export const WaterSupplierDashboardScreen: React.FC = () => {
     if (!body.brand.trim() || !body.name.trim() || !body.bottleSize.trim() || Object.values(body).some(v => typeof v === 'number' && !Number.isFinite(v))) { Alert.alert('Product details required', 'Complete every product and pricing field with valid numbers.'); return; }
     setSaving(true);
     try { await apiClient.post(ApiEndpoints.water.createProduct, body); setProduct({ brand: '', name: '', bottleSize: '', bottlesPerCase: '', casePrice: '', minimumCases: '', availableCases: '' }); await load(); }
-    catch (error: any) { Alert.alert('Could not save product', error?.message || 'Please retry.'); }
+    catch (error: any) {
+      if (withAuthRetry(error, () => { void createProduct(); })) return;
+      Alert.alert('Could not save product', error?.message || 'Please retry.');
+    }
     finally { setSaving(false); }
   };
 
@@ -101,7 +119,10 @@ export const WaterSupplierDashboardScreen: React.FC = () => {
     const action = status === 'ACCEPTED' ? 'accept this order and issue its unpaid invoice' : `move this order to ${status.toLowerCase()}`;
     Alert.alert('Update order?', `This will ${action}.`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Confirm', onPress: async () => {
       try { await apiClient.put(ApiEndpoints.water.updateOrderStatus(order.id), { status }); await load(); }
-      catch (error: any) { Alert.alert('Could not update', error?.message || 'Refresh the order and try again.'); }
+      catch (error: any) {
+        if (withAuthRetry(error, () => { void advanceOrder(order); })) return;
+        Alert.alert('Could not update', error?.message || 'Refresh the order and try again.');
+      }
     } }]);
   };
 
@@ -110,7 +131,10 @@ export const WaterSupplierDashboardScreen: React.FC = () => {
     const lines = quote.lines.map(line => ({ productId: line.productId, casePrice: Number(rates[line.productId]) }));
     if (lines.some(line => !Number.isFinite(line.casePrice) || line.casePrice <= 0)) { Alert.alert('Enter all quote rates', 'Add a positive price per case for every requested product.'); return; }
     try { await apiClient.put(ApiEndpoints.water.offerQuote(quote.id), { lines }); await load(); }
-    catch (error: any) { Alert.alert('Could not send quotation', error?.message || 'Refresh and retry.'); }
+    catch (error: any) {
+      if (withAuthRetry(error, () => { void submitQuoteOffer(quote); })) return;
+      Alert.alert('Could not send quotation', error?.message || 'Refresh and retry.');
+    }
   };
 
   const setField = (key: keyof typeof form, value: string) => setForm(old => ({ ...old, [key]: value }));

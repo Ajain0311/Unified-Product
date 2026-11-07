@@ -54,6 +54,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
+  const successHandledRef = useRef(false);
 
   useEffect(() => {
     if (visible) {
@@ -61,11 +62,15 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
       setPhone('');
       setOtp('');
       setFullName('');
+      setIsNewUser(false);
       setIsAdmin(false);
       setAdminPassword('');
       setShowPassword(false);
+      setDevOtp(undefined);
+      setTimerSeconds(30);
       setError(null);
       setIsLoading(false);
+      successHandledRef.current = false;
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -98,6 +103,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
   const isPasswordValid = adminPassword.trim().length >= 4;
 
   const handleSendOtp = async () => {
+    if (isLoading) return;
     if (!isPhoneValid) {
       setError('Please enter a valid 10-digit mobile number');
       return;
@@ -123,6 +129,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
   };
 
   const handleVerifyOtp = async () => {
+    if (isLoading || successHandledRef.current) return;
     if (!isOtpValid) {
       setError('Please enter a complete 6-digit OTP');
       return;
@@ -144,11 +151,16 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
       } else {
         await verifyOtp(cleanNumber, otp.trim(), isNewUser ? fullName.trim() : undefined);
       }
-      onClose();
+      if (!useAuthStore.getState().isAuthenticated) {
+        setError('Sign-in could not be completed. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+      successHandledRef.current = true;
+      setIsLoading(false);
       onSuccess();
     } catch (err: any) {
       setError(err?.message || 'Verification failed. Please check your credentials and try again.');
-    } finally {
       setIsLoading(false);
     }
   };

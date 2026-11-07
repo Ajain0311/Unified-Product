@@ -9,5 +9,6 @@ public interface INotificationService
     /// <param name="persistInApp">When false, only device push is attempted (caller already wrote Notification rows).</param>
     Task<bool> SendBroadcastNotificationAsync(string title, string body, string module, bool persistInApp = true);
     Task<PushDispatchResult> BroadcastRideToAllCaptainsAsync(Ride ride);
+    Task<NotificationCampaignDto> ExecuteCampaignAsync(long campaignId);
 }
 

@@ -17,12 +17,13 @@ import { AppSearchBar } from '../../components/common/AppSearchBar';
 import { RatingBadge } from '../../components/common/RatingBadge';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
-import { FoodCatalogItem, RestaurantSummary } from '../../models/food';
+import { FoodCatalogItem } from '../../models/food';
 import { useFocusEffect } from '@react-navigation/native';
 import { absoluteImageUrl } from '../../services/documentService';
 import { useCartStore } from '../../store/cartStore';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
+import { useAuthStore } from '../../store/authStore';
 
 const DEFAULT_RESTAURANT_IMAGE = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600';
 const DEFAULT_DISH_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600';
@@ -41,84 +42,6 @@ interface FoodHomeScreenProps {
   navigation: any;
 }
 
-export const DEFAULT_RESTAURANTS: RestaurantSummary[] = [
-  {
-    id: 1,
-    name: 'Meghana Foods (Special Biryani)',
-    cuisines: 'Biryani • Hyderabadi • Andhra • Kebabs',
-    addressLine: '₹500 for two • 1.8 km',
-    rating: 4.6,
-    totalRatings: 1840,
-    avgDeliveryTimeMinutes: 22,
-    offerText: '60% OFF UPTO ₹120',
-    isVeg: false,
-    minOrderAmount: 200,
-    deliveryFee: 0,
-    isFeatured: true,
-    imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600',
-  },
-  {
-    id: 2,
-    name: "Haldiram's Sweets & Thali",
-    cuisines: 'North Indian • Chaat • Pure Veg • Mithai',
-    addressLine: '₹350 for two • 1.2 km',
-    rating: 4.5,
-    totalRatings: 920,
-    avgDeliveryTimeMinutes: 18,
-    offerText: 'FLAT 20% OFF',
-    isVeg: true,
-    minOrderAmount: 150,
-    deliveryFee: 0,
-    isFeatured: false,
-    imageUrl: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600',
-  },
-  {
-    id: 3,
-    name: 'Burger King (Gourmet Burgers)',
-    cuisines: 'Burgers • American • Fast Food • Shakes',
-    addressLine: '₹400 for two • 2.5 km',
-    rating: 4.3,
-    totalRatings: 2150,
-    avgDeliveryTimeMinutes: 25,
-    offerText: 'FREE DELIVERY',
-    isVeg: false,
-    minOrderAmount: 150,
-    deliveryFee: 0,
-    isFeatured: false,
-    imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600',
-  },
-  {
-    id: 4,
-    name: 'Sagar Ratna (Authentic South Indian)',
-    cuisines: 'South Indian • Dosa • Idli • Filter Coffee • Pure Veg',
-    addressLine: '₹300 for two • 1.5 km',
-    rating: 4.7,
-    totalRatings: 3420,
-    avgDeliveryTimeMinutes: 20,
-    offerText: 'FLAT 15% OFF',
-    isVeg: true,
-    minOrderAmount: 120,
-    deliveryFee: 0,
-    isFeatured: true,
-    imageUrl: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=600',
-  },
-  {
-    id: 5,
-    name: 'Rolls King & Wraps',
-    cuisines: 'Rolls • Kathi Rolls • Wraps • Fast Food',
-    addressLine: '₹250 for two • 1.9 km',
-    rating: 4.4,
-    totalRatings: 1100,
-    avgDeliveryTimeMinutes: 20,
-    offerText: '20% OFF',
-    isVeg: false,
-    minOrderAmount: 100,
-    deliveryFee: 0,
-    isFeatured: false,
-    imageUrl: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=600',
-  },
-];
-
 const CATEGORIES = [
   'All',
   'Biryani',
@@ -132,6 +55,7 @@ const CATEGORIES = [
 export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) => {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(0);
   const [filterVegOnly, setFilterVegOnly] = useState(false);
@@ -161,7 +85,7 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
         }
       })
       .catch((err) => {
-        const msg = err?.response?.data?.message || err?.message || 'Unable to load dishes. Please check your network connection.';
+        const msg = err?.message || 'Unable to load dishes. Please check your network connection.';
         setLoadError(msg);
       })
       .finally(() => {
@@ -175,8 +99,12 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
 
   useFocusEffect(
     useCallback(() => {
+      if (!isAuthenticated) {
+        setDeliverTo('Chittorgarh District, Rajasthan');
+        return;
+      }
       apiClient
-        .get<any>(ApiEndpoints.common.addresses)
+        .get<any>(ApiEndpoints.common.addresses, { suppressAuthPrompt: true })
         .then((res) => {
           const payload = res?.data?.data ?? res?.data ?? res;
           const items = Array.isArray(payload) ? payload : [];
@@ -191,7 +119,7 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
         .catch(() => {
           setDeliverTo('Chittorgarh District, Rajasthan');
         });
-    }, [])
+    }, [isAuthenticated])
   );
 
   const filteredFoods = foods

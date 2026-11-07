@@ -9,18 +9,21 @@ interface AuthModalState {
   closeAuthModal: () => void;
 }
 
-export const useAuthModalStore = create<AuthModalState>((set, get) => ({
+const DEFAULT_TITLE = 'Sign In to Continue';
+const DEFAULT_SUBTITLE = 'Verify your phone number to place your order seamlessly';
+
+export const useAuthModalStore = create<AuthModalState>((set) => ({
   isOpen: false,
-  title: 'Sign In to Continue',
-  subtitle: 'Verify your phone number to place your order seamlessly',
+  title: DEFAULT_TITLE,
+  subtitle: DEFAULT_SUBTITLE,
   onSuccessCallback: null,
   openAuthModal: (options) => {
-    set({
+    set((state) => ({
       isOpen: true,
-      title: options?.title || 'Sign In to Continue',
-      subtitle: options?.subtitle || 'Verify your phone number to place your order seamlessly',
-      onSuccessCallback: options?.onSuccess || null,
-    });
+      title: options?.title ?? (state.isOpen ? state.title : DEFAULT_TITLE),
+      subtitle: options?.subtitle ?? (state.isOpen ? state.subtitle : DEFAULT_SUBTITLE),
+      onSuccessCallback: options?.onSuccess ?? (state.isOpen ? state.onSuccessCallback : null),
+    }));
   },
   closeAuthModal: () => {
     set({

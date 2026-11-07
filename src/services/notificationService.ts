@@ -213,6 +213,19 @@ export class NotificationService {
     }
 
     try {
+      // 1. Try direct native FCM / APNs device token first
+      if (Notifications?.getDevicePushTokenAsync) {
+        try {
+          const deviceTokenResponse = await Notifications.getDevicePushTokenAsync();
+          if (deviceTokenResponse?.data) {
+            this.cachedPushToken = String(deviceTokenResponse.data);
+            return this.cachedPushToken;
+          }
+        } catch (deviceTokenErr) {
+          console.info('[NotificationService] Native device push token lookup falling back to Expo token:', deviceTokenErr);
+        }
+      }
+
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ??
         Constants?.easConfig?.projectId;
