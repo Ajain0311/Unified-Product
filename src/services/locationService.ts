@@ -1,7 +1,17 @@
 import * as Location from 'expo-location';
+import { Linking, Platform } from 'react-native';
 import { mapboxService } from './mapboxService';
+import { CHITTORGARH_SERVICE_REGION } from '../config/serviceRegion';
 
 export type LocationPermissionStatus = 'granted' | 'denied' | 'undetermined';
+
+export type LocationStatusState =
+  | 'SUCCESS'
+  | 'GPS_DISABLED'
+  | 'PERMISSION_DENIED'
+  | 'PERMISSION_BLOCKED'
+  | 'TIMEOUT'
+  | 'ERROR';
 
 export interface LocationCoordinates {
   latitude: number;
@@ -15,6 +25,13 @@ export interface LocationCoordinates {
   isFallback?: boolean;
 }
 
+export interface LocationDetailResult {
+  state: LocationStatusState;
+  coordinates: LocationCoordinates | null;
+  errorMessage?: string;
+  canOpenSettings?: boolean;
+}
+
 export interface WatchLocationOptions {
   accuracy?: Location.Accuracy;
   timeInterval?: number;
@@ -22,17 +39,162 @@ export interface WatchLocationOptions {
 }
 
 export class LocationService {
+  /**
+   * Reference regional coordinates for Chittorgarh District (used for regional framing only, never disguised as GPS)
+   */
   public static readonly defaultLocation: LocationCoordinates = {
-    latitude: 28.6304,
-    longitude: 77.2177,
-    formattedAddress: 'Connaught Place, Central Delhi',
-    accuracy: 10,
+    latitude: CHITTORGARH_SERVICE_REGION.centerCoordinates.latitude,
+    longitude: CHITTORGARH_SERVICE_REGION.centerCoordinates.longitude,
+    formattedAddress: 'Collectorate Circle, Chittorgarh, Rajasthan',
+    accuracy: null,
     timestamp: Date.now(),
     isFallback: true,
   };
 
 
   private activeWatcherSubscription: Location.LocationSubscription | null = null;
+
+  /**
+   * Opens the device app settings screen so user can unblock permanently denied permissions
+   */
+  async openDeviceSettings(): Promise<void> {
+    try {
+      await Linking.openSettings();
+    } catch (err) {
+      console.warn('[LocationService] openDeviceSettings error:', err);
+    }
+  }
+
+  /**
+   * On Android, triggers native system dialog to turn on GPS provider if disabled
+   */
+  async promptEnableGps(): Promise<boolean> {
+    try {
+      if (Platform.OS === 'android' && typeof Location.enableNetworkProviderAsync === 'function') {
+        await Location.enableNetworkProviderAsync();
+        return await this.isLocationServicesEnabled();
+      }
+      return false;
+    } catch (err) {
+      console.warn('[LocationService] promptEnableGps error:', err);
+      return false;
+    }
+  }
+
+  /**
+   * Production-grade detailed location retrieval implementing States A through F:
+   * State A: GPS Enabled & Granted -> returns real device coordinates.
+   * State B: GPS Disabled -> reports disabled GPS, prompts to open settings.
+   * State C: Undetermined -> requests foreground permission with disclosure.
+   * State D: Denied -> reports denied with retry capability.
+   * State E: Permanently Denied -> guides user to open app settings.
+   * State F: Location retrieval timeout or hardware failure -> reports actionable error.
+   */
+  async getDetailedLocation(options?: {
+    accuracy?: Location.Accuracy;
+    timeoutMs?: number;
+  }): Promise<LocationDetailResult> {
+    const timeoutMs = options?.timeoutMs ?? 10000;
+    const accuracy = options?.accuracy ?? Location.Accuracy.Balanced;
+
+    // 1. Check if hardware GPS is enabled
+    const gpsEnabled = await this.isLocationServicesEnabled();
+    if (!gpsEnabled) {
+      return {
+        state: 'GPS_DISABLED',
+        coordinates: null,
+        errorMessage: 'Location services (GPS) are turned off on your device. Please enable GPS to locate your pickup point accurately.',
+        canOpenSettings: true,
+      };
+    }
+
+    // 2. Check permission status
+    const permissionResponse = await Location.getForegroundPermissionsAsync();
+    if (permissionResponse.status === Location.PermissionStatus.DENIED && !permissionResponse.canAskAgain) {
+      return {
+        state: 'PERMISSION_BLOCKED',
+        coordinates: null,
+        errorMessage: 'Location permission is blocked in your phone settings. Please tap below to open Settings and allow location access.',
+        canOpenSettings: true,
+      };
+    }
+
+    // 3. Request permission if not already granted
+    let finalStatus = permissionResponse.status;
+    if (finalStatus !== Location.PermissionStatus.GRANTED) {
+      const requestResponse = await Location.requestForegroundPermissionsAsync();
+      finalStatus = requestResponse.status;
+      if (finalStatus !== Location.PermissionStatus.GRANTED) {
+        if (!requestResponse.canAskAgain) {
+          return {
+            state: 'PERMISSION_BLOCKED',
+            coordinates: null,
+            errorMessage: 'Location permission was denied permanently. Tap below to enable location in Settings.',
+            canOpenSettings: true,
+          };
+        }
+        return {
+          state: 'PERMISSION_DENIED',
+          coordinates: null,
+          errorMessage: 'Location permission was denied. We need access to show nearby services and set pickup locations.',
+          canOpenSettings: false,
+        };
+      }
+    }
+
+    // 4. Permission is granted and GPS is on -> acquire real device position
+    try {
+      let timeoutHandle: any;
+      const positionPromise = Location.getCurrentPositionAsync({ accuracy });
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error('GPS timeout')), timeoutMs);
+      });
+
+      const position = await Promise.race([positionPromise, timeoutPromise]);
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+
+      const { latitude, longitude, accuracy: posAcc, altitude, speed, heading } = position.coords;
+      let formattedAddress = `${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°`;
+      try {
+        const reversed = await this.reverseGeocode(latitude, longitude);
+        if (reversed && reversed.trim()) {
+          formattedAddress = reversed;
+        }
+      } catch (revErr) {
+        console.debug?.('[LocationService] reverseGeocode fallback:', revErr);
+      }
+
+      return {
+        state: 'SUCCESS',
+        coordinates: {
+          latitude,
+          longitude,
+          formattedAddress,
+          accuracy: posAcc,
+          altitude,
+          speed,
+          heading,
+          timestamp: position.timestamp,
+          isFallback: false,
+        },
+      };
+    } catch (err: any) {
+      if (err?.message === 'GPS timeout') {
+        return {
+          state: 'TIMEOUT',
+          coordinates: null,
+          errorMessage: 'GPS request timed out. Please ensure you have a clear view of the sky or choose your address manually.',
+          canOpenSettings: false,
+        };
+      }
+      return {
+        state: 'ERROR',
+        coordinates: null,
+        errorMessage: err?.message || 'Could not determine location. Please select your address manually.',
+        canOpenSettings: false,
+      };
+    }
+  }
 
   /**
    * Check current foreground location permission status without prompting user

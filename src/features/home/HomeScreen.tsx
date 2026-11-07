@@ -73,9 +73,9 @@ export function resolveDeliveryAddress(payload: any): string {
   if (items.length > 0) {
     const def = items.find((a: any) => a.isDefault) || items[0];
     const line = [def.addressLine1, def.city].filter(Boolean).join(', ');
-    return line || 'Select Delivery Address';
+    return line || 'Chittorgarh District, Rajasthan';
   }
-  return 'Select Delivery Address';
+  return 'Chittorgarh District, Rajasthan';
 }
 
 interface HomeScreenProps {

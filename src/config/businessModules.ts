@@ -1,3 +1,20 @@
+/**
+ * Centralized Ecosystem Module Registry
+ *
+ * Future-ready architectural catalogue supporting dynamic module registration,
+ * role-based filtering, and category-driven presentation.
+ */
+
+export type ModuleCategory =
+  | 'hospitality'
+  | 'delivery'
+  | 'mobility'
+  | 'commerce'
+  | 'nightlife'
+  | 'lifestyle'
+  | 'b2b'
+  | 'services';
+
 export interface BusinessModuleConfig {
   id: string;
   key: string;
@@ -11,6 +28,10 @@ export interface BusinessModuleConfig {
   descriptionEn: string;
   descriptionHi: string;
   isReady: boolean;
+  isEnabled: boolean;
+  category: ModuleCategory;
+  rolesAllowed?: Array<'CUSTOMER' | 'DRIVER' | 'VENDOR' | 'SELLER' | 'ADMIN'>;
+  layoutVariant?: 'grid' | 'featured' | 'compact';
 }
 
 export const BUSINESS_MODULES: BusinessModuleConfig[] = [
@@ -27,6 +48,10 @@ export const BUSINESS_MODULES: BusinessModuleConfig[] = [
     descriptionEn: 'Luxury resorts, boutique stays, anti-no-show booking',
     descriptionHi: 'शानदार रिसॉर्ट्स, बुटीक होटल और सुरक्षित बुकिंग',
     isReady: true,
+    isEnabled: true,
+    category: 'hospitality',
+    rolesAllowed: ['CUSTOMER', 'ADMIN'],
+    layoutVariant: 'featured',
   },
   {
     id: 'mod-food',
@@ -37,10 +62,14 @@ export const BUSINESS_MODULES: BusinessModuleConfig[] = [
     badgeHi: 'लोकप्रिय',
     icon: 'fast-food',
     route: 'Food',
-    gradient: ['#DC2626', '#EF4444'],
+    gradient: ['#FF5A1F', '#FF7A45'],
     descriptionEn: 'Top restaurants, hot meals & snacks delivered fast',
     descriptionHi: 'शीर्ष रेस्तरां, गरमा-गरम भोजन और त्वरित डिलीवरी',
     isReady: true,
+    isEnabled: true,
+    category: 'delivery',
+    rolesAllowed: ['CUSTOMER', 'VENDOR', 'ADMIN'],
+    layoutVariant: 'featured',
   },
   {
     id: 'mod-rides',
@@ -49,12 +78,16 @@ export const BUSINESS_MODULES: BusinessModuleConfig[] = [
     nameHi: 'कैब और राइड्स',
     badgeEn: 'Instant',
     badgeHi: 'तुरंत',
-    icon: 'car',
+    icon: 'car-sport',
     route: 'Rides',
     gradient: ['#2563EB', '#3B82F6'],
     descriptionEn: 'City rides, auto, bike & outstation cabs at transparent fares',
     descriptionHi: 'किफायती और सुरक्षित ऑटो, बाइक एवं कैब राइड्स',
     isReady: true,
+    isEnabled: true,
+    category: 'mobility',
+    rolesAllowed: ['CUSTOMER', 'DRIVER', 'ADMIN'],
+    layoutVariant: 'featured',
   },
   {
     id: 'mod-bazaar',
@@ -63,12 +96,16 @@ export const BUSINESS_MODULES: BusinessModuleConfig[] = [
     nameHi: 'सिटी बाज़ार',
     badgeEn: 'Shop',
     badgeHi: 'खरीदें',
-    icon: 'cart',
+    icon: 'bag-handle',
     route: 'Bazaar',
     gradient: ['#D97706', '#F59E0B'],
     descriptionEn: 'Local sellers, electronics, fashion and verified pre-owned items',
     descriptionHi: 'स्थानीय विक्रेता, इलेक्ट्रॉनिक्स, फैशन और सत्यापित वस्तुएं',
     isReady: true,
+    isEnabled: true,
+    category: 'commerce',
+    rolesAllowed: ['CUSTOMER', 'SELLER', 'ADMIN'],
+    layoutVariant: 'grid',
   },
   {
     id: 'mod-bars',
@@ -83,6 +120,10 @@ export const BUSINESS_MODULES: BusinessModuleConfig[] = [
     descriptionEn: 'Nightlife, cocktail bars, craft breweries & VIP table reservations',
     descriptionHi: 'नाइटलाइफ़, कॉकटेल बार्स, क्राफ्ट ब्रुअरीज एवं वीआईपी टेबल बुकिंग',
     isReady: true,
+    isEnabled: true,
+    category: 'nightlife',
+    rolesAllowed: ['CUSTOMER', 'ADMIN'],
+    layoutVariant: 'grid',
   },
   {
     id: 'mod-beverages',
@@ -97,6 +138,10 @@ export const BUSINESS_MODULES: BusinessModuleConfig[] = [
     descriptionEn: 'Artisan coffee, bubble tea, fresh juices, and specialty brews',
     descriptionHi: 'स्पेशलिटी कॉफी, बबल टी, ताज़ा जूस एवं शेक्स',
     isReady: true,
+    isEnabled: true,
+    category: 'lifestyle',
+    rolesAllowed: ['CUSTOMER', 'ADMIN'],
+    layoutVariant: 'grid',
   },
   {
     id: 'mod-supplies',
@@ -111,5 +156,29 @@ export const BUSINESS_MODULES: BusinessModuleConfig[] = [
     descriptionEn: 'Wholesale mineral water crates, glass bottles & bar soda for hotels & restaurants',
     descriptionHi: 'होटलों, बार्स और रेस्तरां के लिए थोक पानी की बोतलें एवं आपूर्ति',
     isReady: true,
+    isEnabled: true,
+    category: 'b2b',
+    rolesAllowed: ['CUSTOMER', 'VENDOR', 'ADMIN'],
+    layoutVariant: 'grid',
   },
 ];
+
+/**
+ * Filter enabled modules for active user role
+ */
+export function getAvailableModules(
+  activeRole: string = 'CUSTOMER'
+): BusinessModuleConfig[] {
+  return BUSINESS_MODULES.filter((m) => {
+    if (!m.isEnabled || !m.isReady) return false;
+    if (!m.rolesAllowed) return true;
+    return m.rolesAllowed.includes(activeRole as any);
+  });
+}
+
+/**
+ * Retrieve module by key
+ */
+export function getModuleByKey(key: string): BusinessModuleConfig | undefined {
+  return BUSINESS_MODULES.find((m) => m.key.toLowerCase() === key.toLowerCase());
+}

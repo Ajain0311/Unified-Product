@@ -141,7 +141,7 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
   const [sortBy, setSortBy] = useState<'rating' | 'deliveryTime' | 'default'>('default');
   const [searchQuery, setSearchQuery] = useState('');
   const [foods, setFoods] = useState<FoodCatalogItem[]>([]);
-  const [deliverTo, setDeliverTo] = useState('Add delivery address');
+  const [deliverTo, setDeliverTo] = useState('Chittorgarh District, Rajasthan');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
@@ -183,13 +183,13 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
           const def = items.find((a: any) => a.isDefault) || items[0];
           if (def) {
             const line = [def.addressLine1, def.city].filter(Boolean).join(', ');
-            setDeliverTo(line || 'Add delivery address');
+            setDeliverTo(line || 'Chittorgarh District, Rajasthan');
           } else {
-            setDeliverTo('Add delivery address');
+            setDeliverTo('Chittorgarh District, Rajasthan');
           }
         })
         .catch(() => {
-          setDeliverTo('Add delivery address');
+          setDeliverTo('Chittorgarh District, Rajasthan');
         });
     }, [])
   );
@@ -785,13 +785,13 @@ const styles = StyleSheet.create({
     borderRadius: AppRadius.sm,
   },
   restaurantCard: {
-    borderRadius: AppRadius.lg,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
     marginBottom: AppSpacing.md,
   },
   imageHeader: {
-    height: 140,
+    height: 180,
     width: '100%',
     position: 'relative',
   },

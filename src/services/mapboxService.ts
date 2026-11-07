@@ -150,9 +150,8 @@ export const mapboxService = {
       types: 'address,poi,place,locality,neighborhood,district',
       language: 'en',
     });
-    if (proximity) {
-      params.set('proximity', `${proximity.longitude},${proximity.latitude}`);
-    }
+    const effectiveProximity = proximity || { latitude: 24.8887, longitude: 74.6269 };
+    params.set('proximity', `${effectiveProximity.longitude},${effectiveProximity.latitude}`);
 
     const url = `${GEOCODE_BASE}/${encodeURIComponent(q)}.json?${params.toString()}`;
     const res = await fetch(url);

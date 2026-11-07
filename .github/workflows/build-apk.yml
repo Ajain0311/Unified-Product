@@ -75,8 +75,14 @@ jobs:
 
       - name: Rename Dev Client APK
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk zupify-dev-client.apk || true
-          cp android/app/build/outputs/apk/release/app-release.apk zupify-release.apk || true
+          if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk zupify-dev-client.apk
+          fi
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk zupify-release.apk
+          elif [ -f android/app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release-unsigned.apk zupify-release.apk
+          fi
 
       - name: Get Version From app.json
         id: get_version

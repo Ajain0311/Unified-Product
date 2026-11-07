@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,11 @@ import { locationService } from '../../services/locationService';
 import { LocationMapPicker } from '../../components/maps/LocationMapPicker';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { mapboxService, SelectedMapPlace } from '../../services/mapboxService';
-import { useAppTheme } from '../../theme/themeStore';
+import { useAppTheme, ThemePalette } from '../../theme/themeStore';
+import {
+  isCoordinatesWithinServiceRegion,
+  CHITTORGARH_SERVICE_REGION,
+} from '../../config/serviceRegion';
 import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 
 interface VehicleOption {
@@ -76,6 +80,7 @@ const VEHICLES: VehicleOption[] = [
 export const RideBookingScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [vehicles, setVehicles] = useState<VehicleOption[]>(VEHICLES);
   const [routeMetrics, setRouteMetrics] = useState<string | null>(null);
@@ -189,60 +194,99 @@ export const RideBookingScreen: React.FC = () => {
     setIsLocating(true);
     setGpsStatus('LOCATING');
     try {
-      const loc = await locationService.getCurrentLocation({
+      const result = await locationService.getDetailedLocation({
         timeoutMs: 12000,
-        throwOnError: true,
-        forceFresh: true,
-        maxAccuracyMeters: 50,
       });
+
       if (!isMountedRef.current) return;
 
-      if (loc.isFallback) {
-        throw new Error('Real GPS location unavailable. Search an address or drop a pin.');
-      }
+      if (result.state === 'SUCCESS' && result.coordinates) {
+        const newCoords = {
+          latitude: result.coordinates.latitude,
+          longitude: result.coordinates.longitude,
+        };
+        const newAddress =
+          result.coordinates.formattedAddress ||
+          `${result.coordinates.latitude.toFixed(4)}°, ${result.coordinates.longitude.toFixed(4)}°`;
 
-      const newCoords = { latitude: loc.latitude, longitude: loc.longitude };
-      const newAddress = loc.formattedAddress || `${loc.latitude.toFixed(4)}°, ${loc.longitude.toFixed(4)}°`;
-      setPickupCoords(newCoords);
-      setPickupAddress(newAddress);
-      setPickupInput(newAddress);
-      setGpsStatus('ONLINE');
-      if (dropoffCoords) {
-        fetchEstimate(newCoords, newAddress, dropoffCoords, dropoffAddress);
-      }
-    } catch (error) {
-      if (!isMountedRef.current) return;
-      console.warn('[RideBookingScreen] Could not retrieve GPS:', error);
-      const message = String((error as any)?.message || '');
-      const isDenied = message.toLowerCase().includes('denied');
-      const isDisabled = message.toLowerCase().includes('disabled');
+        setPickupCoords(newCoords);
+        setPickupAddress(newAddress);
+        setPickupInput(newAddress);
+        setGpsStatus('ONLINE');
 
-      setGpsStatus(isDenied ? 'DENIED' : 'UNAVAILABLE');
-      if (isDenied) {
+        const inRegion = isCoordinatesWithinServiceRegion(newCoords.latitude, newCoords.longitude);
+        if (!inRegion) {
+          Alert.alert(
+            'Out of Service Region',
+            `Your current location is outside ${CHITTORGARH_SERVICE_REGION.displayName}. SuperApp rides are currently active within Chittorgarh District. You can still view fares or set a pickup point within the district.`
+          );
+        }
+
+        if (dropoffCoords) {
+          fetchEstimate(newCoords, newAddress, dropoffCoords, dropoffAddress);
+        }
+      } else if (result.state === 'GPS_DISABLED') {
+        setGpsStatus('UNAVAILABLE');
+        Alert.alert(
+          'GPS Disabled',
+          'Device location / GPS is turned off. Please turn on GPS so we can detect your pickup point.',
+          [
+            { text: 'Set on Map', style: 'cancel' },
+            {
+              text: 'Turn On GPS',
+              onPress: async () => {
+                await locationService.promptEnableGps();
+                handleLocateMe();
+              },
+            },
+          ]
+        );
+        setPickupAddress('Location services disabled. Please enable GPS.');
+      } else if (result.state === 'PERMISSION_BLOCKED') {
+        setGpsStatus('DENIED');
+        Alert.alert(
+          'Location Permission Blocked',
+          'Location access is blocked in your phone settings. Please enable location permission to locate yourself.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => locationService.openDeviceSettings(),
+            },
+          ]
+        );
+        setPickupAddress('Location permission blocked. Enable in Settings or select on map.');
+      } else if (result.state === 'PERMISSION_DENIED') {
+        setGpsStatus('DENIED');
         Alert.alert(
           'Location Required',
           'Please allow location access so we can detect your pickup point and find nearby rides.',
           [
             { text: 'Set on Map', style: 'cancel' },
             {
-              text: 'Allow Location',
-              onPress: async () => {
-                const res = await locationService.requestPermission();
-                if (res === 'granted') {
-                  handleLocateMe();
-                }
-              },
+              text: 'Retry',
+              onPress: () => handleLocateMe(),
             },
           ]
         );
+        setPickupAddress('Location permission denied. Search or move the map pin.');
+      } else if (result.state === 'TIMEOUT') {
+        setGpsStatus('UNAVAILABLE');
+        Alert.alert(
+          'GPS Timeout',
+          'Could not get a timely GPS lock. Please check your signal or pick your pickup point on the map.',
+          [{ text: 'OK' }]
+        );
+        setPickupAddress('GPS timed out. Tap map to select pickup point.');
+      } else {
+        setGpsStatus('UNAVAILABLE');
+        setPickupAddress('GPS unavailable. Search an address or move the map pin.');
       }
-      setPickupAddress(
-        isDenied
-          ? 'Location permission denied. Search or move the map pin.'
-          : isDisabled
-          ? 'Location services disabled. Please enable GPS on your device.'
-          : 'GPS unavailable. Search an address or move the map pin.'
-      );
+    } catch (error) {
+      if (!isMountedRef.current) return;
+      console.warn('[RideBookingScreen] Could not retrieve GPS:', error);
+      setGpsStatus('UNAVAILABLE');
+      setPickupAddress('GPS unavailable. Search an address or move the map pin.');
     } finally {
       if (isMountedRef.current) {
         setIsLocating(false);
@@ -391,6 +435,14 @@ export const RideBookingScreen: React.FC = () => {
       return;
     }
 
+    if (!isCoordinatesWithinServiceRegion(pickupCoords.latitude, pickupCoords.longitude)) {
+      Alert.alert(
+        'Outside Service Region',
+        `Rides are currently active only within ${CHITTORGARH_SERVICE_REGION.displayName}. Please select a pickup point within the district.`
+      );
+      return;
+    }
+
     setIsBooking(true);
     try {
       const res = await apiClient.post<any>(ApiEndpoints.ride.book, {
@@ -472,7 +524,7 @@ export const RideBookingScreen: React.FC = () => {
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
           {/* Pickup Row */}
           <View style={styles.inputRow}>
-            <View style={[styles.dot, { backgroundColor: colors.secondary }]} />
+            <View style={[styles.dot, { backgroundColor: theme.secondary }]} />
             <View style={styles.inputWrapper}>
               <View style={styles.pickupHeaderRow}>
                 <Text style={styles.locationLabel}>PICKUP LOCATION</Text>
@@ -482,7 +534,7 @@ export const RideBookingScreen: React.FC = () => {
                   style={styles.locateMeButton}
                   activeOpacity={0.7}
                 >
-                  <MaterialIcons name="my-location" size={12} color={colors.primary} />
+                  <MaterialIcons name="my-location" size={12} color={theme.primary} />
                   <Text style={styles.locateMeText}>{isLocating ? 'Locating...' : 'Use GPS'}</Text>
                 </TouchableOpacity>
               </View>
@@ -497,7 +549,7 @@ export const RideBookingScreen: React.FC = () => {
                     setPickupInput(pickupAddress.startsWith('Locating') ? '' : pickupAddress);
                   }}
                   placeholder="Where to pick you up?"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={theme.textTertiary}
                   style={styles.textInput}
                   selectTextOnFocus
                   autoCorrect={false}
@@ -509,7 +561,7 @@ export const RideBookingScreen: React.FC = () => {
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     accessibilityLabel="Clear pickup location"
                   >
-                    <MaterialIcons name="cancel" size={18} color={colors.textTertiary} />
+                    <MaterialIcons name="cancel" size={18} color={theme.textTertiary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -519,7 +571,7 @@ export const RideBookingScreen: React.FC = () => {
               onPress={() => openMapModal('pickup')}
               accessibilityLabel="Pin pickup on map"
             >
-              <MaterialIcons name="map" size={20} color={colors.secondary} />
+              <MaterialIcons name="map" size={20} color={theme.secondary} />
             </TouchableOpacity>
           </View>
 
@@ -530,7 +582,7 @@ export const RideBookingScreen: React.FC = () => {
 
           {/* Destination Row */}
           <View style={styles.inputRow}>
-            <View style={[styles.dot, { backgroundColor: colors.error }]} />
+            <View style={[styles.dot, { backgroundColor: theme.error }]} />
             <View style={styles.inputWrapper}>
               <Text style={styles.locationLabel}>WHERE TO?</Text>
               <View style={styles.inputFieldContainer}>
@@ -544,7 +596,7 @@ export const RideBookingScreen: React.FC = () => {
                     setDropoffInput(dropoffAddress.startsWith('Tap map') ? '' : dropoffAddress);
                   }}
                   placeholder="Enter drop destination"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={theme.textTertiary}
                   style={styles.textInput}
                   selectTextOnFocus
                   autoCorrect={false}
@@ -556,7 +608,7 @@ export const RideBookingScreen: React.FC = () => {
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     accessibilityLabel="Clear destination"
                   >
-                    <MaterialIcons name="cancel" size={18} color={colors.textTertiary} />
+                    <MaterialIcons name="cancel" size={18} color={theme.textTertiary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -566,14 +618,14 @@ export const RideBookingScreen: React.FC = () => {
               onPress={() => openMapModal('dropoff')}
               accessibilityLabel="Pin destination on map"
             >
-              <MaterialIcons name="map" size={20} color={colors.error} />
+              <MaterialIcons name="map" size={20} color={theme.error} />
             </TouchableOpacity>
           </View>
 
           {/* Autocomplete Dropdown List */}
           {isSearchingPlaces && placeHits.length === 0 && (
             <View style={[styles.autocompleteContainer, { padding: 12, alignItems: 'center' }]}>
-              <ActivityIndicator size="small" color={colors.primary} />
+              <ActivityIndicator size="small" color={theme.primary} />
             </View>
           )}
 
@@ -585,7 +637,7 @@ export const RideBookingScreen: React.FC = () => {
                   onPress={() => chooseSearchHit(hit)}
                   style={styles.autocompleteItem}
                 >
-                  <MaterialIcons name="place" size={18} color={colors.primary} />
+                  <MaterialIcons name="place" size={18} color={theme.primary} />
                   <Text style={styles.autocompleteText} numberOfLines={2}>
                     {hit.label}
                   </Text>
@@ -595,20 +647,20 @@ export const RideBookingScreen: React.FC = () => {
           )}
 
           {searchError ? (
-            <Text style={{ color: colors.error, fontSize: 12, marginTop: 6 }}>{searchError}</Text>
+            <Text style={{ color: theme.error, fontSize: 12, marginTop: 6 }}>{searchError}</Text>
           ) : null}
         </View>
 
         {/* Route Metrics / Guidance Badge */}
         {routeMetrics ? (
           <View style={styles.metricsBadge}>
-            <MaterialIcons name="alt-route" size={16} color={colors.blue} />
+            <MaterialIcons name="alt-route" size={16} color={theme.info} />
             <Text style={styles.metricsText}>{routeMetrics}</Text>
           </View>
         ) : (
-          <View style={[styles.metricsBadge, { backgroundColor: 'rgba(255, 107, 0, 0.08)' }]}>
-            <MaterialIcons name="touch-app" size={16} color={colors.primary} />
-            <Text style={[styles.metricsText, { color: colors.textSecondary }]}>
+          <View style={[styles.metricsBadge, { backgroundColor: isDark ? 'rgba(255, 122, 69, 0.15)' : 'rgba(255, 90, 31, 0.08)' }]}>
+            <MaterialIcons name="touch-app" size={16} color={theme.primary} />
+            <Text style={[styles.metricsText, { color: theme.textSecondary }]}>
               {dropoffCoords
                 ? 'Calculating route & fares...'
                 : 'Type drop location or tap 🗺️ map icon to set on map'}
@@ -628,7 +680,7 @@ export const RideBookingScreen: React.FC = () => {
                   onPress={() => setSelectedOptions((current) => on ? current.filter((code) => code !== option.code) : [...current, option.code])}
                   style={{ paddingVertical: 8 }}
                 >
-                  <Text style={{ color: colors.textPrimary }}>
+                  <Text style={{ color: theme.textPrimary }}>
                     {on ? '✓' : '○'} {option.name}  +₹{option.additionalAmount}
                   </Text>
                 </TouchableOpacity>
@@ -638,9 +690,9 @@ export const RideBookingScreen: React.FC = () => {
         )}
         {selectedVehicle.baseFare ? (
           <View style={{ marginBottom: 12 }}>
-            <Text style={{ color: colors.textSecondary }}>Estimated fare · {routeMetrics || 'set pickup and destination'}</Text>
-            <Text style={{ color: colors.textPrimary }}>Base ₹{selectedVehicle.baseFare} · Distance ₹{selectedVehicle.distanceFare} · Time ₹{selectedVehicle.timeFare}</Text>
-            <Text style={{ color: colors.textPrimary }}>Booking ₹{selectedVehicle.bookingFee} · Platform ₹{selectedVehicle.platformFee} · Options ₹{selectedVehicle.optionsTotal || 0}</Text>
+            <Text style={{ color: theme.textSecondary }}>Estimated fare · {routeMetrics || 'set pickup and destination'}</Text>
+            <Text style={{ color: theme.textPrimary }}>Base ₹{selectedVehicle.baseFare} · Distance ₹{selectedVehicle.distanceFare} · Time ₹{selectedVehicle.timeFare}</Text>
+            <Text style={{ color: theme.textPrimary }}>Booking ₹{selectedVehicle.bookingFee} · Platform ₹{selectedVehicle.platformFee} · Options ₹{selectedVehicle.optionsTotal || 0}</Text>
           </View>
         ) : null}
 
@@ -754,7 +806,7 @@ export const RideBookingScreen: React.FC = () => {
                 onPress={() => setIsMapModalVisible(false)}
                 style={styles.modalCloseBtn}
               >
-                <MaterialIcons name="close" size={24} color={colors.textPrimary} />
+                <MaterialIcons name="close" size={24} color={theme.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -786,343 +838,344 @@ export const RideBookingScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  backButton: {
-    padding: spacing.xs,
-  },
-  headerTitle: {
-    ...typography.h2,
-    color: colors.textPrimary,
-  },
-  gpsChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 200, 83, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: spacing.radiusLg,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 200, 83, 0.3)',
-    gap: 4,
-  },
-  gpsChipDenied: {
-    backgroundColor: 'rgba(244, 67, 54, 0.15)',
-    borderColor: 'rgba(244, 67, 54, 0.3)',
-  },
-  gpsChipLocating: {
-    backgroundColor: 'rgba(33, 150, 243, 0.15)',
-    borderColor: 'rgba(33, 150, 243, 0.3)',
-  },
-  gpsText: {
-    ...typography.caption,
-    color: colors.secondary,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    padding: spacing.md,
-    paddingBottom: spacing.xxl,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: spacing.sm,
-  },
-  locationTextGroup: {
-    flex: 1,
-  },
-  pickupHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  locateMeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 107, 0, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  locateMeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  locationLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textTertiary,
-    letterSpacing: 0.8,
-  },
-  locationValue: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  coordsSubtitle: {
-    fontSize: 10,
-    color: colors.textTertiary,
-    marginTop: 2,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  dividerLineVertical: {
-    width: 2,
-    height: 20,
-    backgroundColor: colors.border,
-    marginLeft: 4,
-    marginRight: spacing.md,
-  },
-  dividerHorizontal: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  metricsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceLight,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: spacing.radiusMd,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    marginTop: spacing.sm,
-    gap: 6,
-  },
-  metricsText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  inputWrapper: {
-    flex: 1,
-  },
-  inputFieldContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  textInput: {
-    flex: 1,
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-    paddingVertical: 4,
-    paddingRight: 6,
-  },
-  clearBtn: {
-    padding: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pinMapBtn: {
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  autocompleteContainer: {
-    marginTop: 10,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    maxHeight: 180,
-  },
-  autocompleteItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  autocompleteText: {
-    flex: 1,
-    color: colors.textPrimary,
-    fontSize: 13,
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
-    zIndex: 999,
-  },
-  modalSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: spacing.md,
-    borderTopWidth: 1,
-    borderColor: colors.border,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  modalTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-  },
-  modalCloseBtn: {
-    padding: 4,
-  },
-  modalMapContent: {
-    marginVertical: 4,
-  },
-  modalDoneBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  modalDoneBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 15,
-  },
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.textTertiary,
-    letterSpacing: 1.0,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  vehicleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 10,
-  },
-  vehicleCardSelected: {
-    backgroundColor: colors.surfaceLight,
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-  },
-  vehicleIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vehicleInfo: {
-    flex: 1,
-    marginLeft: spacing.sm,
-    marginRight: spacing.sm,
-  },
-  vehicleTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  vehicleName: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  tagBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  tagText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  vehicleSubtitle: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 3,
-  },
-  vehicleFare: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  actionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    gap: 12,
-  },
-  paymentButton: {
-    height: 52,
-    paddingHorizontal: 14,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  paymentText: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  bookButton: {
-    flex: 1,
-    height: 52,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookButtonText: {
-    ...typography.bodyLarge,
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-});
+const createStyles = (theme: ThemePalette, isDark: boolean) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    backButton: {
+      padding: spacing.xs,
+    },
+    headerTitle: {
+      ...typography.h2,
+      color: theme.textPrimary,
+    },
+    gpsChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 200, 83, 0.15)',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: spacing.radiusLg,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 200, 83, 0.3)',
+      gap: 4,
+    },
+    gpsChipDenied: {
+      backgroundColor: 'rgba(244, 67, 54, 0.15)',
+      borderColor: 'rgba(244, 67, 54, 0.3)',
+    },
+    gpsChipLocating: {
+      backgroundColor: 'rgba(33, 150, 243, 0.15)',
+      borderColor: 'rgba(33, 150, 243, 0.3)',
+    },
+    gpsText: {
+      ...typography.caption,
+      color: theme.secondary,
+      fontWeight: '700',
+    },
+    scrollContent: {
+      padding: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
+    card: {
+      backgroundColor: theme.card,
+      borderRadius: 18,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    locationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    dot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: spacing.sm,
+    },
+    locationTextGroup: {
+      flex: 1,
+    },
+    pickupHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    locateMeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: isDark ? 'rgba(255, 122, 69, 0.2)' : 'rgba(255, 90, 31, 0.12)',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+    },
+    locateMeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.primary,
+    },
+    locationLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.textTertiary,
+      letterSpacing: 0.8,
+    },
+    locationValue: {
+      ...typography.bodyMedium,
+      color: theme.textPrimary,
+      fontWeight: '700',
+      marginTop: 2,
+    },
+    coordsSubtitle: {
+      fontSize: 10,
+      color: theme.textTertiary,
+      marginTop: 2,
+    },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 8,
+    },
+    dividerLineVertical: {
+      width: 2,
+      height: 20,
+      backgroundColor: theme.cardBorder,
+      marginLeft: 4,
+      marginRight: spacing.md,
+    },
+    dividerHorizontal: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.cardBorder,
+    },
+    metricsBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.surfaceLight,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: spacing.radiusMd,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      marginTop: spacing.sm,
+      gap: 6,
+    },
+    metricsText: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      fontWeight: '600',
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    inputWrapper: {
+      flex: 1,
+    },
+    inputFieldContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    textInput: {
+      flex: 1,
+      color: theme.textPrimary,
+      fontSize: 14,
+      fontWeight: '600',
+      paddingVertical: 4,
+      paddingRight: 6,
+    },
+    clearBtn: {
+      padding: 4,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    pinMapBtn: {
+      padding: 8,
+      borderRadius: 10,
+      backgroundColor: theme.surfaceLight,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    autocompleteContainer: {
+      marginTop: 10,
+      backgroundColor: theme.surfaceLight,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      overflow: 'hidden',
+      maxHeight: 180,
+    },
+    autocompleteItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.cardBorder,
+    },
+    autocompleteText: {
+      flex: 1,
+      color: theme.textPrimary,
+      fontSize: 13,
+    },
+    modalOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      justifyContent: 'flex-end',
+      zIndex: 999,
+    },
+    modalSheet: {
+      backgroundColor: theme.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: spacing.md,
+      borderTopWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    modalTitle: {
+      ...typography.h3,
+      color: theme.textPrimary,
+    },
+    modalCloseBtn: {
+      padding: 4,
+    },
+    modalMapContent: {
+      marginVertical: 4,
+    },
+    modalDoneBtn: {
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    modalDoneBtnText: {
+      color: '#FFFFFF',
+      fontWeight: '800',
+      fontSize: 15,
+    },
+    sectionHeader: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: theme.textTertiary,
+      letterSpacing: 1.0,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    vehicleCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.surface,
+      borderRadius: 16,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      marginBottom: 10,
+    },
+    vehicleCardSelected: {
+      backgroundColor: theme.surfaceLight,
+      borderColor: theme.primary,
+      borderWidth: 1.5,
+    },
+    vehicleIconContainer: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    vehicleInfo: {
+      flex: 1,
+      marginLeft: spacing.sm,
+      marginRight: spacing.sm,
+    },
+    vehicleTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    vehicleName: {
+      ...typography.bodyMedium,
+      color: theme.textPrimary,
+      fontWeight: '600',
+    },
+    tagBadge: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+    },
+    tagText: {
+      fontSize: 9,
+      fontWeight: '800',
+    },
+    vehicleSubtitle: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      marginTop: 3,
+    },
+    vehicleFare: {
+      fontSize: 18,
+      fontWeight: '900',
+      color: theme.textPrimary,
+    },
+    actionBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: spacing.lg,
+      gap: 12,
+    },
+    paymentButton: {
+      height: 52,
+      paddingHorizontal: 14,
+      backgroundColor: theme.surfaceLight,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    paymentText: {
+      ...typography.bodySmall,
+      color: theme.textPrimary,
+      fontWeight: '600',
+    },
+    bookButton: {
+      flex: 1,
+      height: 52,
+      backgroundColor: theme.primary,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bookButtonText: {
+      ...typography.bodyLarge,
+      color: '#FFFFFF',
+      fontWeight: '800',
+    },
+  });

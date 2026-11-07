@@ -29,7 +29,9 @@ export const ModuleGrid: React.FC<ModuleGridProps> = ({
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
 
-  const activeModules = modules.filter((m) => m.isReady !== false);
+  const activeModules = modules.filter(
+    (m) => m.isReady !== false && m.isEnabled !== false
+  );
 
   if (variant === 'compact') {
     return (

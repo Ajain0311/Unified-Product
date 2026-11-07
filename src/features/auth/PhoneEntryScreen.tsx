@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,14 +12,16 @@ import {
   Keyboard,
   Platform,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../store/authStore';
-import { useAppTheme } from '../../theme/themeStore';
+import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 import { shadowStyle } from '../../utils/platformStyles';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
+import { CHITTORGARH_SERVICE_REGION } from '../../config/serviceRegion';
 
 interface PhoneEntryScreenProps {
   navigation: any;
@@ -27,6 +29,8 @@ interface PhoneEntryScreenProps {
 
 export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }) => {
   const { theme, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -87,14 +91,7 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A0E21" />
-
-      <LinearGradient
-        colors={['#1E1738', '#141829', '#0A0E21']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.6 }}
-        style={StyleSheet.absoluteFill}
-      />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       <FormKeyboardAvoid offset={Platform.OS === 'ios' ? 8 : 0}>
         <ScrollView
@@ -108,48 +105,59 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
           showsVerticalScrollIndicator={false}
           contentInsetAdjustmentBehavior="always"
         >
+          {/* Brand Header */}
           <View style={[styles.brandHeader, keyboardOpen && styles.brandHeaderCompact]}>
             <LinearGradient
-              colors={['#FF6B35', '#E55A2B']}
+              colors={['#FF5A1F', '#FF8A5C']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[styles.logoBadge, keyboardOpen && styles.logoBadgeCompact]}
             >
-              <Ionicons name="sparkles" size={keyboardOpen ? 20 : 28} color="#FFFFFF" />
+              <Ionicons name="sparkles" size={keyboardOpen ? 22 : 30} color="#FFFFFF" />
             </LinearGradient>
 
-            {!keyboardOpen ? (
-              <View style={styles.appPill}>
+            {!keyboardOpen && (
+              <View style={styles.regionBadge}>
                 <View style={styles.pulseDot} />
-                <Text style={styles.appPillText}>ALL-IN-ONE SUPER APP</Text>
+                <Text style={styles.regionBadgeText}>
+                  {CHITTORGARH_SERVICE_REGION.displayName.toUpperCase()}
+                </Text>
               </View>
-            ) : null}
+            )}
 
-            <Text style={[styles.heroTitle, keyboardOpen && styles.heroTitleCompact]}>SuperApp</Text>
-            {!keyboardOpen ? (
+            <Text style={[styles.heroTitle, keyboardOpen && styles.heroTitleCompact]}>
+              Zupify
+            </Text>
+            {!keyboardOpen && (
               <Text style={styles.heroSubtitle}>
-                Delicious Food • Fast City Rides • Local Bazaar
+                The Complete Super App • Food, Rides, Bazaar & Stays
               </Text>
-            ) : null}
+            )}
           </View>
 
-          {!keyboardOpen ? (
+          {/* Module Discovery Feature Chips */}
+          {!keyboardOpen && (
             <View style={styles.featureRow}>
               <View style={styles.featureChip}>
                 <Ionicons name="fast-food" size={13} color="#FF5A1F" style={{ marginRight: 6 }} />
-                <Text style={styles.featureChipText}>Food Delivery</Text>
+                <Text style={styles.featureChipText}>Food</Text>
               </View>
               <View style={styles.featureChip}>
                 <Ionicons name="car-sport" size={13} color="#2563EB" style={{ marginRight: 6 }} />
-                <Text style={styles.featureChipText}>Fast Cabs</Text>
+                <Text style={styles.featureChipText}>Rides</Text>
               </View>
               <View style={styles.featureChip}>
                 <Ionicons name="bag-handle" size={13} color="#D97706" style={{ marginRight: 6 }} />
-                <Text style={styles.featureChipText}>City Bazaar</Text>
+                <Text style={styles.featureChipText}>Bazaar</Text>
+              </View>
+              <View style={styles.featureChip}>
+                <Ionicons name="bed" size={13} color="#047857" style={{ marginRight: 6 }} />
+                <Text style={styles.featureChipText}>Hotels</Text>
               </View>
             </View>
-          ) : null}
+          )}
 
+          {/* Phone Entry Card */}
           <View
             style={styles.cardContainer}
             onLayout={(e) => {
@@ -158,7 +166,7 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
           >
             <Text style={styles.cardTitle}>Login or Sign Up</Text>
             <Text style={styles.cardSubtitle}>
-              Enter your mobile number — we will send a 6-digit OTP
+              Enter your mobile number — we will send an OTP to verify
             </Text>
 
             <View
@@ -168,13 +176,15 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
                 isValidLength && styles.phoneInputCardValid,
               ]}
             >
-              <Text style={styles.flagIcon}>🇮🇳</Text>
-              <Text style={styles.countryCodeText}>+91</Text>
+              <View style={styles.countryCodePill}>
+                <Text style={styles.flagIcon}>🇮🇳</Text>
+                <Text style={styles.countryCodeText}>+91</Text>
+              </View>
               <View style={styles.inputDivider} />
               <TextInput
                 style={styles.phoneNumberInput}
                 placeholder="10-digit mobile number"
-                placeholderTextColor="#64748B"
+                placeholderTextColor={theme.textTertiary}
                 keyboardType="phone-pad"
                 maxLength={10}
                 value={phoneNumber}
@@ -197,7 +207,7 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
                     onPress={() => setPhoneNumber('')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Ionicons name="close-circle" size={20} color="#64748B" />
+                    <Ionicons name="close-circle" size={20} color={theme.textTertiary} />
                   </TouchableOpacity>
                 )
               ) : null}
@@ -208,12 +218,12 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
                 {isValidLength
                   ? 'Ready to send code'
                   : cleanNumber.length > 0
-                  ? `${cleanNumber.length}/10 digits`
-                  : 'Enter 10-digit mobile number'}
+                  ? `${cleanNumber.length}/10 digits entered`
+                  : 'Enter your 10-digit mobile number'}
               </Text>
               <View style={styles.securityBadge}>
-                <Ionicons name="shield-checkmark-outline" size={13} color="#0D9488" />
-                <Text style={styles.securityBadgeText}>Secure</Text>
+                <Ionicons name="shield-checkmark" size={13} color="#10B981" />
+                <Text style={styles.securityBadgeText}>Verified & Secure</Text>
               </View>
             </View>
 
@@ -224,356 +234,367 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
               ]}
               onPress={handleContinue}
               disabled={isLoading || !isValidLength}
-              activeOpacity={0.85}
+              activeOpacity={0.88}
             >
               <LinearGradient
                 colors={
                   isValidLength && !isLoading
-                    ? ['#FF6B35', '#E55A2B']
-                    : ['#334155', '#1E293B']
+                    ? ['#FF5A1F', '#FF7A45']
+                    : isDark
+                    ? ['#1F293D', '#162032']
+                    : ['#E2E8F0', '#CBD5E1']
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.continueBtnGradient}
               >
-                <View style={styles.btnContentRow}>
-                  <Text
-                    style={[
-                      styles.continueBtnText,
-                      !isValidLength && styles.continueBtnTextDisabled,
-                    ]}
-                  >
-                    {isLoading ? 'Sending OTP…' : 'Get Verification Code'}
-                  </Text>
-                  {!isLoading ? (
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <View style={styles.btnContentRow}>
+                    <Text
+                      style={[
+                        styles.continueBtnText,
+                        !isValidLength && styles.continueBtnTextDisabled,
+                      ]}
+                    >
+                      Continue with OTP
+                    </Text>
                     <Ionicons
                       name="arrow-forward"
                       size={18}
-                      color={isValidLength ? '#FFFFFF' : '#64748B'}
+                      color={isValidLength ? '#FFFFFF' : theme.textTertiary}
                     />
-                  ) : null}
-                </View>
+                  </View>
+                )}
               </LinearGradient>
             </TouchableOpacity>
           </View>
 
-          {!keyboardOpen ? (
+          {/* Trust Highlights & Legal */}
+          {!keyboardOpen && (
             <>
               <View style={styles.trustGrid}>
                 <View style={styles.trustItem}>
-                  <Ionicons name="flash-outline" size={16} color="#FF8A5C" />
+                  <Ionicons name="flash-outline" size={16} color={theme.primary} />
                   <Text style={styles.trustText}>Instant SMS OTP</Text>
                 </View>
                 <View style={styles.trustDot} />
                 <View style={styles.trustItem}>
                   <Ionicons name="lock-closed-outline" size={16} color="#10B981" />
-                  <Text style={styles.trustText}>Encrypted</Text>
+                  <Text style={styles.trustText}>256-bit Secure</Text>
                 </View>
                 <View style={styles.trustDot} />
                 <View style={styles.trustItem}>
-                  <Ionicons name="shield-outline" size={16} color="#3B82F6" />
+                  <Ionicons name="shield-checkmark-outline" size={16} color="#2563EB" />
                   <Text style={styles.trustText}>Zero Spam</Text>
                 </View>
               </View>
 
               <Text style={styles.termsText}>
-                By continuing, you agree to RJ09 SEWA's{' '}
+                By signing in, you agree to our{' '}
                 <Text
                   style={styles.termsLink}
-                  onPress={() => Linking.openURL('https://superapp-website-ashen.vercel.app/terms-and-conditions')}
+                  onPress={() =>
+                    Linking.openURL('https://superapp-website-ashen.vercel.app/terms-and-conditions')
+                  }
                 >
                   Terms of Service
                 </Text>{' '}
                 and{' '}
                 <Text
                   style={styles.termsLink}
-                  onPress={() => Linking.openURL('https://superapp-website-ashen.vercel.app/privacy-policy')}
+                  onPress={() =>
+                    Linking.openURL('https://superapp-website-ashen.vercel.app/privacy-policy')
+                  }
                 >
                   Privacy Policy
-                </Text>.
+                </Text>
+                .
               </Text>
             </>
-          ) : null}
+          )}
         </ScrollView>
       </FormKeyboardAvoid>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#0A0E21',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContentKeyboard: {
-    justifyContent: 'flex-start',
-    paddingTop: 8,
-    paddingBottom: 120,
-  },
-  brandHeader: {
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 18,
-  },
-  brandHeaderCompact: {
-    marginTop: 0,
-    marginBottom: 12,
-  },
-  logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadowStyle({
-      color: '#FF6B35',
-      offsetY: 8,
-      opacity: 0.35,
-      radius: 16,
-      elevation: 8,
-    }),
-    marginBottom: 14,
-  },
-  logoBadgeCompact: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    marginBottom: 8,
-  },
-  appPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 53, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 107, 53, 0.25)',
-    marginBottom: 10,
-  },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FF6B35',
-    marginRight: 6,
-  },
-  appPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#FF8A5C',
-    letterSpacing: 1.2,
-  },
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-    marginBottom: 6,
-  },
-  heroTitleCompact: {
-    fontSize: 22,
-    marginBottom: 0,
-  },
-  heroSubtitle: {
-    fontSize: 13,
-    color: '#94A3B8',
-    textAlign: 'center',
-    maxWidth: 280,
-    lineHeight: 18,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 22,
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-  },
-  featureChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#141829',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#2A2D3E',
-  },
-  featureChipIcon: {
-    fontSize: 13,
-    marginRight: 6,
-  },
-  featureChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#CBD5E1',
-  },
-  cardContainer: {
-    width: '100%',
-    backgroundColor: '#141829',
-    borderRadius: 24,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: '#2A2D3E',
-    ...shadowStyle({
-      color: '#000000',
-      offsetY: 10,
-      opacity: 0.3,
-      radius: 20,
-      elevation: 6,
-    }),
-    marginBottom: 24,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 6,
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    color: '#94A3B8',
-    lineHeight: 19,
-    marginBottom: 18,
-  },
-  phoneInputCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0A0E21',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#2A2D3E',
-    paddingHorizontal: 12,
-    minHeight: 56,
-    marginBottom: 8,
-  },
-  phoneInputCardFocused: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#0d122b',
-  },
-  phoneInputCardValid: {
-    borderColor: '#10B981',
-  },
-  flagIcon: {
-    fontSize: 18,
-    marginRight: 4,
-  },
-  countryCodeText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  inputDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: '#2A2D3E',
-    marginHorizontal: 10,
-  },
-  phoneNumberInput: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    margin: 0,
-  },
-  verifiedIconBox: {
-    marginLeft: 6,
-  },
-  helperRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
-    paddingHorizontal: 4,
-  },
-  helperText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: '600',
-  },
-  helperTextReady: {
-    color: '#10B981',
-  },
-  securityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  securityBadgeText: {
-    fontSize: 11,
-    color: '#0D9488',
-    fontWeight: '700',
-  },
-  continueBtn: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  continueBtnDisabled: {
-    opacity: 0.75,
-  },
-  continueBtnGradient: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnContentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  continueBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  continueBtnTextDisabled: {
-    color: '#94A3B8',
-  },
-  trustGrid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 24,
-    paddingHorizontal: 8,
-  },
-  trustItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  trustText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: '600',
-  },
-  trustDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: '#334155',
-  },
-  termsText: {
-    fontSize: 11,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 320,
-  },
-  termsLink: {
-    color: '#94A3B8',
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
-});
+const createStyles = (theme: ThemePalette, isDark: boolean) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: 22,
+      paddingTop: 24,
+      paddingBottom: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    scrollContentKeyboard: {
+      justifyContent: 'flex-start',
+      paddingTop: 12,
+      paddingBottom: 100,
+    },
+    brandHeader: {
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    brandHeaderCompact: {
+      marginBottom: 12,
+    },
+    logoBadge: {
+      width: 64,
+      height: 64,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...shadowStyle({
+        color: '#FF5A1F',
+        offsetY: 8,
+        opacity: 0.35,
+        radius: 16,
+        elevation: 8,
+      }),
+      marginBottom: 14,
+    },
+    logoBadgeCompact: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      marginBottom: 8,
+    },
+    regionBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(255, 90, 31, 0.15)' : '#FFF3EE',
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: AppRadius.pill,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 90, 31, 0.3)' : '#FED7AA',
+      marginBottom: 10,
+    },
+    pulseDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: '#FF5A1F',
+      marginRight: 6,
+    },
+    regionBadgeText: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: '#FF5A1F',
+      letterSpacing: 0.6,
+    },
+    heroTitle: {
+      fontSize: 30,
+      fontWeight: '900',
+      color: theme.textPrimary,
+      letterSpacing: -0.5,
+      textAlign: 'center',
+    },
+    heroTitleCompact: {
+      fontSize: 22,
+    },
+    heroSubtitle: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      marginTop: 4,
+      maxWidth: 320,
+      lineHeight: 18,
+    },
+    featureRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 24,
+    },
+    featureChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.card,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: AppRadius.pill,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      ...AppShadows.subtle,
+    },
+    featureChipText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.textPrimary,
+    },
+    cardContainer: {
+      width: '100%',
+      backgroundColor: theme.card,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      padding: 22,
+      ...AppShadows.md,
+      marginBottom: 20,
+    },
+    cardTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: theme.textPrimary,
+      letterSpacing: -0.3,
+    },
+    cardSubtitle: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      marginTop: 4,
+      marginBottom: 18,
+      lineHeight: 18,
+    },
+    phoneInputCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.inputBg,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      borderColor: theme.cardBorder,
+      paddingHorizontal: 12,
+      height: 56,
+      marginBottom: 10,
+    },
+    phoneInputCardFocused: {
+      borderColor: theme.primary,
+      backgroundColor: isDark ? 'rgba(255, 90, 31, 0.08)' : '#FFFFFF',
+    },
+    phoneInputCardValid: {
+      borderColor: '#10B981',
+    },
+    countryCodePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 4,
+    },
+    flagIcon: {
+      fontSize: 18,
+    },
+    countryCodeText: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: theme.textPrimary,
+    },
+    inputDivider: {
+      width: 1,
+      height: 24,
+      backgroundColor: theme.cardBorder,
+      marginHorizontal: 10,
+    },
+    phoneNumberInput: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.textPrimary,
+      paddingVertical: 0,
+    },
+    verifiedIconBox: {
+      marginLeft: 6,
+    },
+    helperRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+      paddingHorizontal: 2,
+    },
+    helperText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.textTertiary,
+    },
+    helperTextReady: {
+      color: '#10B981',
+      fontWeight: '700',
+    },
+    securityBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    securityBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#10B981',
+    },
+    continueBtn: {
+      borderRadius: 16,
+      overflow: 'hidden',
+      ...shadowStyle({
+        color: '#FF5A1F',
+        offsetY: 6,
+        opacity: 0.35,
+        radius: 12,
+        elevation: 6,
+      }),
+    },
+    continueBtnDisabled: {
+      elevation: 0,
+      opacity: 0.7,
+    },
+    continueBtnGradient: {
+      paddingVertical: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    btnContentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    continueBtnText: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: 0.2,
+    },
+    continueBtnTextDisabled: {
+      color: isDark ? '#64748B' : '#94A3B8',
+    },
+    trustGrid: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+      marginBottom: 16,
+    },
+    trustItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    trustDot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.textTertiary,
+      opacity: 0.4,
+    },
+    trustText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.textSecondary,
+    },
+    termsText: {
+      fontSize: 12,
+      color: theme.textTertiary,
+      textAlign: 'center',
+      maxWidth: 320,
+      lineHeight: 18,
+    },
+    termsLink: {
+      color: theme.primary,
+      fontWeight: '700',
+    },
+  });

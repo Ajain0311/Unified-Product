@@ -17,6 +17,7 @@ import {
   MapPlaceSuggestion,
   SelectedMapPlace,
 } from '../../services/mapboxService';
+import { CHITTORGARH_SERVICE_REGION } from '../../config/serviceRegion';
 
 type Props = {
   label?: string;
@@ -147,8 +148,14 @@ export const LocationMapPicker: React.FC<Props> = ({
   };
 
   const center = useMemo(() => {
-    const lat = selected?.latitude ?? initialCoordinate?.latitude ?? 28.6304;
-    const lng = selected?.longitude ?? initialCoordinate?.longitude ?? 77.2177;
+    const lat =
+      selected?.latitude ??
+      initialCoordinate?.latitude ??
+      CHITTORGARH_SERVICE_REGION.centerCoordinates.latitude;
+    const lng =
+      selected?.longitude ??
+      initialCoordinate?.longitude ??
+      CHITTORGARH_SERVICE_REGION.centerCoordinates.longitude;
     return { latitude: lat, longitude: lng };
   }, [selected, initialCoordinate]);
 

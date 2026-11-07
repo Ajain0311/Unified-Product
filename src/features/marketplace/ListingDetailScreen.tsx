@@ -29,7 +29,7 @@ import { ApiEndpoints } from '../../constants/api';
 import { OfflineBanner } from '../../components/common/OfflineBanner';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { useAuthStore } from '../../store/authStore';
-import { useAppTheme } from '../../theme/themeStore';
+import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 
 const { width } = Dimensions.get('window');
 
@@ -63,6 +63,7 @@ export const ListingDetailScreen: React.FC = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'ListingDetail'>>();
   const listingId = route.params?.listingId;
   const { theme, isDark } = useAppTheme();
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const { favorites, toggleFavorite } = useMarketplaceStore();
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -298,7 +299,7 @@ export const ListingDetailScreen: React.FC = () => {
             </ScrollView>
           ) : (
             <View style={[styles.carouselImage, styles.carouselEmpty]}>
-              <MaterialIcons name="image-not-supported" size={48} color={colors.textTertiary} />
+              <MaterialIcons name="image-not-supported" size={48} color={theme.textTertiary} />
               <Text style={styles.carouselEmptyText}>No photos</Text>
             </View>
           )}
@@ -344,7 +345,7 @@ export const ListingDetailScreen: React.FC = () => {
                 <MaterialIcons
                   name={isFav ? 'favorite' : 'favorite-border'}
                   size={20}
-                  color={isFav ? colors.error : '#FFFFFF'}
+                  color={isFav ? theme.error : '#FFFFFF'}
                 />
               </TouchableOpacity>
             </View>
@@ -377,7 +378,7 @@ export const ListingDetailScreen: React.FC = () => {
               <Text style={styles.negotiableText}>Negotiable</Text>
             </View>
             <View style={styles.viewsWrapper}>
-              <MaterialIcons name="visibility" size={14} color={colors.textTertiary} />
+              <MaterialIcons name="visibility" size={14} color={theme.textTertiary} />
               <Text style={styles.viewsText}>{detail.viewCount} views</Text>
             </View>
           </View>
@@ -458,7 +459,7 @@ export const ListingDetailScreen: React.FC = () => {
 
           {/* Safety Advice */}
           <View style={styles.safetyBox}>
-            <MaterialIcons name="security" size={20} color={colors.secondary} />
+            <MaterialIcons name="security" size={20} color={theme.secondary} />
             <View style={styles.safetyContent}>
               <Text style={styles.safetyTitle}>Safety Guidelines for Buyers</Text>
               <Text style={styles.safetyBody}>
@@ -483,7 +484,7 @@ export const ListingDetailScreen: React.FC = () => {
       ) : canRemoveListing ? (
         <View style={[styles.bottomBar, { backgroundColor: theme.surface, borderTopColor: theme.cardBorder }]}>
           <TouchableOpacity
-            style={[styles.bottomOfferBtn, { flex: 1, backgroundColor: colors.error }]}
+            style={[styles.bottomOfferBtn, { flex: 1, backgroundColor: theme.error }]}
             onPress={handleRemoveListing}
             disabled={isRemoving}
           >
@@ -547,7 +548,7 @@ export const ListingDetailScreen: React.FC = () => {
                 Contact {detail.sellerName?.trim() ? detail.sellerName : 'seller'}
               </Text>
               <TouchableOpacity onPress={() => setShowContactModal(false)}>
-                <MaterialIcons name="close" size={24} color={colors.textSecondary} />
+                <MaterialIcons name="close" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -558,8 +559,8 @@ export const ListingDetailScreen: React.FC = () => {
                 await handleCallSeller();
               }}
             >
-              <View style={[styles.contactIconCircle, { backgroundColor: 'rgba(0, 200, 83, 0.2)' }]}>
-                <MaterialIcons name="call" size={20} color={colors.secondary} />
+              <View style={[styles.contactIconCircle, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.2)' : 'rgba(0, 200, 83, 0.2)' }]}>
+                <MaterialIcons name="call" size={20} color={theme.secondary} />
               </View>
               <View>
                 <Text style={styles.contactOptionTitle}>Call Seller Directly</Text>
@@ -576,8 +577,8 @@ export const ListingDetailScreen: React.FC = () => {
                 handleOpenChat();
               }}
             >
-              <View style={[styles.contactIconCircle, { backgroundColor: 'rgba(33, 150, 243, 0.2)' }]}>
-                <MaterialIcons name="chat-bubble" size={20} color={colors.blue} />
+              <View style={[styles.contactIconCircle, { backgroundColor: isDark ? 'rgba(96, 165, 250, 0.2)' : 'rgba(33, 150, 243, 0.2)' }]}>
+                <MaterialIcons name="chat-bubble" size={20} color={theme.info} />
               </View>
               <View>
                 <Text style={styles.contactOptionTitle}>Chat in SuperApp</Text>
@@ -596,7 +597,7 @@ export const ListingDetailScreen: React.FC = () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Report Listing</Text>
               <TouchableOpacity onPress={() => setShowReportModal(false)}>
-                <MaterialIcons name="close" size={24} color={colors.textSecondary} />
+                <MaterialIcons name="close" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -627,7 +628,7 @@ export const ListingDetailScreen: React.FC = () => {
             <TextInput
               style={styles.reportInput}
               placeholder="Additional details (optional)..."
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={theme.textTertiary}
               value={reportDetails}
               onChangeText={setReportDetails}
               multiline
@@ -653,512 +654,513 @@ export const ListingDetailScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollContent: {
-    paddingBottom: 110,
-  },
-  carouselContainer: {
-    width: width,
-    height: 320,
-    backgroundColor: colors.surface,
-    position: 'relative',
-  },
-  carouselImage: {
-    width: width,
-    height: 320,
-  },
-  carouselEmpty: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.cardDark,
-    gap: 8,
-  },
-  carouselEmptyText: {
-    ...typography.caption,
-    color: colors.textTertiary,
-  },
-  floatingTopBar: {
-    position: 'absolute',
-    top: 40,
-    left: 16,
-    right: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  roundIconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(10, 14, 33, 0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topRightActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  dotsContainer: {
-    position: 'absolute',
-    bottom: 16,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  dotActive: {
-    width: 20,
-    backgroundColor: colors.primary,
-  },
-  contentBody: {
-    padding: spacing.md,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  priceText: {
-    ...typography.h1,
-    color: colors.primary,
-    fontWeight: '900',
-    fontSize: 28,
-  },
-  negotiableBadge: {
-    backgroundColor: 'rgba(0, 200, 83, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 200, 83, 0.3)',
-  },
-  negotiableText: {
-    color: colors.secondary,
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  viewsWrapper: {
-    marginLeft: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  viewsText: {
-    ...typography.caption,
-    color: colors.textTertiary,
-  },
-  titleText: {
-    ...typography.h2,
-    color: colors.textPrimary,
-    fontWeight: '700',
-    marginTop: 10,
-    lineHeight: 26,
-  },
-  metaTagsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 8,
-  },
-  categoryBadge: {
-    backgroundColor: colors.surfaceLight,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  categoryBadgeText: {
-    color: colors.textPrimary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  conditionBadge: {
-    backgroundColor: 'rgba(255, 107, 53, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  conditionBadgeText: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  locationWrapper: {
-    marginLeft: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  locationText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.divider,
-    marginVertical: 18,
-  },
-  sectionHeader: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  highlightsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  highlightChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.cardDark,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 6,
-  },
-  highlightChipText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  descriptionBox: {
-    backgroundColor: colors.cardDark,
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  descriptionText: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  sellerCard: {
-    backgroundColor: colors.cardDark,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  sellerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sellerAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sellerMeta: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  sellerNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  sellerName: {
-    ...typography.bodyLarge,
-    color: colors.textPrimary,
-    fontWeight: 'bold',
-  },
-  sellerStats: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  sellerDivider: {
-    height: 1,
-    backgroundColor: colors.divider,
-    marginVertical: 12,
-  },
-  sellerActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  sellerChatBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 6,
-  },
-  sellerCallBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceLight,
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
-  },
-  sellerActionText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  safetyBox: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(20, 24, 41, 0.8)',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 18,
-    gap: 12,
-  },
-  safetyContent: {
-    flex: 1,
-  },
-  safetyTitle: {
-    ...typography.bodyMedium,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  safetyBody: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    paddingBottom: 24,
-    backgroundColor: colors.cardDark,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: 12,
-  },
-  bottomContactBtn: {
-    flex: 1,
-    height: 48,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bottomContactText: {
-    ...typography.bodyMedium,
-    color: colors.primary,
-    fontWeight: 'bold',
-  },
-  bottomOfferBtn: {
-    flex: 2,
-    height: 48,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bottomOfferText: {
-    ...typography.bodyMedium,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.cardDark,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 36,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  modalTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    fontWeight: 'bold',
-  },
-  modalPriceHint: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    marginBottom: 16,
-  },
-  offerInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    marginBottom: 20,
-  },
-  offerPrefix: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  offerInput: {
-    flex: 1,
-    height: 52,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  submitOfferBtn: {
-    height: 48,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitOfferText: {
-    ...typography.bodyMedium,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  contactOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    gap: 14,
-  },
-  contactIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contactOptionTitle: {
-    ...typography.bodyMedium,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  contactOptionSub: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  centerBox: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  loadingText: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    marginTop: 12,
-  },
-  errorTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    marginTop: 16,
-  },
-  errorSubtitle: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  retryBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  goBackBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  goBackText: {
-    color: colors.textSecondary,
-  },
-  reportSubtitle: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    marginBottom: 14,
-  },
-  reasonsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  reasonOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  reasonOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(255, 68, 68, 0.15)',
-  },
-  reasonOptionText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  reasonOptionTextSelected: {
-    color: colors.primary,
-  },
-  reportInput: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 8,
-    padding: 12,
-    color: '#FFFFFF',
-    ...typography.bodyMedium,
-    textAlignVertical: 'top',
-    height: 80,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  submitReportBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  submitReportText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-});
+const createStyles = (theme: ThemePalette, isDark: boolean) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    scrollContent: {
+      paddingBottom: 110,
+    },
+    carouselContainer: {
+      width: width,
+      height: 320,
+      backgroundColor: theme.surface,
+      position: 'relative',
+    },
+    carouselImage: {
+      width: width,
+      height: 320,
+    },
+    carouselEmpty: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.card,
+      gap: 8,
+    },
+    carouselEmptyText: {
+      ...typography.caption,
+      color: theme.textTertiary,
+    },
+    floatingTopBar: {
+      position: 'absolute',
+      top: 40,
+      left: 16,
+      right: 16,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    roundIconButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(10, 14, 33, 0.7)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    topRightActions: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    dotsContainer: {
+      position: 'absolute',
+      bottom: 16,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    },
+    dotActive: {
+      width: 20,
+      backgroundColor: theme.primary,
+    },
+    contentBody: {
+      padding: spacing.md,
+    },
+    priceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    priceText: {
+      ...typography.h1,
+      color: theme.primary,
+      fontWeight: '900',
+      fontSize: 28,
+    },
+    negotiableBadge: {
+      backgroundColor: isDark ? 'rgba(52, 211, 153, 0.2)' : 'rgba(0, 200, 83, 0.15)',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(52, 211, 153, 0.3)' : 'rgba(0, 200, 83, 0.3)',
+    },
+    negotiableText: {
+      color: theme.secondary,
+      fontSize: 11,
+      fontWeight: 'bold',
+    },
+    viewsWrapper: {
+      marginLeft: 'auto',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    viewsText: {
+      ...typography.caption,
+      color: theme.textTertiary,
+    },
+    titleText: {
+      ...typography.h2,
+      color: theme.textPrimary,
+      fontWeight: '700',
+      marginTop: 10,
+      lineHeight: 26,
+    },
+    metaTagsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      gap: 8,
+    },
+    categoryBadge: {
+      backgroundColor: theme.surfaceLight,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    categoryBadgeText: {
+      color: theme.textPrimary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    conditionBadge: {
+      backgroundColor: isDark ? 'rgba(255, 122, 69, 0.2)' : 'rgba(255, 107, 53, 0.15)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    conditionBadgeText: {
+      color: theme.primary,
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+    locationWrapper: {
+      marginLeft: 'auto',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
+    locationText: {
+      ...typography.caption,
+      color: theme.textSecondary,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: theme.cardBorder,
+      marginVertical: 18,
+    },
+    sectionHeader: {
+      ...typography.h3,
+      color: theme.textPrimary,
+      fontWeight: 'bold',
+      marginBottom: 10,
+    },
+    highlightsWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    highlightChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.card,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      gap: 6,
+    },
+    highlightChipText: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      fontWeight: '600',
+    },
+    descriptionBox: {
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    descriptionText: {
+      ...typography.bodyMedium,
+      color: theme.textSecondary,
+      lineHeight: 22,
+    },
+    sellerCard: {
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    sellerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    sellerAvatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: theme.surfaceLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sellerMeta: {
+      marginLeft: 12,
+      flex: 1,
+    },
+    sellerNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    sellerName: {
+      ...typography.bodyLarge,
+      color: theme.textPrimary,
+      fontWeight: 'bold',
+    },
+    sellerStats: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    sellerDivider: {
+      height: 1,
+      backgroundColor: theme.cardBorder,
+      marginVertical: 12,
+    },
+    sellerActionsRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    sellerChatBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      gap: 6,
+    },
+    sellerCallBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.surfaceLight,
+      paddingVertical: 10,
+      borderRadius: 10,
+      gap: 6,
+    },
+    sellerActionText: {
+      color: theme.textPrimary,
+      fontWeight: '600',
+    },
+    safetyBox: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? 'rgba(20, 24, 41, 0.9)' : 'rgba(241, 245, 249, 0.9)',
+      borderRadius: 12,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+      marginTop: 18,
+      gap: 12,
+    },
+    safetyContent: {
+      flex: 1,
+    },
+    safetyTitle: {
+      ...typography.bodyMedium,
+      color: theme.textPrimary,
+      fontWeight: 'bold',
+    },
+    safetyBody: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      lineHeight: 18,
+      marginTop: 4,
+    },
+    bottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      paddingHorizontal: spacing.md,
+      paddingVertical: 12,
+      paddingBottom: 24,
+      backgroundColor: theme.surface,
+      borderTopWidth: 1,
+      borderTopColor: theme.cardBorder,
+      gap: 12,
+    },
+    bottomContactBtn: {
+      flex: 1,
+      height: 48,
+      borderWidth: 1,
+      borderColor: theme.primary,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bottomContactText: {
+      ...typography.bodyMedium,
+      color: theme.primary,
+      fontWeight: 'bold',
+    },
+    bottomOfferBtn: {
+      flex: 2,
+      height: 48,
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bottomOfferText: {
+      ...typography.bodyMedium,
+      color: '#FFFFFF',
+      fontWeight: 'bold',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: theme.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      paddingBottom: 36,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    modalTitle: {
+      ...typography.h3,
+      color: theme.textPrimary,
+      fontWeight: 'bold',
+    },
+    modalPriceHint: {
+      ...typography.bodyMedium,
+      color: theme.textSecondary,
+      marginBottom: 16,
+    },
+    offerInputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.inputBg,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      marginBottom: 20,
+    },
+    offerPrefix: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: theme.primary,
+    },
+    offerInput: {
+      flex: 1,
+      height: 52,
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: theme.textPrimary,
+    },
+    submitOfferBtn: {
+      height: 48,
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    submitOfferText: {
+      ...typography.bodyMedium,
+      color: '#FFFFFF',
+      fontWeight: 'bold',
+    },
+    contactOptionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      gap: 14,
+    },
+    contactIconCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    contactOptionTitle: {
+      ...typography.bodyMedium,
+      color: theme.textPrimary,
+      fontWeight: 'bold',
+    },
+    contactOptionSub: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    centerBox: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+    },
+    loadingText: {
+      ...typography.bodyMedium,
+      color: theme.textSecondary,
+      marginTop: 12,
+    },
+    errorTitle: {
+      ...typography.h3,
+      color: theme.textPrimary,
+      marginTop: 16,
+    },
+    errorSubtitle: {
+      ...typography.bodyMedium,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      marginTop: 8,
+      marginBottom: 20,
+    },
+    retryBtn: {
+      backgroundColor: theme.primary,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 8,
+      marginBottom: 12,
+    },
+    retryBtnText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    goBackBtn: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    goBackText: {
+      color: theme.textSecondary,
+    },
+    reportSubtitle: {
+      ...typography.bodyMedium,
+      color: theme.textSecondary,
+      marginBottom: 14,
+    },
+    reasonsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 16,
+    },
+    reasonOption: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: theme.surfaceLight,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    reasonOptionSelected: {
+      borderColor: theme.primary,
+      backgroundColor: isDark ? 'rgba(255, 122, 69, 0.2)' : 'rgba(255, 68, 68, 0.15)',
+    },
+    reasonOptionText: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      fontWeight: '600',
+    },
+    reasonOptionTextSelected: {
+      color: theme.primary,
+    },
+    reportInput: {
+      backgroundColor: theme.inputBg,
+      borderRadius: 8,
+      padding: 12,
+      color: theme.textPrimary,
+      ...typography.bodyMedium,
+      textAlignVertical: 'top',
+      height: 80,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.cardBorder,
+    },
+    submitReportBtn: {
+      backgroundColor: theme.primary,
+      paddingVertical: 14,
+      borderRadius: 10,
+      alignItems: 'center',
+    },
+    submitReportText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: 15,
+    },
+  });
