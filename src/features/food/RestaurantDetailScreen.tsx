@@ -22,6 +22,8 @@ import { VegBadge } from '../../components/common/VegBadge';
 import { ItemCustomizationSheet } from './ItemCustomizationSheet';
 import { CartSummarySheet } from './CartSummarySheet';
 import { useCartStore } from '../../store/cartStore';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthModalStore } from '../../store/authModalStore';
 import { CartItem, FoodItemVariant, FoodItemAddon } from '../../models/food';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
@@ -187,6 +189,20 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
       Alert.alert('Empty Cart', 'Please add items to your cart before proceeding to checkout.');
       return;
     }
+
+    // Check authentication: if guest or token expired, trigger seamless in-place OTP verification modal
+    const isAuthenticated = useAuthStore.getState().isAuthenticated;
+    if (!isAuthenticated) {
+      useAuthModalStore.getState().openAuthModal({
+        title: 'Sign In to Place Order',
+        subtitle: 'Enter your phone number & verify OTP right here to complete your order.',
+        onSuccess: () => {
+          // Re-trigger order placement automatically after verifying OTP
+          handlePlaceOrder(couponCode, paymentMethod);
+        },
+      });
+      return;
+    }
     const restaurantIds = Array.from(
       new Set(
         cartItems
@@ -296,6 +312,17 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
       });
     } catch (err: any) {
       console.error('[PlaceOrder Error]', err);
+      // If 401 unauthorized or authentication expired, open in-place modal and retry
+      if (err?.statusCode === 401 || err?.isUnauthorized || String(err?.message || '').toLowerCase().includes('authentication expired') || String(err?.message || '').toLowerCase().includes('unauthorized')) {
+        useAuthModalStore.getState().openAuthModal({
+          title: 'Authentication Expired',
+          subtitle: 'Please verify your phone number right here to complete your order.',
+          onSuccess: () => {
+            handlePlaceOrder(couponCode, paymentMethod);
+          },
+        });
+        return;
+      }
       const errMsg = err?.response?.data?.message || err?.message || 'Failed to place order. Please try again.';
       Alert.alert('Order Placement Failed', errMsg);
     } finally {

@@ -17,6 +17,11 @@ polyfillAlert();
 import { useAppUpdateChecker } from './src/hooks/useAppUpdateChecker';
 import { useAppTheme, useThemeStore } from './src/theme/themeStore';
 import { AppAlert } from './src/components/common/AppAlert';
+import { GlobalAuthModal } from './src/components/auth/GlobalAuthModal';
+
+import { apiClient } from './src/services/apiClient';
+import { useAuthModalStore } from './src/store/authModalStore';
+import { useAuthStore } from './src/store/authStore';
 
 export default function App() {
   const { theme, isDark } = useAppTheme();
@@ -62,6 +67,14 @@ export default function App() {
       }
     }
 
+    // Wire up global 401 unauthorized interceptor to open in-place AuthOtpModal
+    apiClient.registerUnauthorizedHandler(() => {
+      useAuthModalStore.getState().openAuthModal({
+        title: 'Authentication Expired',
+        subtitle: 'Please verify your phone number to continue seamlessly without losing your progress.',
+      });
+    });
+
     // Native push only — web skips expo-notifications (unsupported token listeners).
     if (Platform.OS === 'web') {
       return;
@@ -101,6 +114,7 @@ export default function App() {
         <RootNavigator />
       </NavigationContainer>
       <AppAlert />
+      <GlobalAuthModal />
     </SafeAreaProvider>
   );
 }

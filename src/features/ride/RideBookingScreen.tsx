@@ -33,6 +33,7 @@ import {
   MANDPHIYA_SERVICE_CENTER,
 } from '../../config/serviceRegion';
 import { useAuthStore } from '../../store/authStore';
+import { useAuthModalStore } from '../../store/authModalStore';
 import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 
 interface VehicleOption {
@@ -452,14 +453,13 @@ export const RideBookingScreen: React.FC = () => {
 
     const isAuthenticated = useAuthStore.getState().isAuthenticated;
     if (!isAuthenticated) {
-      Alert.alert(
-        'Sign In Required',
-        'Please sign in with your phone number to book a ride.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign In', onPress: () => navigation.navigate('PhoneEntry') },
-        ]
-      );
+      useAuthModalStore.getState().openAuthModal({
+        title: 'Sign In to Book Ride',
+        subtitle: 'Enter your phone number & verify OTP right here to book your ride instantly.',
+        onSuccess: () => {
+          handleBookRide();
+        },
+      });
       return;
     }
 
