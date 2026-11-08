@@ -163,7 +163,7 @@ public class NotificationsController : ControllerBase
         try
         {
             var existing = await _db.UserDeviceTokens
-                .FirstOrDefaultAsync(t => t.UserId == userId.Value && t.DeviceToken == cleanToken);
+                .FirstOrDefaultAsync(t => t.DeviceToken == cleanToken);
 
             if (existing == null)
             {
@@ -179,6 +179,7 @@ public class NotificationsController : ControllerBase
             }
             else
             {
+                existing.UserId = userId.Value;
                 existing.IsActive = true;
                 existing.Platform = platform;
                 existing.DeviceType = deviceType ?? existing.DeviceType;

@@ -41,6 +41,8 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
   const scrollRef = useRef<ScrollView>(null);
   const inputCardY = useRef(0);
 
+  const phoneInputRef = useRef<TextInput>(null);
+
   const cleanNumber = phoneNumber.trim().replace(/\D/g, '');
   const isValidLength = cleanNumber.length === 10;
 
@@ -175,7 +177,9 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
                 : 'Enter your mobile number — we will send an OTP to verify'}
             </Text>
 
-            <View
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => phoneInputRef.current?.focus()}
               style={[
                 styles.phoneInputCard,
                 isFocused && styles.phoneInputCardFocused,
@@ -188,13 +192,19 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
               </View>
               <View style={styles.inputDivider} />
               <TextInput
+                ref={phoneInputRef}
                 style={styles.phoneNumberInput}
                 placeholder="10-digit mobile number"
                 placeholderTextColor={theme.textTertiary}
-                keyboardType="phone-pad"
+                keyboardType="number-pad"
+                textContentType="telephoneNumber"
+                autoComplete="tel"
                 maxLength={10}
                 value={phoneNumber}
-                onChangeText={(t) => setPhoneNumber(t.replace(/\D/g, ''))}
+                onChangeText={(t) => {
+                  const digits = t.replace(/\D/g, '').slice(0, 10);
+                  setPhoneNumber(digits);
+                }}
                 onFocus={() => {
                   setIsFocused(true);
                   scrollInputIntoView();
@@ -217,7 +227,7 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
                   </TouchableOpacity>
                 )
               ) : null}
-            </View>
+            </TouchableOpacity>
 
             <View style={styles.helperRow}>
               <Text style={[styles.helperText, isValidLength && styles.helperTextReady]}>
@@ -528,8 +538,9 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
       fontSize: 17,
       fontWeight: '700',
       color: theme.textPrimary,
-      paddingVertical: 0,
+      paddingVertical: Platform.OS === 'ios' ? 14 : 10,
       letterSpacing: 0.5,
+      height: '100%',
     },
     verifiedIconBox: {
       marginLeft: 6,
