@@ -34,7 +34,7 @@ public class TwoFactorSmsService : ISmsService
         _logger = logger;
         _apiKey = Environment.GetEnvironmentVariable("TWOFACTOR_API_KEY")
             ?? configuration["TwoFactor:ApiKey"]
-            ?? "4f56d46d-ca4e-11f1-af74-0200cd936042";
+            ?? string.Empty;
         _baseUrl = Environment.GetEnvironmentVariable("TWOFACTOR_BASE_URL")
             ?? configuration["TwoFactor:BaseUrl"]
             ?? "https://2factor.in/API/V1";

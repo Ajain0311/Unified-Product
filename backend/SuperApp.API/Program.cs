@@ -207,6 +207,9 @@ builder.Services.AddHttpClient<TwoFactorSmsService>(client =>
 if (smsProviderConfig == "2" || string.Equals(smsProviderConfig, "TwoFactor", StringComparison.OrdinalIgnoreCase))
 {
     // 2Factor.in SMS Provider (Active)
+    var twoFactorKey = Environment.GetEnvironmentVariable("TWOFACTOR_API_KEY") 
+        ?? builder.Configuration["TwoFactor:ApiKey"];
+    ProductionSecurityValidator.ValidateSmsProvider("TwoFactor", twoFactorKey, isProduction);
     builder.Services.AddScoped<ISmsService>(sp => sp.GetRequiredService<TwoFactorSmsService>());
 }
 else

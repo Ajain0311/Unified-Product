@@ -29,3 +29,9 @@
 - **Mandatory Pull-Before-Push Rule:** Any AI agent/tool MUST ALWAYS run `git pull --rebase origin <branch>` before pushing any code to remote to avoid rejected pushes or merge conflicts. Never push without pulling latest remote changes first.
 - Never expose credentials or copy secrets into logs or documentation.
 - Fast execution must never bypass authorization, payment verification, or financial safeguards.
+
+## 4. Balanced GitHub Contribution & PR Workflow (Fix 1-Sided Activity)
+- **Avoid 100% direct commits straight to branch**:
+  - Use feature/fix branches (`fix/...`, `feat/...`) and create PRs when shipping tasks so contributions show up as **Pull Requests & Code Reviews**.
+  - Link and create **GitHub Issues** for bugs/features (`Fixes #...`) to raise the **Issues %** in GitHub activity.
+  - Review and merge via PRs to balance the GitHub activity graph instead of 97% Commits.
