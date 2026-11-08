@@ -142,6 +142,11 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
 
     try {
       await verifyOtp(mobileNumber, otpCode, fullName.trim() || undefined);
+      // Explicitly navigate into app on successful verification
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
     } catch (err: any) {
       setErrorMessage(err.message || 'Invalid verification code. Please check and try again.');
       setOtp('');
@@ -174,6 +179,10 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
     setErrorMessage(null);
     try {
       await adminLogin(mobileNumber, otp, adminPassword);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
     } catch (err: any) {
       setErrorMessage(err.message || 'Admin authentication failed.');
     } finally {
