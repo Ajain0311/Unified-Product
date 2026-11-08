@@ -535,7 +535,7 @@ export const ProfileScreen: React.FC = () => {
         )}
 
         {/* App Version Info */}
-        <Text style={styles.versionText}>RJ09 SEWA v1.0.0 (Unified Multi-Role)</Text>
+        <Text style={styles.versionText}>Zupify v1.0.4 (Unified Ecosystem)</Text>
       </ScrollView>
 
       <RoleSwitchModal
