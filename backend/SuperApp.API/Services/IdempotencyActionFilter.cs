@@ -76,9 +76,6 @@ public sealed class IdempotencyActionFilter(
         if (retentionDays <= 0)
             throw new InvalidOperationException("Idempotency:RetentionDays must be positive.");
 
-        await using var transaction = db.Database.IsRelational()
-            ? await db.Database.BeginTransactionAsync(context.HttpContext.RequestAborted)
-            : null;
         try
         {
             if (previous is not null)
@@ -105,31 +102,22 @@ public sealed class IdempotencyActionFilter(
             var executed = await next();
             if (executed.Exception is not null && !executed.ExceptionHandled)
             {
-                if (transaction is not null) await transaction.RollbackAsync(context.HttpContext.RequestAborted);
-                else
-                {
-                    db.IdempotencyRecords.Remove(reservation);
-                    await db.SaveChangesAsync(context.HttpContext.RequestAborted);
-                }
+                db.IdempotencyRecords.Remove(reservation);
+                await db.SaveChangesAsync(context.HttpContext.RequestAborted);
                 return;
             }
 
             var (statusCode, responseJson) = SerializeResponse(executed.Result, jsonOptions.Value.JsonSerializerOptions);
             if (statusCode is < 200 or >= 300)
             {
-                if (transaction is not null) await transaction.RollbackAsync(context.HttpContext.RequestAborted);
-                else
-                {
-                    db.IdempotencyRecords.Remove(reservation);
-                    await db.SaveChangesAsync(context.HttpContext.RequestAborted);
-                }
+                db.IdempotencyRecords.Remove(reservation);
+                await db.SaveChangesAsync(context.HttpContext.RequestAborted);
                 return;
             }
 
             reservation.ResponseStatusCode = statusCode;
             reservation.ResponseJson = responseJson;
             await db.SaveChangesAsync(context.HttpContext.RequestAborted);
-            if (transaction is not null) await transaction.CommitAsync(context.HttpContext.RequestAborted);
 
             if (context.HttpContext.Items[AfterCommitCallbacksItemKey] is List<Func<Task>> callbacks)
             {
@@ -145,11 +133,6 @@ public sealed class IdempotencyActionFilter(
         }
         catch (DbUpdateException)
         {
-            if (transaction is not null)
-            {
-                await transaction.RollbackAsync(context.HttpContext.RequestAborted);
-                await transaction.DisposeAsync();
-            }
             db.ChangeTracker.Clear();
             var winner = await db.IdempotencyRecords.AsNoTracking().FirstOrDefaultAsync(record =>
                 record.UserId == userId && record.Operation == operation && record.RequestKey == key.ToString(),
@@ -159,13 +142,12 @@ public sealed class IdempotencyActionFilter(
         }
         catch
         {
-            if (transaction is not null)
-                await transaction.RollbackAsync(context.HttpContext.RequestAborted);
-            else
+            try
             {
                 db.IdempotencyRecords.RemoveRange(db.IdempotencyRecords.Local);
                 await db.SaveChangesAsync(context.HttpContext.RequestAborted);
             }
+            catch { }
             throw;
         }
     }
