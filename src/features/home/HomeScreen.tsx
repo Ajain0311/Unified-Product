@@ -599,67 +599,88 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           />
         </View>
 
-        {/* 7. QUICK RIDE SHORTCUT STRIP */}
+        {/* 7. QUICK RIDE SHORTCUT STRIP (Floating Action Card Style) */}
         <TouchableOpacity
           style={[
-            styles.rideShortcutStrip,
-            { backgroundColor: theme.card, borderColor: isDark ? '#1E3A8A' : '#BFDBFE' },
-            AppShadows.subtle,
+            styles.rideShortcutCard,
+            {
+              backgroundColor: isDark ? '#0B132B' : '#F0F7FF',
+              borderColor: isDark ? '#1D4ED8' : '#BFDBFE',
+            },
+            AppShadows.card,
           ]}
-          activeOpacity={0.88}
+          activeOpacity={0.85}
           onPress={() => navigation.navigate('Rides')}
         >
           <View style={styles.rideShortcutLeft}>
-            <LinearGradient
-              colors={['#2563EB', '#3B82F6']}
-              style={styles.rideShortcutIconBox}
-            >
-              <Ionicons name="car-sport" size={20} color="#FFFFFF" />
-            </LinearGradient>
+            <View style={styles.rideIconGlowWrap}>
+              <LinearGradient
+                colors={['#1D4ED8', '#3B82F6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.rideShortcutIconBox}
+              >
+                <Ionicons name="car-sport" size={22} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
             <View style={styles.rideShortcutTextCol}>
-              <Text style={[styles.rideShortcutTitle, { color: theme.textPrimary }]}>
-                {language === 'hi' ? 'तुरंत कैब या बाइक चाहिए?' : 'Need an instant ride?'}
-              </Text>
+              <View style={styles.shortcutTagRow}>
+                <Text style={[styles.rideShortcutTitle, { color: theme.textPrimary }]}>
+                  {language === 'hi' ? 'तुरंत कैब या बाइक चाहिए?' : 'Need an instant ride?'}
+                </Text>
+              </View>
               <Text style={[styles.rideShortcutSubtitle, { color: theme.textSecondary }]}>
-                {language === 'hi' ? 'बाइक, ऑटो व कैब नजदीकी उपलब्ध' : 'Verified captains nearby • Zero surge'}
+                {language === 'hi' ? 'बाइक, ऑटो व कैब नजदीकी उपलब्ध • 0% सर्ज' : 'Verified captains nearby • Zero surge'}
               </Text>
             </View>
           </View>
           <View style={styles.rideShortcutActionBtn}>
             <Text style={styles.rideShortcutActionText}>Book Now</Text>
-            <Ionicons name="arrow-forward" size={12} color="#2563EB" />
+            <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
           </View>
         </TouchableOpacity>
 
-        {/* 7b. GROW WITH SUPERAPP ENTRY STRIP */}
+        {/* 7b. GROW WITH SUPERAPP ENTRY STRIP (Banner Pill / Accent Style) */}
         <TouchableOpacity
           style={[
-            styles.rideShortcutStrip,
-            { backgroundColor: isDark ? '#1C1917' : '#FFFBEB', borderColor: isDark ? '#78350F' : '#FDE68A' },
-            AppShadows.subtle,
+            styles.growBannerStrip,
+            {
+              backgroundColor: isDark ? '#1C160C' : '#FFFDF5',
+              borderColor: isDark ? '#854D0E' : '#FDE68A',
+            },
+            AppShadows.card,
           ]}
-          activeOpacity={0.88}
+          activeOpacity={0.85}
           onPress={() => navigation.navigate('GrowWithSuperApp' as any)}
         >
-          <View style={styles.rideShortcutLeft}>
-            <LinearGradient
-              colors={['#D97706', '#F59E0B']}
-              style={styles.rideShortcutIconBox}
-            >
-              <Ionicons name="rocket" size={18} color="#FFFFFF" />
-            </LinearGradient>
+          <View style={styles.growBannerLeft}>
+            <View style={styles.growIconGlowWrap}>
+              <LinearGradient
+                colors={['#D97706', '#F59E0B']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.growIconBox}
+              >
+                <Ionicons name="rocket" size={20} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
             <View style={styles.rideShortcutTextCol}>
-              <Text style={[styles.rideShortcutTitle, { color: theme.textPrimary }]}>
-                {language === 'hi' ? 'सुपरऐप के साथ बिज़नेस बढ़ाएं' : 'Grow with SuperApp'}
-              </Text>
-              <Text style={[styles.rideShortcutSubtitle, { color: theme.textSecondary }]}>
-                {language === 'hi' ? 'पार्टनर ऑनबोर्डिंग व न्यू प्रोडक्ट/सर्विस रिक्वेस्ट' : 'Partner onboarding, new product & category requests'}
+              <View style={styles.growBadgeRow}>
+                <Text style={[styles.growBannerTitle, { color: theme.textPrimary }]}>
+                  {language === 'hi' ? 'सुपरऐप के साथ बिज़नेस बढ़ाएं' : 'Grow with SuperApp'}
+                </Text>
+                <View style={styles.growPillBadge}>
+                  <Text style={styles.growPillBadgeText}>PARTNER</Text>
+                </View>
+              </View>
+              <Text style={[styles.growBannerSubtitle, { color: theme.textSecondary }]}>
+                {language === 'hi' ? 'पार्टनर ऑनबोर्डिंग व न्यू प्रोडक्ट/सर्विस रिक्वेस्ट' : 'Partner onboarding & vendor opportunities'}
               </Text>
             </View>
           </View>
-          <View style={[styles.rideShortcutActionBtn, { backgroundColor: isDark ? '#292524' : '#FEF3C7' }]}>
-            <Text style={[styles.rideShortcutActionText, { color: '#D97706' }]}>Explore</Text>
-            <Ionicons name="arrow-forward" size={12} color="#D97706" />
+          <View style={[styles.growActionBtn, { backgroundColor: isDark ? '#292524' : '#FEF3C7' }]}>
+            <Text style={[styles.growActionText, { color: '#B45309' }]}>Explore</Text>
+            <Ionicons name="chevron-forward" size={14} color="#B45309" />
           </View>
         </TouchableOpacity>
 
@@ -1214,52 +1235,144 @@ const styles = StyleSheet.create({
   moduleSection: {
     marginBottom: AppSpacing.lg,
   },
-  rideShortcutStrip: {
+  // 7. Quick Ride Floating Action Card
+  rideShortcutCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: AppRadius.lg,
-    padding: AppSpacing.md,
-    marginBottom: AppSpacing.lg,
+    borderWidth: 1.2,
+    borderRadius: AppRadius.xl,
+    paddingVertical: AppSpacing.md,
+    paddingHorizontal: AppSpacing.md,
+    marginBottom: AppSpacing.md,
   },
   rideShortcutLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  rideIconGlowWrap: {
+    padding: 3,
+    borderRadius: AppRadius.lg,
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+    marginRight: AppSpacing.md,
+  },
   rideShortcutIconBox: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     borderRadius: AppRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: AppSpacing.sm,
+  },
+  shortcutTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   rideShortcutTextCol: {
     flex: 1,
+    paddingRight: AppSpacing.xs,
   },
   rideShortcutTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   rideShortcutSubtitle: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 11.5,
+    marginTop: 2.5,
+    fontWeight: '500',
+    letterSpacing: -0.1,
   },
   rideShortcutActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: AppRadius.sm,
-    backgroundColor: '#2563EB15',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: AppRadius.round,
+    backgroundColor: '#2563EB',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   rideShortcutActionText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#2563EB',
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+
+  // 7b. Grow With SuperApp Banner Strip
+  growBannerStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.2,
+    borderRadius: AppRadius.xl,
+    paddingVertical: AppSpacing.md,
+    paddingHorizontal: AppSpacing.md,
+    marginBottom: AppSpacing.xl,
+  },
+  growBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  growIconGlowWrap: {
+    padding: 3,
+    borderRadius: AppRadius.round,
+    backgroundColor: 'rgba(217, 119, 6, 0.12)',
+    marginRight: AppSpacing.md,
+  },
+  growIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: AppRadius.round,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  growBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  growBannerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  growPillBadge: {
+    backgroundColor: '#D97706',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: AppRadius.xs,
+  },
+  growPillBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  growBannerSubtitle: {
+    fontSize: 11.5,
+    marginTop: 2.5,
+    fontWeight: '500',
+    letterSpacing: -0.1,
+  },
+  growActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: AppRadius.round,
+  },
+  growActionText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.1,
   },
   sectionContainer: {
     marginBottom: AppSpacing.lg,
