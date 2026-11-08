@@ -7,5 +7,5 @@ export const LegalUrls = {
   refundPolicy: 'https://superapp-website-ashen.vercel.app/refund-cancellation',
   shippingPolicy: 'https://superapp-website-ashen.vercel.app/shipping-delivery',
   about: 'https://superapp-website-ashen.vercel.app/about',
-  latestApkDownload: 'https://github.com/Ajain0311/SuperApp_V2/releases/download/v1.0.0-apk/RJ09_SEWA_v1.0.0.apk',
+  latestApkDownload: 'https://github.com/Ajain0311/Unified-Product/releases/latest',
 };

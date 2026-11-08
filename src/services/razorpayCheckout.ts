@@ -62,7 +62,7 @@ export async function openRazorpayCheckout(
       key,
       amount: amountInPaise,
       currency: order.currency || 'INR',
-      name: 'RJ09 SEWA',
+      name: 'Zupify',
       description: 'Order Payment',
       order_id: order.orderId,
       prefill: {
