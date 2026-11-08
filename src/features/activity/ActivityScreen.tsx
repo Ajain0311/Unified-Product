@@ -16,6 +16,7 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { useAppTheme, ThemePalette } from '../../theme/themeStore';
+import { useLanguageStore } from '../../store/languageStore';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 
@@ -24,6 +25,7 @@ const TABS = ['Food Orders', 'Rides', 'Marketplace'];
 export const ActivityScreen: React.FC = () => {
   const navigation = useNavigation();
   const { theme, isDark } = useAppTheme();
+  const { language } = useLanguageStore();
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const route = useRoute<RouteProp<RootStackParamList, 'Activity'>>();
   const initialTab = route.params?.initialTab ?? 0;
@@ -123,7 +125,9 @@ export const ActivityScreen: React.FC = () => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <MaterialIcons name="chevron-left" size={28} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Activity</Text>
+        <Text style={styles.headerTitle}>
+          {language === 'hi' ? 'मेरी गतिविधि' : 'My Activity'}
+        </Text>
         <View style={{ width: 28 }} />
       </View>
 
@@ -131,6 +135,14 @@ export const ActivityScreen: React.FC = () => {
       <View style={styles.tabBar}>
         {TABS.map((tab, idx) => {
           const isActive = idx === activeTab;
+          const tabLabel =
+            language === 'hi'
+              ? idx === 0
+                ? 'फूड ऑर्डर्स'
+                : idx === 1
+                ? 'राइड्स'
+                : 'मार्केटप्लेस'
+              : tab;
           return (
             <TouchableOpacity
               key={tab}
@@ -138,7 +150,7 @@ export const ActivityScreen: React.FC = () => {
               onPress={() => setActiveTab(idx)}
             >
               <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
-                {tab}
+                {tabLabel}
               </Text>
             </TouchableOpacity>
           );

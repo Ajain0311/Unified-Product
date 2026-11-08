@@ -260,7 +260,9 @@ export const ProfileScreen: React.FC = () => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <MaterialIcons name="chevron-left" size={28} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>My Account</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
+          {language === 'hi' ? 'मेरा खाता' : 'My Account'}
+        </Text>
         <View style={{ width: 28 }} />
       </View>
 
@@ -296,10 +298,16 @@ export const ProfileScreen: React.FC = () => {
                 <Ionicons name="person-outline" size={26} color="#FFFFFF" />
               </View>
               <View style={styles.profileMeta}>
-                <Text style={[styles.profileName, { color: theme.textPrimary }]}>Guest Explorer</Text>
-                <Text style={[styles.profilePhone, { color: theme.textSecondary }]}>Exploring Mandphiya & Chittorgarh</Text>
+                <Text style={[styles.profileName, { color: theme.textPrimary }]}>
+                  {language === 'hi' ? 'अतिथि (Guest Explorer)' : 'Guest Explorer'}
+                </Text>
+                <Text style={[styles.profilePhone, { color: theme.textSecondary }]}>
+                  {language === 'hi' ? 'मंडफिया व चित्तौड़गढ़ का अन्वेषण' : 'Exploring Mandphiya & Chittorgarh'}
+                </Text>
                 <View style={[styles.verifiedBadge, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
-                  <Text style={[styles.verifiedBadgeText, { color: '#2563EB' }]}>Guest Mode</Text>
+                  <Text style={[styles.verifiedBadgeText, { color: '#2563EB' }]}>
+                    {language === 'hi' ? 'अतिथि मोड' : 'Guest Mode'}
+                  </Text>
                 </View>
               </View>
             </View>

@@ -17,7 +17,7 @@ import { AppSpacing, AppRadius, AppShadows } from '../../theme/spacing';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - 32;
-const CARD_HEIGHT = 150;
+const CARD_HEIGHT = 164;
 
 export interface BannerItem {
   id: string | number;
@@ -162,9 +162,9 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: AppRadius.lg,
+    borderRadius: AppRadius.xl,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: 1.2,
   },
   image: {
     width: '100%',
@@ -187,53 +187,68 @@ const styles = StyleSheet.create({
   },
   badge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: AppRadius.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: AppRadius.round,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   badgeText: {
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   contentWrap: {
     justifyContent: 'flex-end',
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 18.5,
     fontWeight: '800',
     letterSpacing: -0.3,
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   subtitle: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.92)',
+    fontSize: 12.5,
+    marginTop: 3,
+    fontWeight: '500',
+    letterSpacing: -0.1,
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   ctaButton: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     backgroundColor: '#FF5A1F',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: AppRadius.pill,
-    marginTop: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5.5,
+    borderRadius: AppRadius.round,
+    marginTop: 8,
+    shadowColor: '#FF5A1F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 3,
   },
   ctaText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 11.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   dotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: AppSpacing.sm,
-    gap: 4,
+    marginTop: AppSpacing.md,
+    gap: 6,
   },
   dot: {
     height: 5,
