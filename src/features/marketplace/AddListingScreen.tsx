@@ -28,6 +28,7 @@ import { notificationService } from '../../services/notificationService';
 import { documentService } from '../../services/documentService';
 import { LocationService } from '../../services/locationService';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
+import * as ImagePicker from 'expo-image-picker';
 
 const locationService = new LocationService();
 
@@ -87,8 +88,6 @@ export const AddListingScreen: React.FC = () => {
 
   const handlePickPhoto = async () => {
     try {
-      const ImagePicker = await import('expo-image-picker');
-
       Alert.alert(
         'Add Photo',
         'Choose a source for your photo',
@@ -96,39 +95,49 @@ export const AddListingScreen: React.FC = () => {
           {
             text: 'Camera',
             onPress: async () => {
-              const camPermission = await ImagePicker.requestCameraPermissionsAsync();
-              if (!camPermission.granted) {
-                Alert.alert('Permission needed', 'Allow camera access to take photos.');
-                return;
-              }
-              const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ['images'],
-                quality: 0.8,
-              });
-              if (!result.canceled && result.assets?.[0]?.uri) {
-                await uploadPhoto(result.assets[0]);
+              try {
+                const camPermission = await ImagePicker.requestCameraPermissionsAsync();
+                if (!camPermission.granted) {
+                  Alert.alert('Permission needed', 'Allow camera access to take photos.');
+                  return;
+                }
+                const result = await ImagePicker.launchCameraAsync({
+                  mediaTypes: ['images'],
+                  quality: 0.8,
+                });
+                if (!result.canceled && result.assets?.[0]?.uri) {
+                  await uploadPhoto(result.assets[0]);
+                }
+              } catch (cameraErr: any) {
+                console.warn('[AddListing] Camera launch error:', cameraErr?.message);
+                Alert.alert('Camera Error', cameraErr?.message || 'Could not launch camera. Try selecting from gallery instead.');
               }
             }
           },
           {
             text: 'Gallery',
             onPress: async () => {
-              const libPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-              if (!libPermission.granted) {
-                Alert.alert('Permission needed', 'Allow photo access to select images.');
-                return;
-              }
-              const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'],
-                allowsMultipleSelection: true,
-                quality: 0.8,
-              });
-              if (!result.canceled && result.assets) {
-                for (const asset of result.assets) {
-                  if (asset.uri) {
-                    await uploadPhoto(asset);
+              try {
+                const libPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (!libPermission.granted) {
+                  Alert.alert('Permission needed', 'Allow photo access to select images.');
+                  return;
+                }
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ['images'],
+                  allowsMultipleSelection: true,
+                  quality: 0.8,
+                });
+                if (!result.canceled && result.assets) {
+                  for (const asset of result.assets) {
+                    if (asset.uri) {
+                      await uploadPhoto(asset);
+                    }
                   }
                 }
+              } catch (libErr: any) {
+                console.warn('[AddListing] Gallery launch error:', libErr?.message);
+                Alert.alert('Gallery Error', libErr?.message || 'Could not open gallery.');
               }
             }
           },

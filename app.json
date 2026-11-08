@@ -29,6 +29,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
+        "CAMERA",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "POST_NOTIFICATIONS"

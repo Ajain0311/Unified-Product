@@ -416,6 +416,29 @@ public class MarketplaceController : ControllerBase
                         CreatedAt = DateTime.UtcNow
                     });
                     await _db.SaveChangesAsync();
+
+                    // Broadcast notification to ALL active users across the platform
+                    if (_notificationService != null)
+                    {
+                        var broadcastTitle = "🛍️ Naya Bazaar Item Live!";
+                        var broadcastBody = $"{newListing.Title} abhi live hua hai sirf ₹{newListing.Price} me! Jaldi check karein.";
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await _notificationService.SendBroadcastNotificationAsync(
+                                    broadcastTitle,
+                                    broadcastBody,
+                                    "MARKETPLACE",
+                                    persistInApp: true
+                                );
+                            }
+                            catch (Exception bEx)
+                            {
+                                Console.WriteLine($"[Marketplace Broadcast Error] {bEx.Message}");
+                            }
+                        });
+                    }
                 }
                 catch { }
 
