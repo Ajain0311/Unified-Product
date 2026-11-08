@@ -37,7 +37,7 @@ Ab humne **100% Zero-Touch Automation** setup kar diya hai:
    - Sabse pehle automated tests chalenge (`dotnet test`, `npx tsc --noEmit`, `npm test`).
    - Agar kisi code me error hai, to deployment **turant ruk jayegi** — server par koi bhi broken code nahi jayega!
 3. **VM par Automatic SSH Execution:**
-   - Tests pass hote hi GitHub Actions aapke Azure server (`172.198.162.46`) se connect karega.
+   - Tests pass hote hi GitHub Actions aapke Azure server (`172.198.50.59`) se connect karega.
    - Script run karega: `sudo ./scripts/manage.sh deploy v-<commitSHA>`.
 4. **Zero-Downtime Deployment & Health Probe:**
    - Server code pull karega aur ek naye versioned folder `/opt/SuperApp_V2/releases/release_<SHA>` me publish karega.
@@ -63,7 +63,7 @@ GitHub Actions ko server se securely connect karne ke liye aapko GitHub reposito
 
 | Secret Name | Value | Description |
 |---|---|---|
-| **`VM_HOST`** | `172.198.162.46` | Azure VM ka Public IP |
+| **`VM_HOST`** | `172.198.50.59` | Azure VM ka Public IP |
 | **`VM_USER`** | `azureuser` | Server username |
 | **`VM_SSH_KEY`** | Content of `Bseries.pem` | Aapki Private SSH Key (Neeche dekhein) |
 
@@ -96,7 +96,7 @@ Agar aap kabhi direct server me SSH karke kuch check ya execute karna chahein:
 
 ### Connect to VM:
 ```bash
-ssh -i C:\Users\admin\.ssh\Bseries.pem azureuser@172.198.162.46
+ssh -i C:\Users\admin\.ssh\Bseries.pem azureuser@172.198.50.59
 ```
 
 ### Useful Commands (`manage.sh`):
@@ -166,7 +166,7 @@ Bhai, aapke reference ke liye humne is session me jo-jo commands run kiye aur jo
 Humne sabse pehle Azure VM par SSH karke live server status check kiya:
 ```bash
 # 1. SSH connection test:
-ssh -i C:\Users\admin\.ssh\Bseries.pem azureuser@172.198.162.46 "whoami && uname -a"
+ssh -i C:\Users\admin\.ssh\Bseries.pem azureuser@172.198.50.59 "whoami && uname -a"
 # Output: Linux Bseries (Azure VM)
 
 # 2. Installed tools check:
@@ -216,7 +216,7 @@ git stash drop "stash@{0}"
    - Automated CI/CD workflow banaya:
      - Push to `main` trigger.
      - Automated test run (`dotnet test`, `tsc`, `npm test`, `test:agents:self`).
-     - SSH connection to `172.198.162.46` via OpenSSH executing `manage.sh deploy`.
+     - SSH connection to `172.198.50.59` via OpenSSH executing `manage.sh deploy`.
      - `workflow_dispatch` interactive trigger with manual deploy/rollback dropdowns.
 4. **`.gitattributes`**:
    - Shell scripts ke liye Linux LF line endings enforce ki: `*.sh text eol=lf`.
@@ -229,13 +229,13 @@ git stash drop "stash@{0}"
 Humne deployment script ko VM par upload karke status verify kiya:
 ```bash
 # 1. Script ko VM par upload kiya:
-scp -i C:\Users\admin\.ssh\Bseries.pem scripts/manage.sh azureuser@172.198.162.46:/tmp/manage.sh
+scp -i C:\Users\admin\.ssh\Bseries.pem scripts/manage.sh azureuser@172.198.50.59:/tmp/manage.sh
 
 # 2. Permissions set kiye aur location par move kiya:
-ssh -i C:\Users\admin\.ssh\Bseries.pem azureuser@172.198.162.46 "sudo mkdir -p /opt/SuperApp_V2/scripts && sudo cp /tmp/manage.sh /opt/SuperApp_V2/scripts/manage.sh && sudo chmod +x /opt/SuperApp_V2/scripts/manage.sh"
+ssh -i C:\Users\admin\.ssh\Bseries.pem azureuser@172.198.50.59 "sudo mkdir -p /opt/SuperApp_V2/scripts && sudo cp /tmp/manage.sh /opt/SuperApp_V2/scripts/manage.sh && sudo chmod +x /opt/SuperApp_V2/scripts/manage.sh"
 
 # 3. Script execute karke live status check kiya:
-ssh -i C:\Users\admin\.ssh\Bseries.pem azureuser@172.198.162.46 "sudo /opt/SuperApp_V2/scripts/manage.sh status"
+ssh -i C:\Users\admin\.ssh\Bseries.pem azureuser@172.198.50.59 "sudo /opt/SuperApp_V2/scripts/manage.sh status"
 ```
 
 ### Step 5: Verification Suite Commands Run Kiye
