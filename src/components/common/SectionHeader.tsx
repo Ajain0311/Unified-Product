@@ -71,15 +71,16 @@ const styles = StyleSheet.create({
     gap: AppSpacing.xs,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.3,
+    fontSize: 19,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '400',
-    marginTop: 2,
-    lineHeight: 16,
+    marginTop: 2.5,
+    lineHeight: 17,
+    letterSpacing: -0.1,
   },
   badge: {
     paddingHorizontal: 7,

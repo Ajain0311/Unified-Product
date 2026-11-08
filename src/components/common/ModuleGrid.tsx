@@ -74,37 +74,48 @@ export const ModuleGrid: React.FC<ModuleGridProps> = ({
         return (
           <TouchableOpacity
             key={mod.id}
-            activeOpacity={0.88}
+            activeOpacity={0.84}
             onPress={() => onSelectModule(mod.route)}
             style={[
               styles.card,
               {
                 backgroundColor: theme.card,
-                borderColor: theme.cardBorder,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.08)',
               },
-              AppShadows.subtle,
+              AppShadows.card,
             ]}
           >
             <View style={styles.cardHeader}>
-              <LinearGradient
-                colors={mod.gradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.iconCircle}
+              <View
+                style={[
+                  styles.iconOuterRing,
+                  {
+                    backgroundColor: isDark ? `${mod.gradient[0]}22` : `${mod.gradient[0]}12`,
+                    borderColor: isDark ? `${mod.gradient[0]}44` : `${mod.gradient[0]}28`,
+                  },
+                ]}
               >
-                <Ionicons name={mod.icon as any} size={22} color="#FFFFFF" />
-              </LinearGradient>
+                <LinearGradient
+                  colors={mod.gradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.iconCircle}
+                >
+                  <Ionicons name={mod.icon as any} size={22} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
 
               {badge ? (
                 <View
                   style={[
                     styles.badge,
                     {
-                      backgroundColor: isDark ? `${mod.gradient[0]}25` : `${mod.gradient[0]}15`,
+                      backgroundColor: isDark ? `${mod.gradient[0]}30` : `${mod.gradient[0]}18`,
+                      borderColor: isDark ? `${mod.gradient[0]}55` : `${mod.gradient[0]}30`,
                     },
                   ]}
                 >
-                  <Text style={[styles.badgeText, { color: mod.gradient[0] }]}>
+                  <Text style={[styles.badgeText, { color: isDark ? '#FFFFFF' : mod.gradient[0] }]}>
                     {badge}
                   </Text>
                 </View>
@@ -126,15 +137,24 @@ export const ModuleGrid: React.FC<ModuleGridProps> = ({
             </Text>
 
             <View style={styles.cardFooter}>
-              <Text style={[styles.exploreText, { color: mod.gradient[0] }]}>
-                {language === 'hi' ? 'खोजें' : 'Explore'}
-              </Text>
-              <Ionicons
-                name="arrow-forward"
-                size={12}
-                color={mod.gradient[0]}
-                style={{ marginLeft: 3 }}
-              />
+              <View
+                style={[
+                  styles.explorePill,
+                  {
+                    backgroundColor: isDark ? `${mod.gradient[0]}20` : `${mod.gradient[0]}12`,
+                  },
+                ]}
+              >
+                <Text style={[styles.exploreText, { color: mod.gradient[0] }]}>
+                  {language === 'hi' ? 'खोजें' : 'Explore'}
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={11}
+                  color={mod.gradient[0]}
+                  style={{ marginLeft: 3 }}
+                />
+              </View>
             </View>
           </TouchableOpacity>
         );
@@ -152,11 +172,11 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48.5%',
-    borderRadius: AppRadius.lg,
+    borderRadius: AppRadius.xl,
     borderWidth: 1,
     padding: AppSpacing.md,
     justifyContent: 'space-between',
-    minHeight: 142,
+    minHeight: 152,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -164,44 +184,57 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: AppSpacing.sm,
   },
+  iconOuterRing: {
+    padding: 3,
+    borderRadius: AppRadius.lg,
+    borderWidth: 1,
+  },
   iconCircle: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: AppRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: AppRadius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: AppRadius.round,
+    borderWidth: 0.5,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
   cardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-    marginBottom: 3,
+    fontSize: 14.5,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: 4,
   },
   cardDesc: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 16.5,
     fontWeight: '400',
     flex: 1,
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: AppSpacing.sm,
-    paddingTop: AppSpacing.xs,
+    marginTop: AppSpacing.md,
+  },
+  explorePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: AppRadius.round,
   },
   exploreText: {
     fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 0.1,
   },
   compactRow: {
     flexDirection: 'row',

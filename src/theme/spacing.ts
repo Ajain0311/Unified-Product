@@ -39,17 +39,34 @@ export const AppShadows = {
     ios: {
       shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 3,
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
     },
     android: {
-      elevation: 1,
+      elevation: 2,
     },
     default: {
       shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 3,
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+    },
+  }) as ViewStyle,
+  card: Platform.select({
+    ios: {
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.07,
+      shadowRadius: 8,
+    },
+    android: {
+      elevation: 3,
+    },
+    default: {
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.07,
+      shadowRadius: 8,
     },
   }) as ViewStyle,
   sm: Platform.select({
