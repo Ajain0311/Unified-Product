@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme, ThemePalette } from '../../theme/themeStore';
+import { useLanguageStore } from '../../store/languageStore';
 import { AppRadius } from '../../theme/spacing';
 import { AppConstants } from '../../constants/app';
 import { RatingBadge } from '../../components/common/RatingBadge';
@@ -67,6 +68,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   navigation,
 }) => {
   const { theme, isDark } = useAppTheme();
+  const { language } = useLanguageStore();
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const parsedParamId = Number(route.params?.restaurantId);
@@ -595,12 +597,16 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
                       accessibilityLabel={`Add ${item.name}`}
                       testID={`add-dish-btn-${item.id}`}
                     >
-                      <Text style={styles.addButtonText}>ADD +</Text>
+                      <Text style={styles.addButtonText}>
+                        {language === 'hi' ? 'जोड़ें +' : 'ADD +'}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })()}
                 {item.isCustomizable && item.isAvailable !== false && (
-                  <Text style={styles.customizableLabel}>CUSTOMISABLE</Text>
+                  <Text style={styles.customizableLabel}>
+                    {language === 'hi' ? 'कस्टमाइज़ेबल' : 'CUSTOMISABLE'}
+                  </Text>
                 )}
               </View>
             </View>
@@ -646,7 +652,9 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
                 </View>
 
                 <View style={styles.viewCartRight}>
-                  <Text style={styles.viewCartText}>View Cart</Text>
+                  <Text style={styles.viewCartText}>
+                    {language === 'hi' ? 'कार्ट देखें' : 'View Cart'}
+                  </Text>
                   <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                 </View>
               </LinearGradient>

@@ -241,7 +241,7 @@ export const MarketplaceHomeScreen: React.FC = () => {
         <AppSearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search pre-loved electronics, bikes, furniture..."
+          placeholder={language === 'hi' ? 'इलेक्ट्रॉनिक्स, बाइक, फर्नीचर खोजें...' : 'Search pre-loved electronics, bikes, furniture...'}
           onClear={() => setSearchQuery('')}
         />
       </View>

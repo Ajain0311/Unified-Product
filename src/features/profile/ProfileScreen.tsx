@@ -30,6 +30,7 @@ import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 import { useAppTheme } from '../../theme/themeStore';
+import { useLanguageStore } from '../../store/languageStore';
 
 interface MenuItemProps {
   icon: keyof typeof MaterialIcons.glyphMap;
@@ -122,6 +123,7 @@ function roleAppBadge(status: string | null): { label: string; color: string; su
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, isDark, toggleTheme } = useAppTheme();
+  const { language, toggleLanguage } = useLanguageStore();
   const { user, logout, updateUser } = useAuthStore();
   const { activeRole, hasMultipleRoles } = useRoleStore();
   const [roleModalVisible, setRoleModalVisible] = useState(false);
@@ -354,50 +356,54 @@ export const ProfileScreen: React.FC = () => {
         )}
 
         {/* Section 1: Activity & Orders */}
-        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Activity & Orders</Text>
+        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
+          {language === 'hi' ? 'गतिविधि और ऑर्डर' : 'Activity & Orders'}
+        </Text>
         <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
           <MenuItem
             icon="fastfood"
-            title="Food Orders"
-            subtitle="Past deliveries & tracking"
+            title={language === 'hi' ? 'फूड ऑर्डर्स' : 'Food Orders'}
+            subtitle={language === 'hi' ? 'पुराने ऑर्डर्स और ट्रैकिंग' : 'Past deliveries & tracking'}
             color={colors.secondary}
             onPress={() => requireAuth(() => navigation.navigate('Activity', { initialTab: 0 }))}
           />
           <View style={styles.itemDivider} />
           <MenuItem
             icon="directions-bike"
-            title="My Rides"
-            subtitle="Trip receipts & ride history"
+            title={language === 'hi' ? 'मेरी राइड्स' : 'My Rides'}
+            subtitle={language === 'hi' ? 'यात्रा रसीद और इतिहास' : 'Trip receipts & ride history'}
             color={colors.blue}
             onPress={() => requireAuth(() => navigation.navigate('Activity', { initialTab: 1 }))}
           />
           <View style={styles.itemDivider} />
           <MenuItem
             icon="store"
-            title="Marketplace Listings"
-            subtitle="Your active and sold items"
+            title={language === 'hi' ? 'मार्केटप्लेस विज्ञापन' : 'Marketplace Listings'}
+            subtitle={language === 'hi' ? 'आपके सक्रिय और बिके हुए सामान' : 'Your active and sold items'}
             color={colors.primary}
             onPress={() => requireAuth(() => navigation.navigate('Activity', { initialTab: 2 }))}
           />
           <View style={styles.itemDivider} />
           <MenuItem
             icon="account-balance-wallet"
-            title="Bazaar Seller Settlements"
-            subtitle="View sold listings fee and dues"
+            title={language === 'hi' ? 'बाज़ार विक्रेता भुगतान' : 'Bazaar Seller Settlements'}
+            subtitle={language === 'hi' ? 'बिके हुए सामान का शुल्क और बकाया' : 'View sold listings fee and dues'}
             color="#059669"
             onPress={() => requireAuth(() => navigation.navigate('SellerSettlements'))}
           />
         </View>
 
         {/* Grow with SuperApp — role requests */}
-        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Grow with SuperApp</Text>
+        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
+          {language === 'hi' ? 'सुपरऐप के साथ बिज़नेस बढ़ाएं' : 'Grow with SuperApp'}
+        </Text>
         <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
           <MenuItem
             icon="two-wheeler"
-            title="Become a Rider / Captain"
+            title={language === 'hi' ? 'राइडर / कैप्टन बनें' : 'Become a Rider / Captain'}
             subtitle={
               driverBadge?.subtitle ||
-              'Bike, Auto, or Car/Taxi — admin approves each vehicle'
+              (language === 'hi' ? 'बाइक, ऑटो या कार — एडमिन द्वारा सत्यापन' : 'Bike, Auto, or Car/Taxi — admin approves each vehicle')
             }
             color={colors.blue}
             badgeLabel={driverBadge?.label}
@@ -407,10 +413,10 @@ export const ProfileScreen: React.FC = () => {
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="restaurant"
-            title="Open a Hotel / Cafe"
+            title={language === 'hi' ? 'होटल / कैफे रजिस्टर करें' : 'Open a Hotel / Cafe'}
             subtitle={
               hotelBadge?.subtitle ||
-              'Hotel, restaurant, or cafe — admin approves each outlet'
+              (language === 'hi' ? 'होटल, रेस्टोरेंट या कैफे पार्टनर बनें' : 'Hotel, restaurant, or cafe — admin approves each outlet')
             }
             color={colors.secondary}
             badgeLabel={hotelBadge?.label}
@@ -420,8 +426,8 @@ export const ProfileScreen: React.FC = () => {
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="storefront"
-            title="Sell on Bazaar"
-            subtitle="Anyone can sell — no admin approval needed"
+            title={language === 'hi' ? 'बाज़ार में बेचें' : 'Sell on Bazaar'}
+            subtitle={language === 'hi' ? 'कोई भी नागरिक सामान बेच सकता है' : 'Anyone can sell — no admin approval needed'}
             color={colors.primary}
             onPress={() =>
               Alert.alert(
@@ -440,55 +446,81 @@ export const ProfileScreen: React.FC = () => {
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="rocket-launch"
-            title="Grow with SuperApp"
-            subtitle="New product, category, module & partner onboarding"
+            title={language === 'hi' ? 'पार्टनर ऑनबोर्डिंग' : 'Grow with SuperApp'}
+            subtitle={language === 'hi' ? 'नया प्रोडक्ट, कैटेगरी व पार्टनर रिक्वेस्ट' : 'New product, category, module & partner onboarding'}
             color="#D97706"
             onPress={() => navigation.navigate('GrowWithSuperApp')}
           />
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="layers"
-            title="Modules & Storage Manager"
-            subtitle="On-demand delivery, Wi-Fi downloads & cache manager"
+            title={language === 'hi' ? 'मॉड्यूल और स्टोरेज' : 'Modules & Storage Manager'}
+            subtitle={language === 'hi' ? 'ऑन-डिमांड डिलीवरी, वाई-फाई डाउनलोड व कैश' : 'On-demand delivery, Wi-Fi downloads & cache manager'}
             color="#059669"
             onPress={() => navigation.navigate('ModuleCatalog')}
           />
         </View>
 
         {/* Section 2: Account Settings */}
-        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Account Settings</Text>
+        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
+          {language === 'hi' ? 'अकाउंट सेटिंग्स' : 'Account Settings'}
+        </Text>
         <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
           <MenuItem
             icon="location-on"
-            title="Saved Addresses"
-            subtitle="Home, Work, and other addresses"
+            title={language === 'hi' ? 'सहेजे गए पते' : 'Saved Addresses'}
+            subtitle={language === 'hi' ? 'घर, कार्यालय व अन्य पते' : 'Home, Work, and other addresses'}
             color={colors.yellow}
             onPress={() => requireAuth(() => navigation.navigate('SavedAddresses'))}
           />
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="notifications"
-            title="Notifications"
-            subtitle="Order updates & promotional alerts"
+            title={language === 'hi' ? 'सूचनाएं' : 'Notifications'}
+            subtitle={language === 'hi' ? 'ऑर्डर अपडेट और प्रमोशनल अलर्ट' : 'Order updates & promotional alerts'}
             color={colors.blue}
             onPress={() => requireAuth(() => navigation.navigate('Notifications'))}
           />
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="credit-card"
-            title="Payment Methods"
-            subtitle="Cards, UPI, & Netbanking via Razorpay"
+            title={language === 'hi' ? 'भुगतान विधियां' : 'Payment Methods'}
+            subtitle={language === 'hi' ? 'कार्ड, यूपीआई और नेटबैंकिंग' : 'Cards, UPI, & Netbanking via Razorpay'}
             color={colors.secondary}
             onPress={() => Alert.alert('Payment Methods', 'UPI, Cards, and Netbanking are available directly at checkout via Razorpay.')}
           />
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
             icon="headset-mic"
-            title="Help & Support"
-            subtitle="FAQ, call, WhatsApp & email"
+            title={language === 'hi' ? 'सहायता और संपर्क' : 'Help & Support'}
+            subtitle={language === 'hi' ? 'सामान्य प्रश्न, कॉल और व्हाट्सएप' : 'FAQ, call, WhatsApp & email'}
             color={colors.purple}
             onPress={() => navigation.navigate('HelpSupport')}
           />
+          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
+          <TouchableOpacity style={styles.menuItem} onPress={toggleLanguage} activeOpacity={0.7}>
+            <View
+              style={[
+                styles.menuIconContainer,
+                { backgroundColor: 'rgba(16, 185, 129, 0.12)' },
+              ]}
+            >
+              <Ionicons
+                name="language"
+                size={22}
+                color="#10B981"
+              />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={[styles.menuTitle, { color: theme.textPrimary }]}>
+                {language === 'hi' ? 'भाषा (Language)' : 'Language (भाषा)'}
+              </Text>
+              <Text style={[styles.menuSubtitle, { color: theme.textSecondary }]}>
+                {language === 'hi' ? 'वर्तमान: हिन्दी (English में बदलें)' : 'Current: English (Switch to हिन्दी)'}
+              </Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color={theme.textSecondary} />
+          </TouchableOpacity>
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <View style={styles.menuItem}>
             <View
@@ -504,9 +536,13 @@ export const ProfileScreen: React.FC = () => {
               />
             </View>
             <View style={styles.menuContent}>
-              <Text style={[styles.menuTitle, { color: theme.textPrimary }]}>Dark Mode</Text>
+              <Text style={[styles.menuTitle, { color: theme.textPrimary }]}>
+                {language === 'hi' ? 'डार्क मोड' : 'Dark Mode'}
+              </Text>
               <Text style={[styles.menuSubtitle, { color: theme.textSecondary }]}>
-                {isDark ? 'Dark theme active' : 'Light theme active'}
+                {language === 'hi'
+                  ? (isDark ? 'डार्क थीम सक्रिय' : 'लाइट थीम सक्रिय')
+                  : (isDark ? 'Dark theme active' : 'Light theme active')}
               </Text>
             </View>
             <Switch
@@ -522,7 +558,7 @@ export const ProfileScreen: React.FC = () => {
         {user ? (
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <MaterialIcons name="logout" size={20} color={colors.error} />
-            <Text style={styles.logoutButtonText}>Log Out</Text>
+            <Text style={styles.logoutButtonText}>{language === 'hi' ? 'लॉग आउट' : 'Log Out'}</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -530,7 +566,9 @@ export const ProfileScreen: React.FC = () => {
             onPress={() => navigation.navigate('PhoneEntry')}
           >
             <MaterialIcons name="login" size={20} color={theme.primary} />
-            <Text style={[styles.logoutButtonText, { color: theme.primary }]}>Sign In to Account</Text>
+            <Text style={[styles.logoutButtonText, { color: theme.primary }]}>
+              {language === 'hi' ? 'खाते में साइन इन करें' : 'Sign In to Account'}
+            </Text>
           </TouchableOpacity>
         )}
 

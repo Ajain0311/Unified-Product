@@ -26,6 +26,7 @@ import { LocationMapPicker } from '../../components/maps/LocationMapPicker';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { mapboxService, SelectedMapPlace } from '../../services/mapboxService';
 import { useAppTheme, ThemePalette } from '../../theme/themeStore';
+import { useLanguageStore } from '../../store/languageStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthModalStore } from '../../store/authModalStore';
 import { isAuthenticationError } from '../../utils/authErrors';
@@ -80,6 +81,7 @@ const VEHICLES: VehicleOption[] = [
 export const RideBookingScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, isDark } = useAppTheme();
+  const { language } = useLanguageStore();
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [vehicles, setVehicles] = useState<VehicleOption[]>(VEHICLES);
@@ -537,7 +539,9 @@ export const RideBookingScreen: React.FC = () => {
         >
           <MaterialIcons name="chevron-left" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Find Your Ride</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
+          {language === 'hi' ? 'सवारी खोजें' : 'Find Your Ride'}
+        </Text>
         <TouchableOpacity
           style={[
             styles.gpsChip,
@@ -559,7 +563,11 @@ export const RideBookingScreen: React.FC = () => {
               gpsStatus === 'LOCATING' && { color: '#2563EB' },
             ]}
           >
-            {isLocating ? 'Locating...' : gpsStatus === 'DENIED' ? 'GPS Denied' : 'GPS Active'}
+            {isLocating
+              ? (language === 'hi' ? 'स्थान खोज रहे हैं...' : 'Locating...')
+              : gpsStatus === 'DENIED'
+              ? (language === 'hi' ? 'जीपीएस बंद' : 'GPS Denied')
+              : (language === 'hi' ? 'जीपीएस चालू' : 'GPS Active')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -573,7 +581,9 @@ export const RideBookingScreen: React.FC = () => {
             <View style={[styles.dot, { backgroundColor: theme.secondary }]} />
             <View style={styles.inputWrapper}>
               <View style={styles.pickupHeaderRow}>
-                <Text style={styles.locationLabel}>PICKUP LOCATION</Text>
+                <Text style={styles.locationLabel}>
+                  {language === 'hi' ? 'पिकअप स्थान' : 'PICKUP LOCATION'}
+                </Text>
                 <TouchableOpacity
                   onPress={() => handleLocateMe(true)}
                   disabled={isLocating}
@@ -581,7 +591,11 @@ export const RideBookingScreen: React.FC = () => {
                   activeOpacity={0.7}
                 >
                   <MaterialIcons name="my-location" size={12} color={theme.primary} />
-                  <Text style={styles.locateMeText}>{isLocating ? 'Locating...' : 'Use GPS'}</Text>
+                  <Text style={styles.locateMeText}>
+                    {isLocating
+                      ? (language === 'hi' ? 'खोज रहे...' : 'Locating...')
+                      : (language === 'hi' ? 'जीपीएस उपयोग करें' : 'Use GPS')}
+                  </Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.inputFieldContainer}>
@@ -594,7 +608,7 @@ export const RideBookingScreen: React.FC = () => {
                     setActivePoint('pickup');
                     setPickupInput(pickupAddress.startsWith('Locating') ? '' : pickupAddress);
                   }}
-                  placeholder="Where to pick you up?"
+                  placeholder={language === 'hi' ? 'पिकअप स्थान कहां है?' : 'Where to pick you up?'}
                   placeholderTextColor={theme.textTertiary}
                   style={styles.textInput}
                   selectTextOnFocus
@@ -635,7 +649,9 @@ export const RideBookingScreen: React.FC = () => {
           <View style={styles.inputRow}>
             <View style={[styles.dot, { backgroundColor: theme.error }]} />
             <View style={styles.inputWrapper}>
-              <Text style={styles.locationLabel}>WHERE TO?</Text>
+              <Text style={styles.locationLabel}>
+                {language === 'hi' ? 'ड्रॉप स्थान (कहाँ जाना है?)' : 'WHERE TO?'}
+              </Text>
               <View style={styles.inputFieldContainer}>
                 <TextInput
                   ref={dropoffInputRef}
@@ -646,7 +662,7 @@ export const RideBookingScreen: React.FC = () => {
                     setActivePoint('dropoff');
                     setDropoffInput(dropoffAddress.startsWith('Tap map') ? '' : dropoffAddress);
                   }}
-                  placeholder="Enter drop destination"
+                  placeholder={language === 'hi' ? 'ड्रॉप स्थान दर्ज करें' : 'Enter drop destination'}
                   placeholderTextColor={theme.textTertiary}
                   style={styles.textInput}
                   selectTextOnFocus
@@ -747,7 +763,9 @@ export const RideBookingScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>AVAILABLE VEHICLES</Text>
+        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
+          {language === 'hi' ? 'उपलब्ध सवारियां' : 'AVAILABLE VEHICLES'}
+        </Text>
 
         {/* Vehicles List */}
         {vehicles.map((vehicle, index) => {
@@ -833,12 +851,14 @@ export const RideBookingScreen: React.FC = () => {
           >
             <Text style={styles.bookButtonText}>
               {isBooking
-                ? 'Booking Ride...'
+                ? (language === 'hi' ? 'राइड बुक हो रही है...' : 'Booking Ride...')
                 : !dropoffCoords
-                ? 'Select Destination to Book'
+                ? (language === 'hi' ? 'बुक करने के लिए ड्रॉप स्थान चुनें' : 'Select Destination to Book')
                 : selectedVehicle.fare > 0
-                ? `Confirm ride · estimated ₹${selectedVehicle.fare.toFixed(0)}`
-                : 'Confirm ride'}
+                ? (language === 'hi'
+                    ? `राइड कन्फर्म करें · अनुमानित ₹${selectedVehicle.fare.toFixed(0)}`
+                    : `Confirm ride · estimated ₹${selectedVehicle.fare.toFixed(0)}`)
+                : (language === 'hi' ? 'राइड कन्फर्म करें' : 'Confirm ride')}
             </Text>
           </TouchableOpacity>
         </View>
