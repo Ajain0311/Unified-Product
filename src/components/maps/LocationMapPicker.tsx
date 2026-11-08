@@ -18,6 +18,7 @@ import {
   SelectedMapPlace,
 } from '../../services/mapboxService';
 import { CHITTORGARH_SERVICE_REGION } from '../../config/serviceRegion';
+import { configService } from '../../services/configService';
 
 type Props = {
   label?: string;
@@ -67,10 +68,20 @@ export const LocationMapPicker: React.FC<Props> = ({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cameraRef = useRef<any>(null);
 
-  const tokenReady = mapboxService.isConfigured();
+  const [tokenReady, setTokenReady] = useState(mapboxService.isConfigured());
   const MapView = MapboxMaps?.MapView;
   const Camera = MapboxMaps?.Camera;
   const PointAnnotation = MapboxMaps?.PointAnnotation;
+
+  useEffect(() => {
+    if (!tokenReady) {
+      configService.fetchConfig().then(() => {
+        if (mapboxService.isConfigured()) {
+          setTokenReady(true);
+        }
+      });
+    }
+  }, [tokenReady]);
 
   useEffect(() => {
     if (MapboxMaps?.default?.setAccessToken && tokenReady) {
