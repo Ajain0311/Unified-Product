@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../store/authStore';
 import { useAppTheme, ThemePalette } from '../../theme/themeStore';
+import { useLanguageStore } from '../../store/languageStore';
 import { shadowStyle } from '../../utils/platformStyles';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
@@ -29,6 +30,7 @@ interface PhoneEntryScreenProps {
 
 export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }) => {
   const { theme, isDark } = useAppTheme();
+  const { language } = useLanguageStore();
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -164,9 +166,13 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
               inputCardY.current = e.nativeEvent.layout.y;
             }}
           >
-            <Text style={styles.cardTitle}>Login or Sign Up</Text>
+            <Text style={styles.cardTitle}>
+              {language === 'hi' ? 'लॉगिन या साइन अप' : 'Login or Sign Up'}
+            </Text>
             <Text style={styles.cardSubtitle}>
-              Enter your mobile number — we will send an OTP to verify
+              {language === 'hi'
+                ? 'अपना 10-अंकों का मोबाइल नंबर दर्ज करें — सत्यापन हेतु OTP भेजा जाएगा'
+                : 'Enter your mobile number — we will send an OTP to verify'}
             </Text>
 
             <View
@@ -258,7 +264,7 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
                         !isValidLength && styles.continueBtnTextDisabled,
                       ]}
                     >
-                      Continue with OTP
+                      {language === 'hi' ? 'OTP प्राप्त करें' : 'Continue with OTP'}
                     </Text>
                     <Ionicons
                       name="arrow-forward"
@@ -281,7 +287,9 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
               }}
               activeOpacity={0.7}
             >
-              <Text style={styles.guestButtonText}>Browse as Guest</Text>
+              <Text style={styles.guestButtonText}>
+                {language === 'hi' ? 'अतिथि के रूप में ब्राउज़ करें' : 'Browse as Guest'}
+              </Text>
               <Ionicons name="chevron-forward" size={14} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -449,43 +457,50 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
     cardContainer: {
       width: '100%',
       backgroundColor: theme.card,
-      borderRadius: 24,
-      borderWidth: 1,
-      borderColor: theme.cardBorder,
-      padding: 22,
-      ...AppShadows.md,
+      borderRadius: 28,
+      borderWidth: 1.2,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(15, 23, 42, 0.08)',
+      padding: 24,
+      ...AppShadows.card,
       marginBottom: 20,
     },
     cardTitle: {
-      fontSize: 20,
+      fontSize: 22,
       fontWeight: '800',
       color: theme.textPrimary,
-      letterSpacing: -0.3,
+      letterSpacing: -0.4,
     },
     cardSubtitle: {
       fontSize: 13,
       color: theme.textSecondary,
       marginTop: 4,
-      marginBottom: 18,
+      marginBottom: 20,
       lineHeight: 18,
+      fontWeight: '400',
     },
     phoneInputCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: theme.inputBg,
-      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F8FAFC',
+      borderRadius: 18,
       borderWidth: 1.5,
-      borderColor: theme.cardBorder,
-      paddingHorizontal: 12,
-      height: 56,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
+      paddingHorizontal: 14,
+      height: 58,
       marginBottom: 10,
     },
     phoneInputCardFocused: {
       borderColor: theme.primary,
-      backgroundColor: isDark ? 'rgba(255, 90, 31, 0.08)' : '#FFFFFF',
+      backgroundColor: isDark ? 'rgba(255, 90, 31, 0.06)' : '#FFFFFF',
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 2,
     },
     phoneInputCardValid: {
       borderColor: '#10B981',
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.06)' : '#FFFFFF',
     },
     countryCodePill: {
       flexDirection: 'row',
@@ -494,25 +509,27 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
       paddingHorizontal: 4,
     },
     flagIcon: {
-      fontSize: 18,
+      fontSize: 20,
     },
     countryCodeText: {
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: '800',
       color: theme.textPrimary,
+      letterSpacing: -0.2,
     },
     inputDivider: {
       width: 1,
-      height: 24,
-      backgroundColor: theme.cardBorder,
-      marginHorizontal: 10,
+      height: 26,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#CBD5E1',
+      marginHorizontal: 12,
     },
     phoneNumberInput: {
       flex: 1,
-      fontSize: 16,
+      fontSize: 17,
       fontWeight: '700',
       color: theme.textPrimary,
       paddingVertical: 0,
+      letterSpacing: 0.5,
     },
     verifiedIconBox: {
       marginLeft: 6,
