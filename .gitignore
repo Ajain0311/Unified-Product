@@ -77,6 +77,10 @@ e2e/playwright-results.json
 LOCAL_INFRA_SECRETS.md
 *.secrets.md
 credentials.local.md
+*service-account*.json
+*play-key*.json
+pc-api-key.json
+zupify-*.json
 
 
 # Block any test files from being pushed

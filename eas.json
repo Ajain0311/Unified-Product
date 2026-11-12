@@ -11,7 +11,8 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://makemyfree.duckdns.org/api",
         "EXPO_PUBLIC_SIGNALR_HUB_URL": "https://makemyfree.duckdns.org",
         "EXPO_PUBLIC_SHOW_TEST_OTP": "false"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -23,7 +24,8 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://makemyfree.duckdns.org/api",
         "EXPO_PUBLIC_SIGNALR_HUB_URL": "https://makemyfree.duckdns.org",
         "EXPO_PUBLIC_SHOW_TEST_OTP": "false"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "android": {
@@ -33,11 +35,18 @@
         "EXPO_PUBLIC_ENV": "prod",
         "EXPO_PUBLIC_API_BASE_URL": "https://makemyfree.duckdns.org/api",
         "EXPO_PUBLIC_SIGNALR_HUB_URL": "https://makemyfree.duckdns.org",
-        "EXPO_PUBLIC_SHOW_TEST_OTP": "false"
-      }
+        "EXPO_PUBLIC_SHOW_TEST_OTP": "true",
+        "EXPO_PUBLIC_TEST_OTP": "123456"
+      },
+      "channel": "production"
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./pc-api-key.json",
+        "track": "closed-testing"
+      }
+    }
   }
 }

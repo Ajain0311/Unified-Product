@@ -2,7 +2,7 @@
   "expo": {
     "name": "Zupify",
     "slug": "HTTP-EXPNAT-NET",
-    "version": "1.0.4",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.zupify.app",
-      "versionCode": 4,
+      "versionCode": 6,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
@@ -56,8 +56,23 @@
         }
       ],
       "expo-dev-client",
-      "@rnmapbox/maps"
+      "@rnmapbox/maps",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
     ],
+    "updates": {
+      "url": "https://u.expo.dev/d34cada7-3333-4648-a237-b1b67069f607"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "extra": {
       "eas": {
         "projectId": "d34cada7-3333-4648-a237-b1b67069f607"
