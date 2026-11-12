@@ -54,6 +54,8 @@
     "publish:dev": "eas update --channel development",
     "publish:preview": "eas update --channel preview",
     "publish:prod": "eas update --channel production",
+    "vm:logs": "ssh -i C:\\Users\\admin\\.ssh\\Free750_key.pem azureuser@172.198.50.59 \"sudo journalctl -u superapp.service -n 50 --no-pager\"",
+    "vm:logs:errors": "ssh -i C:\\Users\\admin\\.ssh\\Free750_key.pem azureuser@172.198.50.59 \"sudo tail -n 50 -F /var/log/superapp/errors.log\"",
     "jenkins": "java -jar tools/jenkins.war --httpPort=8080"
   },
   "expo": {

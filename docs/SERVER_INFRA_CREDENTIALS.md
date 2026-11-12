@@ -78,3 +78,35 @@
   ```bash
   npx eas submit -p android --profile production
   ```
+
+---
+
+## 5. Live App Updates (EAS OTA Updates - Primary & Unlimited)
+
+- **Why EAS Update**: EAS Update allows publishing code and UI changes directly to testers' devices without consuming EAS build quotas.
+- **Commands**:
+  ```bash
+  # Preview branch (internal testing)
+  npm run publish:preview
+  # Production branch
+  npm run publish:prod
+  ```
+- **How it behaves**: Once installed on a device, the app automatically fetches the latest JS bundle upon restart from Expo Cloud CDN. PC / localhost is NOT needed.
+
+---
+
+## 6. Real-Time Error Log Monitoring Tool (Azure VM)
+
+A persistent monitoring daemon tracks backend errors on the VM:
+- **Monitor Service**: `superapp-error-monitor.service`
+- **Daemon Script**: `/opt/SuperApp_V2/scripts/monitor-errors.sh`
+- **Output Error Log**: `/var/log/superapp/errors.log`
+- **Stream/View from Local Terminal**:
+  ```bash
+  npm run vm:logs:errors
+  ```
+- **View all general backend logs**:
+  ```bash
+  npm run vm:logs
+  ```
+
