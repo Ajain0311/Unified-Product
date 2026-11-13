@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -87,9 +88,11 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
     [statusFilter]
   );
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const approve = (id: number) => {
     Alert.alert('Approve application?', 'User will receive the requested role immediately.', [
