@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { AppEnvironment } from '../../config/environment';
@@ -38,6 +39,7 @@ function formatDate(value?: string) {
 }
 
 export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [items, setItems] = useState<any[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [statusFilter, setStatusFilter] = useState<'PENDING' | 'ALL'>('PENDING');
@@ -128,21 +130,21 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
+          <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <View style={styles.titleRow}>
-            <Text style={styles.headerTitle}>Role Applications</Text>
+            <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Role Applications</Text>
             {pendingCount > 0 ? (
-              <View style={styles.headerBadge}>
+              <View style={[styles.headerBadge, { backgroundColor: theme.primary }]}>
                 <Text style={styles.headerBadgeText}>{pendingCount > 99 ? '99+' : pendingCount}</Text>
               </View>
             ) : null}
           </View>
-          <Text style={styles.headerSub}>
+          <Text style={[styles.headerSub, { color: theme.textSecondary }]}>
             {pendingCount > 0
               ? `${pendingCount} waiting for approval — approve to grant role`
               : 'Citizen requests for Rider or Hotel Owner — approve to grant role'}
@@ -150,16 +152,16 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
         </View>
       </View>
 
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder, borderBottomWidth: 1 }]}>
         {(['PENDING', 'ALL'] as const).map((t) => (
           <TouchableOpacity
             key={t}
-            style={[styles.tabItem, statusFilter === t && styles.tabItemActive]}
+            style={[styles.tabItem, statusFilter === t && [styles.tabItemActive, { borderBottomColor: theme.primary }]]}
             onPress={() => setStatusFilter(t)}
           >
-            <Text style={[styles.tabText, statusFilter === t && styles.tabTextActive]}>{t}</Text>
+            <Text style={[styles.tabText, { color: theme.textSecondary }, statusFilter === t && { color: theme.primary }]}>{t}</Text>
             {t === 'PENDING' && pendingCount > 0 ? (
-              <View style={styles.tabBadge}>
+              <View style={[styles.tabBadge, { backgroundColor: theme.primary }]}>
                 <Text style={styles.tabBadgeText}>{pendingCount > 99 ? '99+' : pendingCount}</Text>
               </View>
             ) : null}
@@ -169,14 +171,14 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={AppColors.primary} />
-          <Text style={styles.empty}>Loading applications…</Text>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.empty, { color: theme.textSecondary }]}>Loading applications…</Text>
         </View>
       ) : error ? (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={42} color="#EF4444" />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
+          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: theme.primary }]} onPress={() => load()}>
             <Text style={styles.btnText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -187,19 +189,19 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => load(true)}
-              tintColor={AppColors.primary}
+              tintColor={theme.primary}
             />
           }
         >
           {items.length === 0 ? (
             <View style={styles.center}>
-              <Ionicons name="checkmark-done-outline" size={42} color={AppColors.textSecondary} />
-              <Text style={styles.empty}>
+              <Ionicons name="checkmark-done-outline" size={42} color={theme.textSecondary} />
+              <Text style={[styles.empty, { color: theme.textSecondary }]}>
                 {statusFilter === 'PENDING'
                   ? 'No pending applications right now.'
                   : 'No role applications yet.'}
               </Text>
-              <Text style={styles.hint}>
+              <Text style={[styles.hint, { color: theme.textTertiary }]}>
                 When a citizen applies from Profile → Become Rider / Open Hotel, their name, phone,
                 documents, and vehicle or hotel details appear here for Approve / Reject.
               </Text>
@@ -208,14 +210,14 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
             items.map((a) => {
               const docUrl = absUrl(a.licenseImageUrl || a.businessDocumentImageUrl);
               return (
-                <View key={a.id} style={styles.card}>
+                <View key={a.id} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                   <View style={styles.cardHeader}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.name}>
+                      <Text style={[styles.name, { color: theme.textPrimary }]}>
                         {a.userName || 'Citizen'} • {a.userMobile || '—'}
                       </Text>
-                      <Text style={styles.role}>{roleLabel(a.requestedRole)}</Text>
-                      <Text style={styles.submitted}>Submitted {formatDate(a.createdAt)}</Text>
+                      <Text style={[styles.role, { color: theme.primary }]}>{roleLabel(a.requestedRole)}</Text>
+                      <Text style={[styles.submitted, { color: theme.textTertiary }]}>Submitted {formatDate(a.createdAt)}</Text>
                     </View>
                     <View
                       style={[
@@ -237,7 +239,7 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
                   </View>
 
                   {a.requestedRole === 'DRIVER' ? (
-                    <Text style={styles.meta}>
+                    <Text style={[styles.meta, { color: theme.textSecondary }]}>
                       License: {a.licenseNumber || '—'}
                       {'\n'}
                       Vehicle: {a.vehicleType || '—'} • {a.vehicleRegistrationNumber || '—'}
@@ -246,7 +248,7 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
                         : ''}
                     </Text>
                   ) : (
-                    <Text style={styles.meta}>
+                    <Text style={[styles.meta, { color: theme.textSecondary }]}>
                       {a.hotelName || 'Hotel'}
                       {'\n'}
                       Business type: {a.businessType || 'RESTAURANT'}
@@ -257,15 +259,15 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
                   )}
 
                   {a.applicantNotes ? (
-                    <Text style={styles.notes}>Notes: {a.applicantNotes}</Text>
+                    <Text style={[styles.notes, { color: theme.textTertiary }]}>Notes: {a.applicantNotes}</Text>
                   ) : null}
 
                   {docUrl ? (
                     <TouchableOpacity onPress={() => Linking.openURL(docUrl)}>
-                      <Text style={styles.docLink}>View uploaded document</Text>
+                      <Text style={[styles.docLink, { color: theme.info }]}>View uploaded document</Text>
                     </TouchableOpacity>
                   ) : (
-                    <Text style={styles.meta}>No document link available</Text>
+                    <Text style={[styles.meta, { color: theme.textTertiary }]}>No document link available</Text>
                   )}
 
                   {a.status === 'PENDING' ? (
@@ -278,7 +280,7 @@ export const AdminRoleApplicationsScreen: React.FC<{ navigation: any }> = ({ nav
                       </TouchableOpacity>
                     </View>
                   ) : a.reviewedByAdminName || a.adminNotes ? (
-                    <Text style={styles.notes}>
+                    <Text style={[styles.notes, { color: theme.textTertiary }]}>
                       Reviewed by {a.reviewedByAdminName || 'admin'}
                       {a.adminNotes ? ` — ${a.adminNotes}` : ''}
                     </Text>

@@ -19,6 +19,7 @@ import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navig
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { documentService } from '../../services/documentService';
 import { ApiEndpoints } from '../../constants/api';
@@ -102,6 +103,7 @@ function formatDate(value?: string) {
 }
 
 export const RoleApplicationScreen: React.FC = () => {
+  const { theme, isDark } = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'RoleApplication'>>();
   const initialRole: RoleKind =
@@ -335,17 +337,17 @@ export const RoleApplicationScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#FFF" />
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{title}</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>{title}</Text>
         <View style={{ width: 32 }} />
       </View>
 
       {/* Role Switcher Tabs */}
-      <View style={{ flexDirection: 'row', backgroundColor: '#1E293B', padding: 4, marginHorizontal: 16, marginTop: 10, borderRadius: 12 }}>
+      <View style={{ flexDirection: 'row', backgroundColor: isDark ? '#1E293B' : '#E2E8F0', padding: 4, marginHorizontal: 16, marginTop: 10, borderRadius: 12 }}>
         <TouchableOpacity
           onPress={() => setActiveTabRole('DRIVER')}
           style={{
@@ -353,10 +355,10 @@ export const RoleApplicationScreen: React.FC = () => {
             paddingVertical: 8,
             alignItems: 'center',
             borderRadius: 8,
-            backgroundColor: isDriver ? AppColors.primary : 'transparent',
+            backgroundColor: isDriver ? theme.primary : 'transparent',
           }}
         >
-          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: isDriver ? '700' : '500' }}>Rider</Text>
+          <Text style={{ color: isDriver ? '#FFF' : theme.textSecondary, fontSize: 12, fontWeight: isDriver ? '700' : '500' }}>Rider</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -366,10 +368,10 @@ export const RoleApplicationScreen: React.FC = () => {
             paddingVertical: 8,
             alignItems: 'center',
             borderRadius: 8,
-            backgroundColor: isRestaurantOwner ? AppColors.primary : 'transparent',
+            backgroundColor: isRestaurantOwner ? theme.primary : 'transparent',
           }}
         >
-          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: isRestaurantOwner ? '700' : '500' }}>Restaurant</Text>
+          <Text style={{ color: isRestaurantOwner ? '#FFF' : theme.textSecondary, fontSize: 12, fontWeight: isRestaurantOwner ? '700' : '500' }}>Restaurant</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -379,10 +381,10 @@ export const RoleApplicationScreen: React.FC = () => {
             paddingVertical: 8,
             alignItems: 'center',
             borderRadius: 8,
-            backgroundColor: isHotelOwner ? AppColors.primary : 'transparent',
+            backgroundColor: isHotelOwner ? theme.primary : 'transparent',
           }}
         >
-          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: isHotelOwner ? '700' : '500' }}>Hotel Partner</Text>
+          <Text style={{ color: isHotelOwner ? '#FFF' : theme.textSecondary, fontSize: 12, fontWeight: isHotelOwner ? '700' : '500' }}>Hotel Partner</Text>
         </TouchableOpacity>
       </View>
 
@@ -398,27 +400,27 @@ export const RoleApplicationScreen: React.FC = () => {
             />
           }
         >
-          <Text style={styles.intro}>
+          <Text style={[styles.intro, { color: theme.textSecondary }]}>
             {isDriver
               ? 'Apply for Bike/Scooty, Auto, or Car/Taxi. Already approved? Submit again to add another vehicle — admin must approve each one.'
               : 'Apply for a hotel, restaurant, or cafe. Already have one outlet? Submit again to add another — admin must approve each outlet.'}
           </Text>
 
           {loadingApp ? (
-            <View style={styles.statusLoading}>
-              <ActivityIndicator color={AppColors.primary} />
-              <Text style={styles.statusLoadingText}>Checking your applications…</Text>
+            <View style={[styles.statusLoading, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+              <ActivityIndicator color={theme.primary} />
+              <Text style={[styles.statusLoadingText, { color: theme.textSecondary }]}>Checking your applications…</Text>
             </View>
           ) : loadError ? (
-            <View style={styles.statusCard}>
+            <View style={[styles.statusCard, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
               <Text style={styles.errorText}>{loadError}</Text>
-              <TouchableOpacity style={styles.retryBtn} onPress={() => loadMine()}>
-                <Text style={styles.retryText}>Retry</Text>
+              <TouchableOpacity style={[styles.retryBtn, { backgroundColor: theme.surfaceMuted }]} onPress={() => loadMine()}>
+                <Text style={[styles.retryText, { color: theme.textPrimary }]}>Retry</Text>
               </TouchableOpacity>
             </View>
           ) : apps.length > 0 ? (
             <View style={styles.appsList}>
-              <Text style={styles.appsListTitle}>
+              <Text style={[styles.appsListTitle, { color: theme.textPrimary }]}>
                 Your applications{pendingCount > 0 ? ` · ${pendingCount} pending` : ''}
               </Text>
               {apps.map((app) => {
@@ -427,21 +429,21 @@ export const RoleApplicationScreen: React.FC = () => {
                 return (
                   <View
                     key={app.id}
-                    style={[styles.statusCard, { borderColor: m.color + '55', backgroundColor: m.bg }]}
+                    style={[styles.statusCard, { borderColor: m.color + '55', backgroundColor: isDark ? m.bg : '#F8FAFC' }]}
                   >
                     <View style={styles.statusHeader}>
                       <Ionicons name={m.icon} size={20} color={m.color} />
                       <Text style={[styles.statusLabel, { color: m.color }]}>{m.label}</Text>
                     </View>
                     {isDriver ? (
-                      <Text style={styles.summaryLine}>
+                      <Text style={[styles.summaryLine, { color: theme.textPrimary }]}>
                         {vehicleLabel(app.vehicleType)}
                         {app.vehicleRegistrationNumber ? ` · ${app.vehicleRegistrationNumber}` : ''}
                       </Text>
                     ) : (
-                      <Text style={styles.summaryLine}>{app.hotelName || 'Outlet'}{app.businessType ? ` · ${app.businessType}` : ''}</Text>
+                      <Text style={[styles.summaryLine, { color: theme.textPrimary }]}>{app.hotelName || 'Outlet'}{app.businessType ? ` · ${app.businessType}` : ''}</Text>
                     )}
-                    <Text style={styles.statusMeta}>Submitted: {formatDate(app.createdAt)}</Text>
+                    <Text style={[styles.statusMeta, { color: theme.textTertiary }]}>Submitted: {formatDate(app.createdAt)}</Text>
                     {app.adminNotes ? (
                       <Text style={styles.adminNotes}>Admin note: {app.adminNotes}</Text>
                     ) : null}
@@ -463,16 +465,16 @@ export const RoleApplicationScreen: React.FC = () => {
               })}
             </View>
           ) : (
-            <View style={styles.emptyStatus}>
-              <Ionicons name="document-text-outline" size={20} color={AppColors.textSecondary} />
-              <Text style={styles.emptyStatusText}>
+            <View style={[styles.emptyStatus, { backgroundColor: theme.surface, borderColor: theme.cardBorder, borderWidth: 1 }]}>
+              <Ionicons name="document-text-outline" size={20} color={theme.textSecondary} />
+              <Text style={[styles.emptyStatusText, { color: theme.textSecondary }]}>
                 No application yet. Fill the form below to get started.
               </Text>
             </View>
           )}
 
           <>
-              <Text style={styles.reapplyTitle}>{formTitle}</Text>
+              <Text style={[styles.reapplyTitle, { color: theme.textPrimary }]}>{formTitle}</Text>
               {pendingCount >= 5 ? (
                 <Text style={styles.adminNotes}>
                   You already have 5 pending requests. Cancel one or wait for admin review before adding more.
@@ -481,17 +483,17 @@ export const RoleApplicationScreen: React.FC = () => {
 
               {isDriver ? (
                 <>
-                  <Text style={styles.label}>Driving License Number *</Text>
+                  <Text style={[styles.label, { color: theme.textSecondary }]}>Driving License Number *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={licenseNumber}
                     onChangeText={setLicenseNumber}
                     autoCapitalize="characters"
                     placeholder="e.g. RJ-14201100XXXX"
-                    placeholderTextColor="#777"
+                    placeholderTextColor={theme.textTertiary}
                   />
 
-                  <Text style={styles.label}>Vehicle Type *</Text>
+                  <Text style={[styles.label, { color: theme.textSecondary }]}>Vehicle Type *</Text>
                   <View style={styles.chipRow}>
                     {(
                       [
@@ -502,45 +504,45 @@ export const RoleApplicationScreen: React.FC = () => {
                     ).map((t) => (
                       <TouchableOpacity
                         key={t.id}
-                        style={[styles.chip, vehicleType === t.id && styles.chipActive]}
+                        style={[styles.chip, { backgroundColor: theme.surface, borderColor: theme.cardBorder }, vehicleType === t.id && { borderColor: theme.primary, backgroundColor: theme.primaryMuted }]}
                         onPress={() => setVehicleType(t.id)}
                       >
-                        <Text style={[styles.chipText, vehicleType === t.id && styles.chipTextActive]}>
+                        <Text style={[styles.chipText, { color: theme.textSecondary }, vehicleType === t.id && { color: theme.primary }]}>
                           {t.label}
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
-                  <Text style={styles.label}>Vehicle Registration *</Text>
+                  <Text style={[styles.label, { color: theme.textSecondary }]}>Vehicle Registration *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={vehicleReg}
                     onChangeText={setVehicleReg}
                     autoCapitalize="characters"
                     placeholder="RJ14AB1234"
-                    placeholderTextColor="#777"
+                    placeholderTextColor={theme.textTertiary}
                   />
 
                   <View style={styles.row}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Make</Text>
+                      <Text style={[styles.label, { color: theme.textSecondary }]}>Make</Text>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                         value={vehicleMake}
                         onChangeText={setVehicleMake}
                         placeholder="Hero"
-                        placeholderTextColor="#777"
+                        placeholderTextColor={theme.textTertiary}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Model</Text>
+                      <Text style={[styles.label, { color: theme.textSecondary }]}>Model</Text>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                         value={vehicleModel}
                         onChangeText={setVehicleModel}
                         placeholder="Splendor"
-                        placeholderTextColor="#777"
+                        placeholderTextColor={theme.textTertiary}
                       />
                     </View>
                   </View>
@@ -549,89 +551,89 @@ export const RoleApplicationScreen: React.FC = () => {
                 <>
                   {!isHotelOwner ? (
                     <>
-                      <Text style={styles.label}>Business type *</Text>
+                      <Text style={[styles.label, { color: theme.textSecondary }]}>Business type *</Text>
                       <View style={styles.chipRow}>
                         {([
                           ['RESTAURANT', 'Restaurant'],
                           ['CAFE', 'Cafe'],
                           ['BAR', 'Bar & Lounge'],
                         ] as const).map(([value, label]) => (
-                          <TouchableOpacity key={value} style={[styles.chip, businessType === value && styles.chipActive]} onPress={() => setBusinessType(value)}>
-                            <Text style={[styles.chipText, businessType === value && styles.chipTextActive]}>{label}</Text>
+                          <TouchableOpacity key={value} style={[styles.chip, { backgroundColor: theme.surface, borderColor: theme.cardBorder }, businessType === value && { borderColor: theme.primary, backgroundColor: theme.primaryMuted }]} onPress={() => setBusinessType(value)}>
+                            <Text style={[styles.chipText, { color: theme.textSecondary }, businessType === value && { color: theme.primary }]}>{label}</Text>
                           </TouchableOpacity>
                         ))}
                       </View>
                     </>
                   ) : null}
-                  <Text style={styles.label}>Hotel / Cafe / Restaurant Name *</Text>
+                  <Text style={[styles.label, { color: theme.textSecondary }]}>Hotel / Cafe / Restaurant Name *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={hotelName}
                     onChangeText={setHotelName}
                     placeholder="Spice Hub Cafe"
-                    placeholderTextColor="#777"
+                    placeholderTextColor={theme.textTertiary}
                   />
-                  <Text style={styles.label}>Outlet Address *</Text>
+                  <Text style={[styles.label, { color: theme.textSecondary }]}>Outlet Address *</Text>
                   <TextInput
-                    style={[styles.input, { minHeight: 70 }]}
+                    style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder, minHeight: 70 }]}
                     value={hotelAddress}
                     onChangeText={setHotelAddress}
                     multiline
                     placeholder="Full address"
-                    placeholderTextColor="#777"
+                    placeholderTextColor={theme.textTertiary}
                   />
                   <View style={styles.row}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>City</Text>
+                      <Text style={[styles.label, { color: theme.textSecondary }]}>City</Text>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                         value={hotelCity}
                         onChangeText={setHotelCity}
                         placeholder="Jaipur"
-                        placeholderTextColor="#777"
+                        placeholderTextColor={theme.textTertiary}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Phone *</Text>
+                      <Text style={[styles.label, { color: theme.textSecondary }]}>Phone *</Text>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                         value={hotelPhone}
                         onChangeText={setHotelPhone}
                         keyboardType="phone-pad"
                         placeholder="98XXXXXXXX"
-                        placeholderTextColor="#777"
+                        placeholderTextColor={theme.textTertiary}
                       />
                     </View>
                   </View>
                 </>
               )}
 
-              <Text style={styles.label}>{isDriver ? 'License Photo *' : 'Business / FSSAI Document *'}</Text>
-              <TouchableOpacity style={styles.uploadBtn} onPress={pickDocument} disabled={uploading}>
+              <Text style={[styles.label, { color: theme.textSecondary }]}>{isDriver ? 'License Photo *' : 'Business / FSSAI Document *'}</Text>
+              <TouchableOpacity style={[styles.uploadBtn, { backgroundColor: theme.surfaceMuted }]} onPress={pickDocument} disabled={uploading}>
                 {uploading ? (
-                  <ActivityIndicator color="#FFF" />
+                  <ActivityIndicator color={theme.primary} />
                 ) : (
                   <>
-                    <Ionicons name="cloud-upload-outline" size={20} color="#FFF" />
-                    <Text style={styles.uploadText}>{docNo ? 'Replace document' : 'Upload document photo'}</Text>
+                    <Ionicons name="cloud-upload-outline" size={20} color={theme.textPrimary} />
+                    <Text style={[styles.uploadText, { color: theme.textPrimary }]}>{docNo ? 'Replace document' : 'Upload document photo'}</Text>
                   </>
                 )}
               </TouchableOpacity>
               {docUri ? <Image source={{ uri: docUri }} style={styles.preview} /> : null}
               {docNo ? <Text style={styles.docOk}>Uploaded ✓ ({docNo})</Text> : null}
 
-              <Text style={styles.label}>Notes (optional)</Text>
+              <Text style={[styles.label, { color: theme.textSecondary }]}>Notes (optional)</Text>
               <TextInput
-                style={[styles.input, { minHeight: 70 }]}
+                style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder, minHeight: 70 }]}
                 value={notes}
                 onChangeText={setNotes}
                 multiline
                 placeholder="Anything admin should know"
-                placeholderTextColor="#777"
+                placeholderTextColor={theme.textTertiary}
               />
 
               <TouchableOpacity
-                style={[styles.submitBtn, (submitting || uploading || pendingCount >= 5) && { opacity: 0.7 }]}
+                style={[styles.submitBtn, { backgroundColor: theme.primary }, (submitting || uploading || pendingCount >= 5) && { opacity: 0.7 }]}
                 onPress={handleSubmit}
                 disabled={submitting || uploading || pendingCount >= 5}
               >

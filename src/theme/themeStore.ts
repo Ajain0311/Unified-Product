@@ -53,7 +53,7 @@ export const lightTheme: ThemePalette = {
   accent: '#F59E0B',
   textPrimary: '#0F172A',
   textSecondary: '#475569',
-  textTertiary: '#94A3B8',
+  textTertiary: '#64748B',
   border: '#E2E8F0',
   borderSubtle: '#F1F5F9',
   cardBg: '#FFFFFF',
