@@ -17,6 +17,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { signalRService, DriverLocationEvent, RideStatusEvent } from '../../services/signalr';
@@ -52,6 +53,7 @@ if (canUseNativeMap) {
 }
 
 export const ActiveRideScreen: React.FC = () => {
+  const { theme, isDark } = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'ActiveRide'>>();
   const rideId = route.params?.rideId || 'RD-5021';
@@ -576,20 +578,20 @@ export const ActiveRideScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background} />
 
       {/* Screen Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
           accessibilityRole="button"
           accessibilityLabel="Back to Home"
         >
-          <MaterialIcons name="arrow-back" size={24} color={colors.textPrimary} />
+          <MaterialIcons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ride Status</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Ride Status</Text>
         <TouchableOpacity
           style={styles.sosChip}
           onPress={() => Alert.alert('SOS Emergency', 'SuperApp Emergency Response team has been alerted with your live trip coordinates.')}
@@ -626,16 +628,16 @@ export const ActiveRideScreen: React.FC = () => {
 
         {/* OTP — only real backend code, pre-STARTED */}
         {!isTripStarted && !rideIsTerminal && otpDigits.length === 4 && (
-          <View style={styles.otpBox}>
-            <Text style={styles.otpTitle}>SHARE START CODE WITH CAPTAIN</Text>
+          <View style={[styles.otpBox, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+            <Text style={[styles.otpTitle, { color: theme.textSecondary }]}>SHARE START CODE WITH CAPTAIN</Text>
             <View style={styles.otpDigitsRow}>
               {otpDigits.map((digit, idx) => (
-                <View key={idx} style={styles.otpDigitBox}>
-                  <Text style={styles.otpDigitText}>{digit}</Text>
+                <View key={idx} style={[styles.otpDigitBox, { backgroundColor: theme.card, borderColor: theme.secondary }]}>
+                  <Text style={[styles.otpDigitText, { color: theme.textPrimary }]}>{digit}</Text>
                 </View>
               ))}
             </View>
-            <Text style={styles.otpSubtitle}>
+            <Text style={[styles.otpSubtitle, { color: theme.textSecondary }]}>
               Captain verifies this code to start the trip — destination unlocks after OTP success
             </Text>
           </View>

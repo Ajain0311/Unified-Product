@@ -24,6 +24,7 @@ import { apiClient } from '../../services/apiClient';
 import { documentService } from '../../services/documentService';
 import { ApiEndpoints } from '../../constants/api';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
+import { locationService } from '../../services/locationService';
 
 type RoleKind = 'DRIVER' | 'RESTAURANT_OWNER' | 'HOTEL_OWNER';
 
@@ -128,6 +129,8 @@ export const RoleApplicationScreen: React.FC = () => {
   const [hotelCity, setHotelCity] = useState('');
   const [hotelPhone, setHotelPhone] = useState('');
   const [businessType, setBusinessType] = useState<'RESTAURANT' | 'CAFE' | 'BAR'>('RESTAURANT');
+  const [fetchingGps, setFetchingGps] = useState(false);
+  const [gpsCoordinates, setGpsCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [notes, setNotes] = useState('');
   const [docUri, setDocUri] = useState<string | null>(null);
   const [docNo, setDocNo] = useState<string | null>(null);
@@ -199,6 +202,40 @@ export const RoleApplicationScreen: React.FC = () => {
     ? 'Add another hotel / cafe'
     : 'Submit outlet application';
 
+  const handleFetchGpsLocation = async () => {
+    setFetchingGps(true);
+    try {
+      const result = await locationService.getDetailedLocation({ timeoutMs: 12000 });
+      if (result.state === 'SUCCESS' && result.coordinates) {
+        const { latitude, longitude, formattedAddress } = result.coordinates;
+        setGpsCoordinates({ latitude, longitude });
+        setHotelAddress(formattedAddress || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        
+        // Extract city from address if possible
+        const parts = formattedAddress.split(',').map((s) => s.trim());
+        if (parts.length >= 2) {
+          const possibleCity = parts[parts.length - 2];
+          setHotelCity(possibleCity);
+        }
+        Alert.alert('GPS Location Captured', 'Your outlet location has been verified and set via GPS.');
+      } else if (result.state === 'GPS_DISABLED') {
+        Alert.alert('GPS Required', 'Please enable GPS/Location Services on your phone to capture the outlet location.');
+        await locationService.promptEnableGps();
+      } else if (result.state === 'PERMISSION_DENIED' || result.state === 'PERMISSION_BLOCKED') {
+        Alert.alert('Permission Denied', 'Location permission is required to verify your restaurant/cafe location.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Settings', onPress: () => locationService.openDeviceSettings() },
+        ]);
+      } else {
+        Alert.alert('Location Error', result.errorMessage || 'Failed to detect GPS location. Please try again.');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Could not fetch current GPS location.');
+    } finally {
+      setFetchingGps(false);
+    }
+  };
+
   const pickDocument = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -233,6 +270,13 @@ export const RoleApplicationScreen: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    if (!isDriver && !gpsCoordinates && !hotelAddress.trim()) {
+      Alert.alert(
+        'GPS Location Required',
+        'Please tap "Use Current GPS Location" so your outlet can be mapped accurately for food delivery.'
+      );
+      return;
+    }
     if (!docNo) {
       Alert.alert(
         'Document required',
@@ -573,13 +617,38 @@ export const RoleApplicationScreen: React.FC = () => {
                     placeholder="Spice Hub Cafe"
                     placeholderTextColor={theme.textTertiary}
                   />
-                  <Text style={[styles.label, { color: theme.textSecondary }]}>Outlet Address *</Text>
+                  <Text style={[styles.label, { color: theme.textSecondary }]}>Outlet Address (from GPS) *</Text>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: theme.primaryMuted,
+                      borderColor: theme.primary,
+                      borderWidth: 1,
+                      borderRadius: 10,
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      marginBottom: 10,
+                    }}
+                    onPress={handleFetchGpsLocation}
+                    disabled={fetchingGps}
+                  >
+                    {fetchingGps ? (
+                      <ActivityIndicator size="small" color={theme.primary} style={{ marginRight: 8 }} />
+                    ) : (
+                      <Ionicons name="navigate-circle-outline" size={20} color={theme.primary} style={{ marginRight: 8 }} />
+                    )}
+                    <Text style={{ color: theme.primary, fontWeight: '700', fontSize: 14 }}>
+                      {fetchingGps ? 'Locating via GPS…' : gpsCoordinates ? 'GPS Location Captured ✓ (Tap to Refresh)' : 'Use Current GPS Location *'}
+                    </Text>
+                  </TouchableOpacity>
                   <TextInput
                     style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder, minHeight: 70 }]}
                     value={hotelAddress}
                     onChangeText={setHotelAddress}
                     multiline
-                    placeholder="Full address"
+                    placeholder="Tap 'Use Current GPS Location' to capture outlet GPS"
                     placeholderTextColor={theme.textTertiary}
                   />
                   <View style={styles.row}>
