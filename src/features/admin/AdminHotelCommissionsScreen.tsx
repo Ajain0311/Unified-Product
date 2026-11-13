@@ -13,12 +13,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { signalRService } from '../../services/signalr';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { mapHotelCommission, mapSettlementBatch, money } from './adminFinanceMappers';
 
 export const AdminHotelCommissionsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [hotels, setHotels] = useState<ReturnType<typeof mapHotelCommission>[]>([]);
   const [batches, setBatches] = useState<ReturnType<typeof mapSettlementBatch>[]>([]);
   const [activeTab, setActiveTab] = useState<'HOTELS' | 'BATCHES'>('HOTELS');
@@ -239,38 +241,38 @@ export const AdminHotelCommissionsScreen: React.FC<{ navigation: any }> = ({ nav
   const isApproved = (status: string) => status.toUpperCase() === 'APPROVED';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button">
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
+          <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
         <View style={styles.titleWrapper}>
-          <Text style={styles.headerTitle}>Hotel Commissions & Settlement</Text>
+          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Hotel Commissions & Settlement</Text>
           <View style={styles.liveIndicatorRow}>
             <View style={[styles.liveDot, { backgroundColor: isLiveSyncing ? AppColors.yellow : '#10B981' }]} />
-            <Text style={styles.liveText}>{isLiveSyncing ? 'Syncing...' : 'Real-Time Active'}</Text>
+            <Text style={[styles.liveText, { color: theme.textSecondary }]}>{isLiveSyncing ? 'Syncing...' : 'Real-Time Active'}</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={() => fetchData(true)} style={styles.refreshIconBtn}>
-          <Ionicons name="refresh" size={20} color={AppColors.primary} />
+        <TouchableOpacity onPress={() => fetchData(true)} style={[styles.refreshIconBtn, { backgroundColor: theme.background }]}>
+          <Ionicons name="refresh" size={20} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Summary KPI Strip */}
-      <View style={styles.kpiContainer}>
+      <View style={[styles.kpiContainer, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
         <View style={styles.kpiBox}>
-          <Text style={styles.kpiLabel}>Pending Balance</Text>
+          <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>Pending Balance</Text>
           <Text style={[styles.kpiVal, { color: AppColors.yellow }]}>₹{money(summary.totalPendingCommission)}</Text>
         </View>
-        <View style={styles.kpiDivider} />
+        <View style={[styles.kpiDivider, { backgroundColor: theme.cardBorder }]} />
         <View style={styles.kpiBox}>
-          <Text style={styles.kpiLabel}>Gross Sales</Text>
-          <Text style={styles.kpiVal}>₹{money(summary.totalGrossSales)}</Text>
+          <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>Gross Sales</Text>
+          <Text style={[styles.kpiVal, { color: theme.textPrimary }]}>₹{money(summary.totalGrossSales)}</Text>
         </View>
-        <View style={styles.kpiDivider} />
+        <View style={[styles.kpiDivider, { backgroundColor: theme.cardBorder }]} />
         <View style={styles.kpiBox}>
-          <Text style={styles.kpiLabel}>Pending Batches</Text>
+          <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>Pending Batches</Text>
           <Text style={[styles.kpiVal, { color: summary.pendingApprovalBatches > 0 ? '#F87171' : '#10B981' }]}>
             {summary.pendingApprovalBatches}
           </Text>
@@ -279,19 +281,19 @@ export const AdminHotelCommissionsScreen: React.FC<{ navigation: any }> = ({ nav
 
       {/* Search and Quick Filters */}
       <View style={styles.controlsSection}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color={AppColors.textSecondary} style={{ marginRight: 8 }} />
+        <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+          <Ionicons name="search" size={16} color={theme.textSecondary} style={{ marginRight: 8 }} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.textPrimary }]}
             placeholder={activeTab === 'HOTELS' ? 'Search hotel name or ID...' : 'Search batch #, hotel or ref...'}
-            placeholderTextColor="#888"
+            placeholderTextColor={theme.textTertiary}
             value={searchQuery}
             onChangeText={setSearchQuery}
             clearButtonMode="while-editing"
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={16} color={AppColors.textSecondary} />
+              <Ionicons name="close-circle" size={16} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -300,10 +302,20 @@ export const AdminHotelCommissionsScreen: React.FC<{ navigation: any }> = ({ nav
           {(['ALL', 'PENDING', 'SETTLED'] as const).map((mode) => (
             <TouchableOpacity
               key={mode}
-              style={[styles.filterChip, filterMode === mode && styles.filterChipActive]}
+              style={[
+                styles.filterChip,
+                { backgroundColor: theme.surface, borderColor: theme.cardBorder },
+                filterMode === mode && { backgroundColor: theme.primary + '20', borderColor: theme.primary }
+              ]}
               onPress={() => setFilterMode(mode)}
             >
-              <Text style={[styles.filterChipText, filterMode === mode && styles.filterChipTextActive]}>
+              <Text
+                style={[
+                  styles.filterChipText,
+                  { color: theme.textSecondary },
+                  filterMode === mode && { color: theme.primary, fontWeight: '700' }
+                ]}
+              >
                 {mode === 'ALL' ? 'All' : mode === 'PENDING' ? 'Pending' : 'Settled'}
               </Text>
             </TouchableOpacity>
@@ -460,22 +472,22 @@ export const AdminHotelCommissionsScreen: React.FC<{ navigation: any }> = ({ nav
       <Modal visible={rateModalVisible} transparent animationType="fade" onRequestClose={() => setRateModalVisible(false)}>
         <FormKeyboardAvoid>
           <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalHeading}>Set Prospective Commission Rate</Text>
+            <View style={[styles.modalBox, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.modalHeading, { color: theme.textPrimary }]}>Set Prospective Commission Rate</Text>
               <Text style={styles.modalSub}>{selectedHotel?.restaurantName}</Text>
               <TextInput
-                style={styles.modalInput}
+                style={[styles.modalInput, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 value={newRate}
                 onChangeText={setNewRate}
                 keyboardType="numeric"
                 placeholder="e.g. 15.0"
-                placeholderTextColor="#777"
+                placeholderTextColor={theme.textTertiary}
               />
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setRateModalVisible(false)}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                  <Text style={[styles.cancelBtnText, { color: theme.textSecondary }]}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmBtn} onPress={handleSaveRate} disabled={isSavingRate}>
+                <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: theme.primary }]} onPress={handleSaveRate} disabled={isSavingRate}>
                   {isSavingRate ? <ActivityIndicator color="#FFF" /> : <Text style={styles.confirmBtnText}>Save Rate</Text>}
                 </TouchableOpacity>
               </View>
@@ -493,27 +505,27 @@ export const AdminHotelCommissionsScreen: React.FC<{ navigation: any }> = ({ nav
       >
         <FormKeyboardAvoid>
           <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalHeading}>Create Collection Batch</Text>
+            <View style={[styles.modalBox, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.modalHeading, { color: theme.textPrimary }]}>Create Collection Batch</Text>
               <Text style={styles.modalSub}>{settlementHotel?.restaurantName}</Text>
-              <Text style={styles.hintText}>
+              <Text style={[styles.hintText, { color: theme.textSecondary }]}>
                 Pending balance ₹{money(settlementHotel?.pendingBalance)} will be batched from ledger entries.
               </Text>
 
-              <Text style={styles.inputLabel}>Collection Reference / Receipt</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Collection Reference / Receipt</Text>
               <TextInput
-                style={styles.modalInput}
+                style={[styles.modalInput, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 value={collectionRef}
                 onChangeText={setCollectionRef}
                 placeholder="e.g. CHEQUE-10294 or CASH-REC"
-                placeholderTextColor="#777"
+                placeholderTextColor={theme.textTertiary}
               />
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setSettlementModalVisible(false)}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                  <Text style={[styles.cancelBtnText, { color: theme.textSecondary }]}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmBtn} onPress={handleCreateSettlement} disabled={isCreatingBatch}>
+                <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: theme.primary }]} onPress={handleCreateSettlement} disabled={isCreatingBatch}>
                   {isCreatingBatch ? (
                     <ActivityIndicator color="#FFF" />
                   ) : (

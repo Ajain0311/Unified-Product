@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { AdminRestaurant } from './types';
@@ -24,6 +25,7 @@ interface AdminRestaurantsScreenProps {
 }
 
 export const AdminRestaurantsScreen: React.FC<AdminRestaurantsScreenProps> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -170,33 +172,33 @@ export const AdminRestaurantsScreen: React.FC<AdminRestaurantsScreenProps> = ({ 
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Restaurants</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Restaurants</Text>
+        <TouchableOpacity style={[styles.addBtn, { backgroundColor: theme.primary }]} onPress={() => setShowAddModal(true)}>
           <Ionicons name="add" size={20} color="#FFFFFF" />
           <Text style={styles.addBtnText}>Add</Text>
         </TouchableOpacity>
       </View>
 
       {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={AppColors.textSecondary} />
+      <View style={[styles.searchContainer, { backgroundColor: theme.surface }]}>
+        <View style={[styles.searchBox, { backgroundColor: theme.background, borderColor: theme.cardBorder }]}>
+          <Ionicons name="search" size={18} color={theme.textSecondary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.textPrimary }]}
             placeholder="Search by restaurant name or city..."
-            placeholderTextColor={AppColors.textSecondary}
+            placeholderTextColor={theme.textTertiary}
             value={search}
             onChangeText={setSearch}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={16} color={AppColors.textSecondary} />
+              <Ionicons name="close-circle" size={16} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -239,37 +241,37 @@ export const AdminRestaurantsScreen: React.FC<AdminRestaurantsScreenProps> = ({ 
       <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
         <FormKeyboardAvoid>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Restaurant</Text>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.cardBorder }]}>
+              <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>Add New Restaurant</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)} style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={22} color="#FFFFFF" />
+                <Ionicons name="close" size={22} color={theme.textPrimary} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>Restaurant Name *</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Restaurant Name *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 placeholder="e.g. Royal Heritage Dhaba"
-                placeholderTextColor={AppColors.textSecondary}
+                placeholderTextColor={theme.textTertiary}
                 value={name}
                 onChangeText={setName}
               />
 
-              <Text style={styles.inputLabel}>Description</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Description</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 placeholder="Cuisine, specialties..."
-                placeholderTextColor={AppColors.textSecondary}
+                placeholderTextColor={theme.textTertiary}
                 value={description}
                 onChangeText={setDescription}
               />
 
-              <Text style={styles.inputLabel}>Contact Phone</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Contact Phone</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 placeholder="10-digit mobile number"
-                placeholderTextColor={AppColors.textSecondary}
+                placeholderTextColor={theme.textTertiary}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
@@ -277,21 +279,21 @@ export const AdminRestaurantsScreen: React.FC<AdminRestaurantsScreenProps> = ({ 
 
               <View style={styles.inputRow}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.inputLabel}>City</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>City</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     placeholder="City"
-                    placeholderTextColor={AppColors.textSecondary}
+                    placeholderTextColor={theme.textTertiary}
                     value={city}
                     onChangeText={setCity}
                   />
                 </View>
                 <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={styles.inputLabel}>Address Line</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Address Line</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     placeholder="Market / Area"
-                    placeholderTextColor={AppColors.textSecondary}
+                    placeholderTextColor={theme.textTertiary}
                     value={address}
                     onChangeText={setAddress}
                   />
@@ -300,22 +302,22 @@ export const AdminRestaurantsScreen: React.FC<AdminRestaurantsScreenProps> = ({ 
 
               <View style={styles.inputRow}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.inputLabel}>Min Order (₹)</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Min Order (₹)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     placeholder="100"
-                    placeholderTextColor={AppColors.textSecondary}
+                    placeholderTextColor={theme.textTertiary}
                     value={minOrder}
                     onChangeText={setMinOrder}
                     keyboardType="numeric"
                   />
                 </View>
                 <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={styles.inputLabel}>Delivery Fee (₹)</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Delivery Fee (₹)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     placeholder="30"
-                    placeholderTextColor={AppColors.textSecondary}
+                    placeholderTextColor={theme.textTertiary}
                     value={deliveryFee}
                     onChangeText={setDeliveryFee}
                     keyboardType="numeric"
@@ -324,17 +326,17 @@ export const AdminRestaurantsScreen: React.FC<AdminRestaurantsScreenProps> = ({ 
               </View>
 
               <View style={styles.vegSwitchRow}>
-                <Text style={styles.vegSwitchLabel}>Pure Vegetarian Restaurant</Text>
+                <Text style={[styles.vegSwitchLabel, { color: theme.textPrimary }]}>Pure Vegetarian Restaurant</Text>
                 <Switch
                   value={isVeg}
                   onValueChange={setIsVeg}
-                  trackColor={{ false: AppColors.surfaceLight, true: AppColors.secondary }}
+                  trackColor={{ false: theme.cardBorder, true: theme.secondary }}
                   thumbColor="#FFFFFF"
                 />
               </View>
 
               <TouchableOpacity
-                style={styles.submitBtn}
+                style={[styles.submitBtn, { backgroundColor: theme.primary }]}
                 onPress={handleAddRestaurant}
                 disabled={isSaving}
               >

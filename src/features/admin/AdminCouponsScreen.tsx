@@ -13,10 +13,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 
 export const AdminCouponsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [coupons, setCoupons] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -140,15 +142,15 @@ export const AdminCouponsScreen: React.FC<{ navigation: any }> = ({ navigation }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
+          <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Coupon Management</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Coupon Management</Text>
         <TouchableOpacity onPress={openCreateModal} style={styles.addBtn}>
-          <Ionicons name="add" size={24} color="#FFF" />
+          <Ionicons name="add" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
@@ -167,11 +169,11 @@ export const AdminCouponsScreen: React.FC<{ navigation: any }> = ({ navigation }
             </View>
           ) : (
             coupons.map((c) => (
-              <View key={c.id} style={styles.couponCard}>
+              <View key={c.id} style={[styles.couponCard, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
                 <View style={styles.couponTop}>
                   <View>
                     <Text style={styles.couponCode}>{c.code}</Text>
-                    <Text style={styles.couponDesc}>
+                    <Text style={[styles.couponDesc, { color: theme.textSecondary }]}>
                       {c.discountType === 'PERCENTAGE' ? `${c.discountValue}% OFF` : `₹${c.discountValue} FLAT OFF`}
                       {c.maxDiscountAmount ? ` (Up to ₹${c.maxDiscountAmount})` : ''} • Min ₹{c.minOrderAmount}
                     </Text>
@@ -179,26 +181,26 @@ export const AdminCouponsScreen: React.FC<{ navigation: any }> = ({ navigation }
                   <Switch
                     value={c.isActive}
                     onValueChange={() => handleToggleStatus(c)}
-                    thumbColor={c.isActive ? AppColors.primary : '#ccc'}
+                    thumbColor={c.isActive ? theme.primary : '#ccc'}
                   />
                 </View>
 
                 <View style={styles.couponMeta}>
-                  <Text style={styles.metaBadge}>{c.applicableModule || 'ALL'}</Text>
+                  <Text style={[styles.metaBadge, { backgroundColor: theme.primary + '20', color: theme.primary }]}>{c.applicableModule || 'ALL'}</Text>
                   {c.applicableRestaurantId && (
                     <Text style={[styles.metaBadge, { backgroundColor: AppColors.yellow + '30', color: AppColors.yellow }]}>
                       Hotel #{c.applicableRestaurantId}
                     </Text>
                   )}
-                  <Text style={styles.metaText}>
+                  <Text style={[styles.metaText, { color: theme.textSecondary }]}>
                     Used: {c.currentUsageCount || 0} {c.totalUsageLimit ? `/ ${c.totalUsageLimit}` : ''}
                   </Text>
                 </View>
 
-                <View style={styles.couponActions}>
+                <View style={[styles.couponActions, { borderTopColor: theme.cardBorder }]}>
                   <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(c)}>
-                    <Ionicons name="create-outline" size={16} color={AppColors.primary} />
-                    <Text style={styles.editBtnText}>Edit</Text>
+                    <Ionicons name="create-outline" size={16} color={theme.primary} />
+                    <Text style={[styles.editBtnText, { color: theme.primary }]}>Edit</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -211,113 +213,113 @@ export const AdminCouponsScreen: React.FC<{ navigation: any }> = ({ navigation }
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <FormKeyboardAvoid>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editingCoupon ? 'Edit Coupon' : 'Create New Coupon'}</Text>
+              <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>{editingCoupon ? 'Edit Coupon' : 'Create New Coupon'}</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#FFF" />
+                <Ionicons name="close" size={24} color={theme.textPrimary} />
               </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={styles.formScroll}>
-              <Text style={styles.inputLabel}>Coupon Code *</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Coupon Code *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 value={code}
                 onChangeText={setCode}
                 placeholder="e.g. SAVE50"
-                placeholderTextColor="#777"
+                placeholderTextColor={theme.textTertiary}
                 autoCapitalize="characters"
               />
 
-              <Text style={styles.inputLabel}>Discount Type</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Discount Type</Text>
               <View style={styles.typeSelector}>
                 <TouchableOpacity
-                  style={[styles.typeBtn, discountType === 'FLAT' && styles.typeBtnActive]}
+                  style={[styles.typeBtn, { backgroundColor: theme.background, borderColor: theme.cardBorder }, discountType === 'FLAT' && { borderColor: theme.primary, backgroundColor: theme.primary + '20' }]}
                   onPress={() => setDiscountType('FLAT')}
                 >
-                  <Text style={[styles.typeText, discountType === 'FLAT' && styles.typeTextActive]}>Flat (₹)</Text>
+                  <Text style={[styles.typeText, { color: theme.textSecondary }, discountType === 'FLAT' && { color: theme.primary }]}>Flat (₹)</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.typeBtn, discountType === 'PERCENTAGE' && styles.typeBtnActive]}
+                  style={[styles.typeBtn, { backgroundColor: theme.background, borderColor: theme.cardBorder }, discountType === 'PERCENTAGE' && { borderColor: theme.primary, backgroundColor: theme.primary + '20' }]}
                   onPress={() => setDiscountType('PERCENTAGE')}
                 >
-                  <Text style={[styles.typeText, discountType === 'PERCENTAGE' && styles.typeTextActive]}>Percentage (%)</Text>
+                  <Text style={[styles.typeText, { color: theme.textSecondary }, discountType === 'PERCENTAGE' && { color: theme.primary }]}>Percentage (%)</Text>
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.inputLabel}>Discount Value *</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Discount Value *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 value={discountValue}
                 onChangeText={setDiscountValue}
                 placeholder={discountType === 'FLAT' ? 'e.g. 50' : 'e.g. 10'}
-                placeholderTextColor="#777"
+                placeholderTextColor={theme.textTertiary}
                 keyboardType="numeric"
               />
 
-              <Text style={styles.inputLabel}>Min Order Amount (₹)</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Min Order Amount (₹)</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 value={minOrderAmount}
                 onChangeText={setMinOrderAmount}
                 placeholder="0"
-                placeholderTextColor="#777"
+                placeholderTextColor={theme.textTertiary}
                 keyboardType="numeric"
               />
 
               {discountType === 'PERCENTAGE' && (
                 <>
-                  <Text style={styles.inputLabel}>Max Discount Cap (₹)</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Max Discount Cap (₹)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={maxDiscountAmount}
                     onChangeText={setMaxDiscountAmount}
                     placeholder="Optional cap amount"
-                    placeholderTextColor="#777"
+                    placeholderTextColor={theme.textTertiary}
                     keyboardType="numeric"
                   />
                 </>
               )}
 
-              <Text style={styles.inputLabel}>Module</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Module</Text>
               <View style={styles.typeSelector}>
                 {['FOOD', 'RIDE', 'ALL'].map((m) => (
                   <TouchableOpacity
                     key={m}
-                    style={[styles.typeBtn, applicableModule === m && styles.typeBtnActive]}
+                    style={[styles.typeBtn, { backgroundColor: theme.background, borderColor: theme.cardBorder }, applicableModule === m && { borderColor: theme.primary, backgroundColor: theme.primary + '20' }]}
                     onPress={() => setApplicableModule(m)}
                   >
-                    <Text style={[styles.typeText, applicableModule === m && styles.typeTextActive]}>{m}</Text>
+                    <Text style={[styles.typeText, { color: theme.textSecondary }, applicableModule === m && { color: theme.primary }]}>{m}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
               {applicableModule === 'FOOD' && (
                 <>
-                  <Text style={styles.inputLabel}>Hotel Scope (Optional Restaurant ID)</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Hotel Scope (Optional Restaurant ID)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={restaurantId}
                     onChangeText={setRestaurantId}
                     placeholder="Leave empty for all restaurants"
-                    placeholderTextColor="#777"
+                    placeholderTextColor={theme.textTertiary}
                     keyboardType="numeric"
                   />
                 </>
               )}
 
-              <Text style={styles.inputLabel}>Per User Limit</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Per User Limit</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 value={perUserLimit}
                 onChangeText={setPerUserLimit}
                 placeholder="1"
-                placeholderTextColor="#777"
+                placeholderTextColor={theme.textTertiary}
                 keyboardType="numeric"
               />
 
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveCoupon} disabled={isSubmitting}>
+              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSaveCoupon} disabled={isSubmitting}>
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (

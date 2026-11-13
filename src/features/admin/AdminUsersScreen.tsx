@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { AdminUser } from './types';
 import { AdminUserManageModal } from './AdminUserManageModal';
@@ -28,6 +29,7 @@ const ROLE_FILTERS = [
 ];
 
 export const AdminUsersScreen: React.FC<AdminUsersScreenProps> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -122,30 +124,30 @@ export const AdminUsersScreen: React.FC<AdminUsersScreenProps> = ({ navigation }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>User Accounts</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>User Accounts</Text>
         <View style={{ width: 38 }} />
       </View>
 
       {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={AppColors.textSecondary} />
+      <View style={[styles.searchContainer, { backgroundColor: theme.surface }]}>
+        <View style={[styles.searchBox, { backgroundColor: theme.background, borderColor: theme.cardBorder }]}>
+          <Ionicons name="search" size={18} color={theme.textSecondary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.textPrimary }]}
             placeholder="Search by name, phone or ID..."
-            placeholderTextColor={AppColors.textSecondary}
+            placeholderTextColor={theme.textTertiary}
             value={search}
             onChangeText={setSearch}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={16} color={AppColors.textSecondary} />
+              <Ionicons name="close-circle" size={16} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </View>

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { AdminSetting } from './types';
@@ -38,6 +39,7 @@ const DISPLAY_HOUR_OPTIONS = [
 ];
 
 export const AdminSettingsScreen: React.FC<AdminSettingsScreenProps> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [settings, setSettings] = useState<AdminSetting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -201,13 +203,13 @@ export const AdminSettingsScreen: React.FC<AdminSettingsScreenProps> = ({ naviga
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings & Broadcast</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Settings & Broadcast</Text>
         <View style={{ width: 38 }} />
       </View>
 
@@ -243,69 +245,69 @@ export const AdminSettingsScreen: React.FC<AdminSettingsScreenProps> = ({ naviga
         }
         ListHeaderComponent={
           <View>
-          <View style={styles.broadcastCard}>
+          <View style={[styles.broadcastCard, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
             <View style={styles.broadcastHeader}>
-              <Ionicons name="headset" size={18} color={AppColors.primary} />
-              <Text style={styles.broadcastTitle}>HELP & SUPPORT (USER APP)</Text>
+              <Ionicons name="headset" size={18} color={theme.primary} />
+              <Text style={[styles.broadcastTitle, { color: theme.textPrimary }]}>HELP & SUPPORT (USER APP)</Text>
             </View>
-            <Text style={styles.broadcastSub}>
+            <Text style={[styles.broadcastSub, { color: theme.textSecondary }]}>
               These values appear on Profile → Help & Support for customers (call, WhatsApp, email, hours, FAQ).
             </Text>
 
-            <Text style={styles.inputLabel}>Support Phone</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Support Phone</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               placeholder="e.g. 18001234567"
-              placeholderTextColor={AppColors.textSecondary}
+              placeholderTextColor={theme.textTertiary}
               value={supportPhone}
               onChangeText={setSupportPhone}
               keyboardType="phone-pad"
             />
 
-            <Text style={styles.inputLabel}>WhatsApp (with country code, no +)</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>WhatsApp (with country code, no +)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               placeholder="e.g. 919876543210"
-              placeholderTextColor={AppColors.textSecondary}
+              placeholderTextColor={theme.textTertiary}
               value={supportWhatsApp}
               onChangeText={setSupportWhatsApp}
               keyboardType="phone-pad"
             />
 
-            <Text style={styles.inputLabel}>Support Email</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Support Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               placeholder="e.g. support@makemyfree.com"
-              placeholderTextColor={AppColors.textSecondary}
+              placeholderTextColor={theme.textTertiary}
               value={supportEmail}
               onChangeText={setSupportEmail}
               autoCapitalize="none"
               keyboardType="email-address"
             />
 
-            <Text style={styles.inputLabel}>Support Hours</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Support Hours</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               placeholder="e.g. 24x7 Customer Support"
-              placeholderTextColor={AppColors.textSecondary}
+              placeholderTextColor={theme.textTertiary}
               value={supportHours}
               onChangeText={setSupportHours}
             />
 
-            <Text style={styles.inputLabel}>FAQ (use Q: / A: blocks, max 1000 chars)</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>FAQ (use Q: / A: blocks, max 1000 chars)</Text>
             <TextInput
-              style={[styles.input, styles.textArea, { minHeight: 120 }]}
+              style={[styles.input, styles.textArea, { minHeight: 120, backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               placeholder={'Q: How do I track my order?\nA: Open Activity for live tracking.'}
-              placeholderTextColor={AppColors.textSecondary}
+              placeholderTextColor={theme.textTertiary}
               value={supportFaq}
               onChangeText={setSupportFaq}
               multiline
               textAlignVertical="top"
             />
-            <Text style={styles.charCount}>{supportFaq.length}/1000</Text>
+            <Text style={[styles.charCount, { color: theme.textSecondary }]}>{supportFaq.length}/1000</Text>
 
             <TouchableOpacity
-              style={styles.broadcastBtn}
+              style={[styles.broadcastBtn, { backgroundColor: theme.primary }]}
               onPress={handleSaveSupport}
               disabled={isSavingSupport}
             >
@@ -317,29 +319,29 @@ export const AdminSettingsScreen: React.FC<AdminSettingsScreenProps> = ({ naviga
             </TouchableOpacity>
           </View>
 
-          <View style={styles.broadcastCard}>
+          <View style={[styles.broadcastCard, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
             <View style={styles.broadcastHeader}>
-              <Ionicons name="megaphone" size={18} color={AppColors.primary} />
-              <Text style={styles.broadcastTitle}>BROADCAST PUSH ANNOUNCEMENT</Text>
+              <Ionicons name="megaphone" size={18} color={theme.primary} />
+              <Text style={[styles.broadcastTitle, { color: theme.textPrimary }]}>BROADCAST PUSH ANNOUNCEMENT</Text>
             </View>
-            <Text style={styles.broadcastSub}>
+            <Text style={[styles.broadcastSub, { color: theme.textSecondary }]}>
               Push announcements to users. Home shows a scrolling marquee for the duration you pick.
             </Text>
 
-            <Text style={styles.inputLabel}>Announcement Title</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Announcement Title</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               placeholder="e.g. 50% Off Mega Diwali Sale!"
-              placeholderTextColor={AppColors.textSecondary}
+              placeholderTextColor={theme.textTertiary}
               value={broadcastTitle}
               onChangeText={setBroadcastTitle}
             />
 
-            <Text style={styles.inputLabel}>Message Content</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Message Content</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               placeholder="Enter message details for notification alert..."
-              placeholderTextColor={AppColors.textSecondary}
+              placeholderTextColor={theme.textTertiary}
               value={broadcastMessage}
               onChangeText={setBroadcastMessage}
               multiline
@@ -453,24 +455,24 @@ export const AdminSettingsScreen: React.FC<AdminSettingsScreenProps> = ({ naviga
       <Modal visible={editingSetting !== null} transparent animationType="slide" onRequestClose={() => setEditingSetting(null)}>
         <FormKeyboardAvoid>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit {editingSetting?.key}</Text>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.cardBorder }]}>
+              <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>Edit {editingSetting?.key}</Text>
               <TouchableOpacity onPress={() => setEditingSetting(null)} style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={22} color="#FFFFFF" />
+                <Ionicons name="close" size={22} color={theme.textPrimary} />
               </TouchableOpacity>
             </View>
             <View style={styles.modalBody}>
-              <Text style={styles.inputLabel}>Setting Value</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Setting Value</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 value={editValue}
                 onChangeText={setEditValue}
                 placeholder="Value"
-                placeholderTextColor={AppColors.textSecondary}
+                placeholderTextColor={theme.textTertiary}
               />
               <TouchableOpacity
-                style={styles.saveSettingBtn}
+                style={[styles.saveSettingBtn, { backgroundColor: theme.primary }]}
                 onPress={handleSaveSetting}
                 disabled={isSavingSetting}
               >

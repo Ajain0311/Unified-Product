@@ -22,6 +22,7 @@ import { documentService, absoluteImageUrl } from '../../services/documentServic
 import { ScreenBackButton } from '../../components/common/ScreenBackButton';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
@@ -54,6 +55,7 @@ function discountedPrice(base: number, discount: number): number {
 }
 
 export const VendorMenuScreen: React.FC = () => {
+  const { theme, isDark } = useAppTheme();
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -402,32 +404,32 @@ export const VendorMenuScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
-              <Text style={styles.label}>Name *</Text>
+              <Text style={[styles.label, { color: theme.textSecondary }]}>Name *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 value={form.name}
                 onChangeText={(t) => setForm((f) => ({ ...f, name: t }))}
                 placeholder="e.g. Paneer Butter Masala"
-                placeholderTextColor="#777"
+                placeholderTextColor={theme.textTertiary}
               />
-              <Text style={styles.label}>Description</Text>
+              <Text style={[styles.label, { color: theme.textSecondary }]}>Description</Text>
               <TextInput
-                style={[styles.input, { minHeight: 64 }]}
+                style={[styles.input, { minHeight: 64, backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                 value={form.description}
                 onChangeText={(t) => setForm((f) => ({ ...f, description: t }))}
                 multiline
                 placeholder="Short description"
-                placeholderTextColor="#777"
+                placeholderTextColor={theme.textTertiary}
               />
-              <Text style={styles.label}>Category *</Text>
+              <Text style={[styles.label, { color: theme.textSecondary }]}>Category *</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
                 {categories.map((c) => (
                   <TouchableOpacity
                     key={c.id}
-                    style={[styles.chip, form.restaurantCategoryId === c.id && styles.chipActive]}
+                    style={[styles.chip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, form.restaurantCategoryId === c.id && styles.chipActive]}
                     onPress={() => setForm((f) => ({ ...f, restaurantCategoryId: c.id }))}
                   >
-                    <Text style={[styles.chipText, form.restaurantCategoryId === c.id && styles.chipTextActive]}>
+                    <Text style={[styles.chipText, { color: theme.textSecondary }, form.restaurantCategoryId === c.id && styles.chipTextActive]}>
                       {c.name}
                     </Text>
                   </TouchableOpacity>
@@ -435,25 +437,25 @@ export const VendorMenuScreen: React.FC = () => {
               </ScrollView>
               <View style={styles.row}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Price (₹) *</Text>
+                  <Text style={[styles.label, { color: theme.textSecondary }]}>Price (₹) *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={form.basePrice}
                     onChangeText={(t) => setForm((f) => ({ ...f, basePrice: t }))}
                     keyboardType="decimal-pad"
                     placeholder="120"
-                    placeholderTextColor="#777"
+                    placeholderTextColor={theme.textTertiary}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Discount %</Text>
+                  <Text style={[styles.label, { color: theme.textSecondary }]}>Discount %</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={form.discountPercent}
                     onChangeText={(t) => setForm((f) => ({ ...f, discountPercent: t }))}
                     keyboardType="decimal-pad"
                     placeholder="0–100"
-                    placeholderTextColor="#777"
+                    placeholderTextColor={theme.textTertiary}
                   />
                 </View>
               </View>
@@ -510,20 +512,20 @@ export const VendorMenuScreen: React.FC = () => {
       <Modal visible={categoryModal} transparent animationType="fade" onRequestClose={() => setCategoryModal(false)}>
         <FormKeyboardAvoid>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: 280 }]}>
-            <Text style={styles.modalTitle}>New Category</Text>
+          <View style={[styles.modalCard, { maxHeight: 280, backgroundColor: theme.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>New Category</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               value={newCategoryName}
               onChangeText={setNewCategoryName}
               placeholder="e.g. Starters, Main Course"
-              placeholderTextColor="#777"
+              placeholderTextColor={theme.textTertiary}
             />
             <View style={styles.modalActions}>
               <TouchableOpacity onPress={() => setCategoryModal(false)}>
-                <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>Cancel</Text>
+                <Text style={{ color: theme.textSecondary, fontWeight: '700' }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.primaryBtn} onPress={handleAddCategory} disabled={savingCategory}>
+              <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: theme.primary }]} onPress={handleAddCategory} disabled={savingCategory}>
                 {savingCategory ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (

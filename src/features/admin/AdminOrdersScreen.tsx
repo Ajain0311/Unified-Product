@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { AdminFoodOrder, AdminRide } from './types';
 
@@ -21,6 +22,7 @@ interface AdminOrdersScreenProps {
 type OrderType = 'FOOD' | 'RIDES';
 
 export const AdminOrdersScreen: React.FC<AdminOrdersScreenProps> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [orderType, setOrderType] = useState<OrderType>('FOOD');
   const [foodOrders, setFoodOrders] = useState<AdminFoodOrder[]>([]);
   const [rides, setRides] = useState<AdminRide[]>([]);
@@ -227,19 +229,19 @@ export const AdminOrdersScreen: React.FC<AdminOrdersScreenProps> = ({ navigation
       </View>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={AppColors.textSecondary} />
+      <View style={[styles.searchContainer, { backgroundColor: theme.surface }]}>
+        <View style={[styles.searchBox, { backgroundColor: theme.background, borderColor: theme.cardBorder }]}>
+          <Ionicons name="search" size={18} color={theme.textSecondary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.textPrimary }]}
             placeholder={`Search ${orderType === 'FOOD' ? 'food orders' : 'rides'}...`}
-            placeholderTextColor={AppColors.textSecondary}
+            placeholderTextColor={theme.textTertiary}
             value={search}
             onChangeText={setSearch}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={16} color={AppColors.textSecondary} />
+              <Ionicons name="close-circle" size={16} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </View>

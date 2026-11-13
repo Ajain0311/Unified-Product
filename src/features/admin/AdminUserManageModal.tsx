@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { AdminUser } from './types';
@@ -37,6 +38,7 @@ export const AdminUserManageModal: React.FC<AdminUserManageModalProps> = ({
   onClose,
   onUserUpdated,
 }) => {
+  const { theme, isDark } = useAppTheme();
   const [loadingRole, setLoadingRole] = useState<string | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -236,18 +238,18 @@ export const AdminUserManageModal: React.FC<AdminUserManageModalProps> = ({
 
             {/* Reset Admin Password Card */}
             {currentRoles.includes('ADMIN') && (
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionHeader}>SET / RESET ADMIN PASSWORD</Text>
+              <View style={[styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+                <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>SET / RESET ADMIN PASSWORD</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                   placeholder="Enter new admin password"
-                  placeholderTextColor={AppColors.textSecondary}
+                  placeholderTextColor={theme.textTertiary}
                   value={newPassword}
                   onChangeText={setNewPassword}
                   secureTextEntry
                 />
                 <TouchableOpacity
-                  style={styles.primaryButton}
+                  style={[styles.primaryButton, { backgroundColor: theme.primary }]}
                   onPress={handleResetPassword}
                   disabled={isResettingPassword}
                 >

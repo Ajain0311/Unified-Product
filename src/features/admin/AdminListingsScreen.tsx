@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
@@ -25,6 +26,7 @@ interface AdminListingsScreenProps {
 }
 
 export const AdminListingsScreen: React.FC<AdminListingsScreenProps> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [tab, setTab] = useState<TabKey>('FOOD');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -242,12 +244,12 @@ export const AdminListingsScreen: React.FC<AdminListingsScreenProps> = ({ naviga
         ))}
       </View>
 
-      <View style={styles.searchRow}>
-        <Ionicons name="search" size={16} color={AppColors.textSecondary} />
+      <View style={[styles.searchRow, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+        <Ionicons name="search" size={16} color={theme.textSecondary} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.textPrimary }]}
           placeholder={tab === 'FOOD' ? 'Search food or restaurant' : 'Search listing or seller'}
-          placeholderTextColor={AppColors.textSecondary}
+          placeholderTextColor={theme.textTertiary}
           value={search}
           onChangeText={setSearch}
           onSubmitEditing={() => {
@@ -262,7 +264,7 @@ export const AdminListingsScreen: React.FC<AdminListingsScreenProps> = ({ naviga
             load();
           }}
         >
-          <Text style={styles.searchBtn}>Go</Text>
+          <Text style={[styles.searchBtn, { color: theme.primary }]}>Go</Text>
         </TouchableOpacity>
       </View>
 
@@ -457,43 +459,46 @@ export const AdminListingsScreen: React.FC<AdminListingsScreenProps> = ({ naviga
       <Modal visible={editVisible} transparent animationType="slide" onRequestClose={() => setEditVisible(false)}>
         <FormKeyboardAvoid>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+          <View style={[styles.modalCard, { backgroundColor: theme.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.cardBorder }]}>
+              <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
                 Edit {editKind === 'FOOD' ? 'Food Item' : 'Marketplace Listing'}
               </Text>
               <TouchableOpacity onPress={() => setEditVisible(false)}>
-                <Ionicons name="close" size={22} color={AppColors.textPrimary} />
+                <Ionicons name="close" size={22} color={theme.textPrimary} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.label}>Name</Text>
-            <TextInput style={styles.input} value={editName} onChangeText={setEditName} />
-            <Text style={styles.label}>Price (₹)</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Name</Text>
+            <TextInput style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]} value={editName} onChangeText={setEditName} placeholderTextColor={theme.textTertiary} />
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Price (₹)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               value={editPrice}
               onChangeText={setEditPrice}
               keyboardType="decimal-pad"
+              placeholderTextColor={theme.textTertiary}
             />
             {editKind === 'FOOD' && (
               <>
-                <Text style={styles.label}>Discount %</Text>
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Discount %</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                   value={editDiscount}
                   onChangeText={setEditDiscount}
                   keyboardType="decimal-pad"
+                  placeholderTextColor={theme.textTertiary}
                 />
               </>
             )}
-            <Text style={styles.label}>Description</Text>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Description</Text>
             <TextInput
-              style={[styles.input, { minHeight: 70 }]}
+              style={[styles.input, { minHeight: 70, backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               value={editDesc}
               onChangeText={setEditDesc}
               multiline
+              placeholderTextColor={theme.textTertiary}
             />
-            <TouchableOpacity style={styles.saveBtn} onPress={saveEdit} disabled={saving}>
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={saveEdit} disabled={saving}>
               {saving ? (
                 <ActivityIndicator color="#FFF" />
               ) : (

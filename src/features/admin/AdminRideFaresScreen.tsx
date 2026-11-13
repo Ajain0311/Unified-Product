@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { extractRideFareRules, type MappedFareRule } from './adminFinanceMappers';
@@ -24,6 +25,7 @@ function vehicleIcon(type: string): keyof typeof Ionicons.glyphMap {
 }
 
 export const AdminRideFaresScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [rules, setRules] = useState<MappedFareRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -136,12 +138,12 @@ export const AdminRideFaresScreen: React.FC<{ navigation: any }> = ({ navigation
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button">
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
+          <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ride Fare Configuration</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Ride Fare Configuration</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -234,106 +236,131 @@ export const AdminRideFaresScreen: React.FC<{ navigation: any }> = ({ navigation
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <FormKeyboardAvoid>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Configure {editingRule?.vehicleType} Fare Rules</Text>
+              <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>Configure {editingRule?.vehicleType} Fare Rules</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#FFF" />
+                <Ionicons name="close" size={24} color={theme.textPrimary} />
               </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={styles.formScroll}>
               <View style={styles.twoCol}>
                 <View style={styles.col}>
-                  <Text style={styles.inputLabel}>Base Fare (₹)</Text>
-                  <TextInput style={styles.input} value={baseFare} onChangeText={setBaseFare} keyboardType="numeric" />
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Base Fare (₹)</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
+                    value={baseFare}
+                    onChangeText={setBaseFare}
+                    keyboardType="numeric"
+                    placeholderTextColor={theme.textTertiary}
+                  />
                 </View>
                 <View style={styles.col}>
-                  <Text style={styles.inputLabel}>Included Dist (km)</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Included Dist (km)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={includedDistanceKm}
                     onChangeText={setIncludedDistanceKm}
                     keyboardType="numeric"
+                    placeholderTextColor={theme.textTertiary}
                   />
                 </View>
               </View>
 
               <View style={styles.twoCol}>
                 <View style={styles.col}>
-                  <Text style={styles.inputLabel}>Per Km Rate (₹)</Text>
-                  <TextInput style={styles.input} value={perKmRate} onChangeText={setPerKmRate} keyboardType="numeric" />
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Per Km Rate (₹)</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
+                    value={perKmRate}
+                    onChangeText={setPerKmRate}
+                    keyboardType="numeric"
+                    placeholderTextColor={theme.textTertiary}
+                  />
                 </View>
                 <View style={styles.col}>
-                  <Text style={styles.inputLabel}>Per Minute Rate (₹)</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Per Minute Rate (₹)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={perMinuteRate}
                     onChangeText={setPerMinuteRate}
                     keyboardType="numeric"
+                    placeholderTextColor={theme.textTertiary}
                   />
                 </View>
               </View>
 
               <View style={styles.twoCol}>
                 <View style={styles.col}>
-                  <Text style={styles.inputLabel}>Minimum Fare (₹)</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Minimum Fare (₹)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={minimumFare}
                     onChangeText={setMinimumFare}
                     keyboardType="numeric"
+                    placeholderTextColor={theme.textTertiary}
                   />
                 </View>
                 <View style={styles.col}>
-                  <Text style={styles.inputLabel}>Booking Fee (₹)</Text>
-                  <TextInput style={styles.input} value={bookingFee} onChangeText={setBookingFee} keyboardType="numeric" />
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Booking Fee (₹)</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
+                    value={bookingFee}
+                    onChangeText={setBookingFee}
+                    keyboardType="numeric"
+                    placeholderTextColor={theme.textTertiary}
+                  />
                 </View>
               </View>
 
               <View style={styles.twoCol}>
                 <View style={styles.col}>
-                  <Text style={styles.inputLabel}>Platform Fee (₹)</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Platform Fee (₹)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={platformFee}
                     onChangeText={setPlatformFee}
                     keyboardType="numeric"
+                    placeholderTextColor={theme.textTertiary}
                   />
                 </View>
                 <View style={styles.col}>
-                  <Text style={styles.inputLabel}>Tax (%)</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Tax (%)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={taxPercentage}
                     onChangeText={setTaxPercentage}
                     keyboardType="numeric"
+                    placeholderTextColor={theme.textTertiary}
                   />
                 </View>
               </View>
 
               <View style={styles.twoCol}>
                 <View style={styles.col}>
-                  <Text style={styles.inputLabel}>Night Surcharge (%)</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Night Surcharge (%)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={nightSurchargePercent}
                     onChangeText={setNightSurchargePercent}
                     keyboardType="numeric"
+                    placeholderTextColor={theme.textTertiary}
                   />
                 </View>
                 <View style={styles.col}>
-                  <Text style={styles.inputLabel}>Peak Multiplier</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Peak Multiplier</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
                     value={peakMultiplier}
                     onChangeText={setPeakMultiplier}
                     keyboardType="numeric"
+                    placeholderTextColor={theme.textTertiary}
                   />
                 </View>
               </View>
 
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveRule} disabled={isSaving}>
+              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.primary }]} onPress={handleSaveRule} disabled={isSaving}>
                 {isSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Fare Configuration</Text>}
               </TouchableOpacity>
             </ScrollView>

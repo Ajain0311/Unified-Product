@@ -13,11 +13,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { mapHotelCommission, mapSettlementBatch, money } from './adminFinanceMappers';
 
 export const AdminRestaurantCommissionsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const { theme, isDark } = useAppTheme();
   const [hotels, setHotels] = useState<ReturnType<typeof mapHotelCommission>[]>([]);
   const [batches, setBatches] = useState<ReturnType<typeof mapSettlementBatch>[]>([]);
   const [activeTab, setActiveTab] = useState<'RESTAURANTS' | 'BATCHES'>('RESTAURANTS');
@@ -143,27 +145,27 @@ export const AdminRestaurantCommissionsScreen: React.FC<{ navigation: any }> = (
   const isApproved = (status: string) => status.toUpperCase() === 'APPROVED';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button">
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
+          <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Restaurant Commissions & Settlement</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Restaurant Commissions & Settlement</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity
-          style={[styles.tabItem, activeTab === 'RESTAURANTS' && styles.tabItemActive]}
+          style={[styles.tabItem, activeTab === 'RESTAURANTS' && [styles.tabItemActive, { borderBottomColor: theme.primary }]]}
           onPress={() => setActiveTab('RESTAURANTS')}
         >
-          <Text style={[styles.tabText, activeTab === 'RESTAURANTS' && styles.tabTextActive]}>Hotels Ledger</Text>
+          <Text style={[styles.tabText, { color: theme.textSecondary }, activeTab === 'RESTAURANTS' && { color: theme.primary }]}>Hotels Ledger</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tabItem, activeTab === 'BATCHES' && styles.tabItemActive]}
+          style={[styles.tabItem, activeTab === 'BATCHES' && [styles.tabItemActive, { borderBottomColor: theme.primary }]]}
           onPress={() => setActiveTab('BATCHES')}
         >
-          <Text style={[styles.tabText, activeTab === 'BATCHES' && styles.tabTextActive]}>Settlement Batches</Text>
+          <Text style={[styles.tabText, { color: theme.textSecondary }, activeTab === 'BATCHES' && { color: theme.primary }]}>Settlement Batches</Text>
         </TouchableOpacity>
       </View>
 
@@ -331,22 +333,22 @@ export const AdminRestaurantCommissionsScreen: React.FC<{ navigation: any }> = (
       <Modal visible={rateModalVisible} transparent animationType="fade" onRequestClose={() => setRateModalVisible(false)}>
         <FormKeyboardAvoid>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalHeading}>Set Prospective Commission Rate</Text>
+          <View style={[styles.modalBox, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.modalHeading, { color: theme.textPrimary }]}>Set Prospective Commission Rate</Text>
             <Text style={styles.modalSub}>{selectedHotel?.restaurantName}</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               value={newRate}
               onChangeText={setNewRate}
               keyboardType="numeric"
               placeholder="e.g. 15.0"
-              placeholderTextColor="#777"
+              placeholderTextColor={theme.textTertiary}
             />
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setRateModalVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={[styles.cancelBtnText, { color: theme.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={handleSaveRate} disabled={isSavingRate}>
+              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: theme.primary }]} onPress={handleSaveRate} disabled={isSavingRate}>
                 {isSavingRate ? <ActivityIndicator color="#FFF" /> : <Text style={styles.confirmBtnText}>Save Rate</Text>}
               </TouchableOpacity>
             </View>
@@ -363,27 +365,27 @@ export const AdminRestaurantCommissionsScreen: React.FC<{ navigation: any }> = (
       >
         <FormKeyboardAvoid>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalHeading}>Create Collection Batch</Text>
+          <View style={[styles.modalBox, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.modalHeading, { color: theme.textPrimary }]}>Create Collection Batch</Text>
             <Text style={styles.modalSub}>{settlementHotel?.restaurantName}</Text>
-            <Text style={styles.hintText}>
+            <Text style={[styles.hintText, { color: theme.textSecondary }]}>
               Pending balance ₹{money(settlementHotel?.pendingBalance)} will be batched from ledger entries.
             </Text>
 
-            <Text style={styles.inputLabel}>Collection Reference / Receipt</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Collection Reference / Receipt</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
               value={collectionRef}
               onChangeText={setCollectionRef}
               placeholder="e.g. CHEQUE-10294 or CASH-REC"
-              placeholderTextColor="#777"
+              placeholderTextColor={theme.textTertiary}
             />
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setSettlementModalVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={[styles.cancelBtnText, { color: theme.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={handleCreateSettlement} disabled={isCreatingBatch}>
+              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: theme.primary }]} onPress={handleCreateSettlement} disabled={isCreatingBatch}>
                 {isCreatingBatch ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
