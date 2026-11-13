@@ -178,7 +178,8 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      await adminLogin(mobileNumber, otp, adminPassword);
+      // adminLogin signature: (mobileNumber, password, otpCode)
+      await adminLogin(mobileNumber, adminPassword, otp);
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' }],
