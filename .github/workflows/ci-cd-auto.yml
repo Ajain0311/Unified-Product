@@ -1,10 +1,6 @@
-name: Automated CI/CD & Production Release
+name: Automated Docker Build & Verification
 
 on:
-  push:
-    branches:
-      - main
-      - dev
   workflow_dispatch:
 
 permissions:

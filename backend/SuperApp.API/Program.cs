@@ -218,6 +218,10 @@ else
     builder.Services.AddScoped<ISmsService>(sp => sp.GetRequiredService<BigBSmsService>());
 }
 
+var twoFactorApiKey = Environment.GetEnvironmentVariable("TWOFACTOR_API_KEY")
+    ?? builder.Configuration["TwoFactor:ApiKey"];
+ProductionSecurityValidator.ValidateSmsProvider(smsProviderConfig, twoFactorApiKey, isProduction);
+
 // Previous hardcoded provider (commented out):
 // builder.Services.AddScoped<ISmsService>(sp => sp.GetRequiredService<BigBSmsService>());
 

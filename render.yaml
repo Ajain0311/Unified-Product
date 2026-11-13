@@ -18,3 +18,5 @@ services:
         sync: false
       - key: OTP_TEST_MODE
         value: "false"
+      - key: TWOFACTOR_API_KEY
+        sync: false

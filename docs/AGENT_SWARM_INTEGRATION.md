@@ -42,8 +42,8 @@ The Autonomous Engineering Swarm orchestrator maintains `Unified Product` under 
 - **Stack**: .NET 10.0 C#, React Native Expo, PostgreSQL, SignalR, Razorpay
 - **Architectural Pattern**: Clean Layered Architecture (`Domain` -> `Application` -> `Infrastructure` -> `API`)
 
-## 4. Operational Invariant Rules for Agents
-1. **Never push to `upstream`** (`SuperApp_V2`). Only push to `origin` (`Unified-Product`).
-2. **Preserve existing API contracts**. Modifying an endpoint route, status code, or response shape requires explicit versioning.
-3. **Execute 5-State checks** on every frontend screen touch (Loading, Empty, Error, Success, Denied).
-4. **Mandatory test passage**: All .NET unit and integration tests in `SuperApp.Tests` must pass before marking any task as complete.
+## 4. Operational Guidelines for Agents (Fast Execution)
+1. **Canonical Rulebook**: All agent execution is governed by [AGENTS.md](../AGENTS.md). Direct execution and targeted verification take precedence over multi-step swarm handoffs.
+2. **Never push to `upstream`** (`SuperApp_V2`). Only push to `origin` (`Unified-Product`).
+3. **Preserve existing API contracts**. Modifying an endpoint route, status code, or response shape requires explicit versioning.
+4. **Targeted Verification**: Run focused checks relevant to the code changed rather than blocking development on full-suite passes.

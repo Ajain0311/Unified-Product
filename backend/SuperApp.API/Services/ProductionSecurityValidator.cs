@@ -45,6 +45,19 @@ public static class ProductionSecurityValidator
         }
     }
 
+    public static void ValidateSmsProvider(string? smsProviderConfig, string? twoFactorApiKey, bool isProduction)
+    {
+        if (!isProduction) return;
+
+        var usesTwoFactor = smsProviderConfig == "2" ||
+            string.Equals(smsProviderConfig, "TwoFactor", StringComparison.OrdinalIgnoreCase);
+
+        if (usesTwoFactor && string.IsNullOrWhiteSpace(twoFactorApiKey))
+        {
+            throw new InvalidOperationException("CRITICAL: 2Factor SMS provider is configured for Production but TWOFACTOR_API_KEY is missing.");
+        }
+    }
+
     public static void ValidateMapProvider(string? provider, string? mapboxToken, bool isProduction)
     {
         if (!isProduction) return;

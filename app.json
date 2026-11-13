@@ -57,10 +57,12 @@
       ],
       "expo-dev-client",
       "@rnmapbox/maps",
+      "./plugins/withAndroidNdkVersion",
       [
         "expo-build-properties",
         {
           "android": {
+            "ndkVersion": "27.0.12077973",
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true
           }

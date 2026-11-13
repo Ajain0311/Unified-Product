@@ -32,6 +32,7 @@ public class TwoFactorSmsService : ISmsService
     {
         _http = http;
         _logger = logger;
+        // No hardcoded fallback: a missing key must fail loudly, not silently use a shared/exposed key.
         _apiKey = Environment.GetEnvironmentVariable("TWOFACTOR_API_KEY")
             ?? configuration["TwoFactor:ApiKey"]
             ?? string.Empty;
