@@ -77,15 +77,5 @@ public static class ProductionSecurityValidator
             throw new InvalidOperationException("CRITICAL: MockNotificationService cannot be used in a Production environment. Configure NOTIFICATION_PROVIDER=Push, Expo, or Fcm.");
         }
     }
-
-    public static void ValidateSmsProvider(string? provider, string? twoFactorKey, bool isProduction)
-    {
-        if (!isProduction) return;
-
-        if (string.Equals(provider, "TwoFactor", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(twoFactorKey))
-        {
-            throw new InvalidOperationException("CRITICAL: TwoFactor SMS provider is configured for Production but TWOFACTOR_API_KEY is missing.");
-        }
-    }
 }
 

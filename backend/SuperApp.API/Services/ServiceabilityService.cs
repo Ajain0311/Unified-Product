@@ -98,22 +98,29 @@ public sealed class ServiceabilityService(ServiceAreaPolicy policy)
             return ServiceabilityResult.Rejected(ServiceabilityFailure.InvalidCoordinates);
         }
 
-        if (!AreValidCoordinates(policy.CenterLatitude, policy.CenterLongitude) ||
-            !double.IsFinite(policy.RidePickupRadiusKm) || policy.RidePickupRadiusKm <= 0 ||
-            !double.IsFinite(policy.RideMaxRoadDistanceKm) || policy.RideMaxRoadDistanceKm <= 0 ||
-            policy.DestinationZones.Count == 0 || policy.DestinationZones.Any(zone => !IsValidZone(zone)))
+        // Validate service policy: pickup radius and max road distance must be positive numbers if checked
+        if (!double.IsFinite(policy.RideMaxRoadDistanceKm) || policy.RideMaxRoadDistanceKm <= 0)
         {
             return ServiceabilityResult.Rejected(ServiceabilityFailure.InvalidCoverageConfiguration);
         }
 
-        if (DistanceKm(pickupLatitude!.Value, pickupLongitude!.Value,
-                policy.CenterLatitude, policy.CenterLongitude) > policy.RidePickupRadiusKm)
+        // Check pickup radius only if center coordinates are configured and radius is positive
+        if (AreValidCoordinates(policy.CenterLatitude, policy.CenterLongitude) &&
+            double.IsFinite(policy.RidePickupRadiusKm) && policy.RidePickupRadiusKm > 0)
         {
-            return ServiceabilityResult.Rejected(ServiceabilityFailure.PickupOutsideCoverage);
+            if (DistanceKm(pickupLatitude!.Value, pickupLongitude!.Value,
+                    policy.CenterLatitude, policy.CenterLongitude) > policy.RidePickupRadiusKm)
+            {
+                return ServiceabilityResult.Rejected(ServiceabilityFailure.PickupOutsideCoverage);
+            }
         }
 
-        if (!policy.DestinationZones.Any(zone => Contains(zone, destinationLatitude!.Value, destinationLongitude!.Value)))
-            return ServiceabilityResult.Rejected(ServiceabilityFailure.DestinationOutsideCoverage);
+        // Destination zones check: if destination zones are defined, destination must fall in at least one zone
+        if (policy.DestinationZones != null && policy.DestinationZones.Count > 0)
+        {
+            if (!policy.DestinationZones.Any(zone => Contains(zone, destinationLatitude!.Value, destinationLongitude!.Value)))
+                return ServiceabilityResult.Rejected(ServiceabilityFailure.DestinationOutsideCoverage);
+        }
 
         if (!roadDistanceKm.HasValue || !double.IsFinite(roadDistanceKm.Value) || roadDistanceKm.Value < 0)
             return ServiceabilityResult.Rejected(ServiceabilityFailure.RouteUnavailable);

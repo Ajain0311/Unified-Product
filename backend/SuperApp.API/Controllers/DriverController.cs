@@ -179,10 +179,14 @@ public class DriverController : ControllerBase
             }
         }
 
+        var activeVehicle = driver.Vehicles.FirstOrDefault(v => v.IsActive);
+        var driverVehicleType = activeVehicle?.Type;
+
         var rides = await _db.Rides
             .Include(r => r.User)
             .Where(r => (r.Status == RideStatus.Requested || r.Status == RideStatus.Searching) 
                      && (r.DriverId == null || r.DriverId == driver.Id)
+                     && (string.IsNullOrEmpty(r.VehicleType) || string.IsNullOrEmpty(driverVehicleType) || r.VehicleType.ToUpper() == driverVehicleType.ToUpper())
                      && r.CreatedAt >= cutoff)
             .OrderByDescending(r => r.CreatedAt)
             .Take(20)
@@ -331,6 +335,15 @@ public class DriverController : ControllerBase
             }
 
             var vehicle = driver.Vehicles.FirstOrDefault(v => v.IsActive);
+
+            // Vehicle compatibility validation: driver vehicle type must match requested vehicle type
+            if (vehicle != null && !string.IsNullOrEmpty(ride.VehicleType) && !string.IsNullOrEmpty(vehicle.Type))
+            {
+                if (!string.Equals(ride.VehicleType, vehicle.Type, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(ApiResponse<RideDto>.Fail($"Vehicle type mismatch: this ride requires a {ride.VehicleType}, but your registered vehicle is {vehicle.Type}."));
+                }
+            }
 
             if (_db.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
             {

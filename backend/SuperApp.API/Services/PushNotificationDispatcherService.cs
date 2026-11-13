@@ -169,9 +169,15 @@ public class PushNotificationDispatcherService : INotificationService
     {
         _logger.LogInformation("[PushDispatch] Broadcasting ride #{RideNumber} (ID {RideId}) to ALL registered captains", ride.RideNumber, ride.Id);
 
-        // REQUIREMENT: Notify ALL registered captains regardless of IsOnline (offline or online)
-        var captainUserIds = await _db.Drivers
-            .Where(d => d.IsActive)
+        // REQUIREMENT: Notify registered captains matching the vehicle type (or all if not specified)
+        var query = _db.Drivers.Where(d => d.IsActive);
+        if (!string.IsNullOrWhiteSpace(ride.VehicleType))
+        {
+            var targetType = ride.VehicleType.Trim().ToUpper();
+            query = query.Where(d => d.Vehicles.Any(v => v.IsActive && v.Type.ToUpper() == targetType));
+        }
+
+        var captainUserIds = await query
             .Select(d => d.UserId)
             .Distinct()
             .ToListAsync();

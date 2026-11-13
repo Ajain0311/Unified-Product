@@ -35,8 +35,7 @@
         "EXPO_PUBLIC_ENV": "prod",
         "EXPO_PUBLIC_API_BASE_URL": "https://makemyfree.duckdns.org/api",
         "EXPO_PUBLIC_SIGNALR_HUB_URL": "https://makemyfree.duckdns.org",
-        "EXPO_PUBLIC_SHOW_TEST_OTP": "true",
-        "EXPO_PUBLIC_TEST_OTP": "123456"
+        "EXPO_PUBLIC_SHOW_TEST_OTP": "false"
       },
       "channel": "production"
     }
