@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Zupify",
-    "slug": "HTTP-EXPNAT-NET",
+    "slug": "Unified-Product",
     "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.zupify.app",
-      "versionCode": 6,
+      "versionCode": 7,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
@@ -70,14 +70,14 @@
       ]
     ],
     "updates": {
-      "url": "https://u.expo.dev/d34cada7-3333-4648-a237-b1b67069f607"
+      "url": "https://u.expo.dev/588c4dc6-4d8c-41dc-b8e6-cbcd8794fcb4"
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "extra": {
       "eas": {
-        "projectId": "d34cada7-3333-4648-a237-b1b67069f607"
+        "projectId": "588c4dc6-4d8c-41dc-b8e6-cbcd8794fcb4"
       }
     },
     "owner": "ajain0311"

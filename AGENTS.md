@@ -36,7 +36,16 @@
 - **Native Changes Require New Build**: Changes to native dependencies, Android permissions (`AndroidManifest.xml`), native configuration, or Expo SDK upgrades require a new local APK/AAB build.
 - Respect EAS plan limits and ensure runtime-version compatibility (`runtimeVersion: { policy: "appVersion" }`).
 
-## 5. Security & Safety Boundaries
+## 5. Permanent Rule: Zupify Play Store Releases (Canonical Repository)
+- **`Unified-Product` is the exclusive canonical repository for all Zupify Google Play Store releases.**
+- Never use `HTTP-EXPNAT-NET` or any other repository/legacy workspace for Zupify builds, EAS credentials, signing keystores, AAB artifacts, or Play Console submissions.
+- **Mandatory Pre-Release Verification**: Before every release, verify that:
+  1. The active repository is `Unified-Product` (`https://github.com/Ajain0311/Unified-Product.git`).
+  2. The package name is `com.zupify.app`.
+  3. EAS project ID and signing credentials explicitly belong to `Unified-Product` for `com.zupify.app`.
+  4. Build artifacts and submissions target the canonical Zupify Play Console app only.
+
+## 6. Security & Safety Boundaries
 - **Production Guard**: Pushing to `main` automatically triggers Azure VM production deployment via `.github/workflows/deploy.yml`. Never push untested breaking changes to backend code.
 - **Flutter Protection**: Do not modify Flutter source.
 - **Credentials & Security**: Never expose credentials or copy secrets into logs or documentation. Fast execution must never bypass authorization, payment verification, or financial safeguards.
