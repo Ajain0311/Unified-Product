@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AppColors } from '../../theme/colors';
 import { useAuthStore } from '../../store/authStore';
+import { useAppTheme } from '../../theme/themeStore';
 import { shadowStyle, USE_NATIVE_DRIVER } from '../../utils/platformStyles';
 
 interface SplashScreenProps {
@@ -12,6 +12,7 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
   const checkAuth = useAuthStore((state) => state.checkAuth);
+  const { theme } = useAppTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
 
@@ -57,7 +58,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
   }, [navigation, checkAuth, fadeAnim, scaleAnim]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Animated.View
         style={[
           styles.content,
@@ -76,8 +77,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
           <Ionicons name="sparkles" size={44} color="#FFFFFF" />
         </LinearGradient>
 
-        <Text style={styles.appName}>Zupify</Text>
-        <Text style={styles.tagline}>Everything in a Tap</Text>
+        <Text style={[styles.appName, { color: theme.textPrimary }]}>Zupify</Text>
+        <Text style={[styles.tagline, { color: theme.textSecondary }]}>Everything in a Tap</Text>
       </Animated.View>
     </View>
   );
@@ -86,7 +87,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: AppColors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -111,14 +111,12 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#0F172A',
     letterSpacing: 1.5,
     marginBottom: 6,
   },
   tagline: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
     letterSpacing: 2.5,
     textTransform: 'uppercase',
   },

@@ -19,7 +19,7 @@ import { VendorOrdersScreen } from '../features/vendor/VendorOrdersScreen';
 import { VendorMenuScreen } from '../features/vendor/VendorMenuScreen';
 import { SellerDashboardScreen } from '../features/seller/SellerDashboardScreen';
 import { AddListingScreen } from '../features/marketplace/AddListingScreen';
-import { AdminDashboardScreen } from '../features/admin/AdminDashboardScreen';
+import { AdminPortalScreen } from '../features/admin/AdminPortalScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -248,7 +248,7 @@ const MainTabNavigatorComponent: React.FC = () => {
         <>
           <Tab.Screen
             name="AdminDashboard"
-            component={AdminDashboardScreen}
+            component={AdminPortalScreen}
             options={{
               tabBarLabel: 'Management',
               tabBarIcon: ({ color, focused }) => (

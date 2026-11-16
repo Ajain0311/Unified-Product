@@ -598,39 +598,46 @@ export const ProfileScreen: React.FC = () => {
         <FormKeyboardAvoid style={styles.editKeyboardRoot}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={styles.editOverlay}>
-              <View style={styles.editSheet}>
+              <View style={[styles.editSheet, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <View style={styles.editHeader}>
-                  <Text style={styles.editTitle}>Edit name</Text>
+                  <Text style={[styles.editTitle, { color: theme.textPrimary }]}>Edit name</Text>
                   <TouchableOpacity
                     onPress={() => !savingName && setEditVisible(false)}
                     disabled={savingName}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <MaterialIcons name="close" size={22} color={colors.textSecondary} />
+                    <MaterialIcons name="close" size={22} color={theme.textSecondary} />
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.editHint}>
+                <Text style={[styles.editHint, { color: theme.textSecondary }]}>
                   Only your display name can be changed. Phone number stays fixed.
                 </Text>
-                <Text style={styles.editLabel}>Name</Text>
+                <Text style={[styles.editLabel, { color: theme.textSecondary }]}>Name</Text>
                 <TextInput
-                  style={styles.editInput}
+                  style={[
+                    styles.editInput,
+                    {
+                      backgroundColor: theme.inputBg,
+                      borderColor: theme.border,
+                      color: theme.textPrimary,
+                    },
+                  ]}
                   value={editName}
                   onChangeText={setEditName}
                   placeholder="Your name"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={theme.textTertiary}
                   maxLength={100}
                   autoFocus
                   editable={!savingName}
                   returnKeyType="done"
                   onSubmitEditing={() => void handleSaveName()}
                 />
-                <Text style={styles.editLabel}>Phone</Text>
-                <View style={styles.editPhoneBox}>
-                  <Text style={styles.editPhoneText}>{phone}</Text>
+                <Text style={[styles.editLabel, { color: theme.textSecondary }]}>Phone</Text>
+                <View style={[styles.editPhoneBox, { backgroundColor: theme.surfaceLight, borderColor: theme.border }]}>
+                  <Text style={[styles.editPhoneText, { color: theme.textSecondary }]}>{phone}</Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.editSaveBtn, savingName && { opacity: 0.7 }]}
+                  style={[styles.editSaveBtn, { backgroundColor: theme.primary }, savingName && { opacity: 0.7 }]}
                   onPress={() => void handleSaveName()}
                   disabled={savingName}
                   activeOpacity={0.85}
@@ -913,14 +920,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   editSheet: {
-    backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: Platform.OS === 'ios' ? 34 : spacing.lg,
     borderTopWidth: 1,
-    borderColor: colors.border,
     maxHeight: '92%',
   },
   editHeader: {

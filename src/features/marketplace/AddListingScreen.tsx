@@ -20,6 +20,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { useMarketplaceStore } from '../../store/marketplaceStore';
 import { ListingSummary } from '../../models/marketplace';
 import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/themeStore';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { apiClient } from '../../services/apiClient';
@@ -52,6 +53,7 @@ const CONDITIONS = [
 export const AddListingScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { addListing } = useMarketplaceStore();
+  const { theme, isDark } = useAppTheme();
 
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
@@ -271,12 +273,12 @@ export const AddListingScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.surface} />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={theme.statusBar} backgroundColor={theme.surface} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Post an Item for Sale</Text>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomWidth: 1, borderBottomColor: theme.cardBorder }]}>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Post an Item for Sale</Text>
         <TouchableOpacity
           style={styles.closeButton}
           onPress={() => navigation.goBack()}
@@ -284,25 +286,25 @@ export const AddListingScreen: React.FC = () => {
           accessibilityLabel="Close Post Item"
           testID="add-listing-close-btn"
         >
-          <MaterialIcons name="close" size={24} color="#FFFFFF" />
+          <MaterialIcons name="close" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
       </View>
 
       <FormKeyboardAvoid>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Photos Section */}
-        <Text style={styles.sectionTitle}>Photos (Upload up to 5)</Text>
-        <Text style={styles.sectionSubtitle}>
+        <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Photos (Upload up to 5)</Text>
+        <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
           Clear photos with good lighting attract 3x more buyers.
         </Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
           <TouchableOpacity
-            style={styles.addPhotoBox}
+            style={[styles.addPhotoBox, { backgroundColor: theme.surfaceLight, borderColor: theme.primary }]}
             onPress={handlePickPhoto}
           >
-            <MaterialIcons name="add-a-photo" size={26} color={colors.primary} />
-            <Text style={styles.addPhotoText}>Add Photo</Text>
+            <MaterialIcons name="add-a-photo" size={26} color={theme.primary} />
+            <Text style={[styles.addPhotoText, { color: theme.primary }]}>Add Photo</Text>
           </TouchableOpacity>
 
           {photos.map((url, idx) => (
@@ -319,18 +321,18 @@ export const AddListingScreen: React.FC = () => {
         </ScrollView>
 
         {/* Title */}
-        <Text style={styles.inputLabel}>Item Title *</Text>
+        <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Item Title *</Text>
         <TextInput
           testID="add-listing-title-input"
           placeholder="e.g. Samsung Galaxy S23 Ultra"
-          placeholderTextColor={colors.textTertiary}
+          placeholderTextColor={theme.textTertiary}
           value={title}
           onChangeText={setTitle}
-          style={styles.textInput}
+          style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.textPrimary }]}
         />
 
         {/* Category */}
-        <Text style={styles.inputLabel}>Category *</Text>
+        <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Category *</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
           {categoriesList.map((cat) => {
             const isSelected = cat.id === selectedCategoryId;
@@ -339,14 +341,16 @@ export const AddListingScreen: React.FC = () => {
                 key={cat.id}
                 style={[
                   styles.categoryChip,
-                  isSelected && styles.categoryChipSelected,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                  isSelected && { backgroundColor: theme.primary, borderColor: theme.primary },
                 ]}
                 onPress={() => setSelectedCategoryId(cat.id)}
               >
                 <Text
                   style={[
                     styles.categoryChipText,
-                    isSelected && styles.categoryChipTextSelected,
+                    { color: theme.textPrimary },
+                    isSelected && { color: '#FFFFFF', fontWeight: '700' },
                   ]}
                 >
                   {cat.name}
@@ -357,22 +361,22 @@ export const AddListingScreen: React.FC = () => {
         </ScrollView>
 
         {/* Price */}
-        <Text style={styles.inputLabel}>Price *</Text>
-        <View style={styles.priceInputWrapper}>
-          <Text style={styles.pricePrefix}>₹</Text>
+        <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Price *</Text>
+        <View style={[styles.priceInputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+          <Text style={[styles.pricePrefix, { color: theme.primary }]}>₹</Text>
           <TextInput
             testID="add-listing-price-input"
             keyboardType="numeric"
             placeholder="0.00"
-            placeholderTextColor={colors.textTertiary}
+            placeholderTextColor={theme.textTertiary}
             value={price}
             onChangeText={setPrice}
-            style={styles.priceInput}
+            style={[styles.priceInput, { color: theme.textPrimary }]}
           />
         </View>
 
         {/* Condition */}
-        <Text style={styles.inputLabel}>Item Condition *</Text>
+        <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Item Condition *</Text>
         <View style={styles.conditionRow}>
           {CONDITIONS.map((cond) => {
             const isSelected = cond.id === selectedCondition;
@@ -381,14 +385,16 @@ export const AddListingScreen: React.FC = () => {
                 key={cond.id}
                 style={[
                   styles.conditionChip,
-                  isSelected && styles.conditionChipSelected,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                  isSelected && { backgroundColor: `${theme.primary}20`, borderColor: theme.primary },
                 ]}
                 onPress={() => setSelectedCondition(cond.id)}
               >
                 <Text
                   style={[
                     styles.conditionChipText,
-                    isSelected && styles.conditionChipTextSelected,
+                    { color: theme.textSecondary },
+                    isSelected && { color: theme.primary, fontWeight: '700' },
                   ]}
                 >
                   {cond.label}
@@ -400,18 +406,18 @@ export const AddListingScreen: React.FC = () => {
 
         {/* Location */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={styles.inputLabel}>Pickup Location *</Text>
+          <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Pickup Location *</Text>
           <TouchableOpacity
             onPress={handleUseGps}
             disabled={isLocating}
             style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs }}
           >
             {isLocating ? (
-              <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 4 }} />
+              <ActivityIndicator size="small" color={theme.primary} style={{ marginRight: 4 }} />
             ) : (
-              <MaterialIcons name="my-location" size={16} color={colors.primary} style={{ marginRight: 4 }} />
+              <MaterialIcons name="my-location" size={16} color={theme.primary} style={{ marginRight: 4 }} />
             )}
-            <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
+            <Text style={{ color: theme.primary, fontSize: 13, fontWeight: '600' }}>
               {isLocating ? 'Detecting...' : 'Use Current Location'}
             </Text>
           </TouchableOpacity>
@@ -419,28 +425,28 @@ export const AddListingScreen: React.FC = () => {
         <TextInput
           testID="add-listing-location-input"
           placeholder="Enter city, locality or area"
-          placeholderTextColor={colors.textTertiary}
+          placeholderTextColor={theme.textTertiary}
           value={location}
           onChangeText={setLocation}
-          style={styles.textInput}
+          style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.textPrimary }]}
         />
 
         {/* Description */}
-        <Text style={styles.inputLabel}>Description</Text>
+        <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Description</Text>
         <TextInput
           placeholder="Mention age of item, usage details, reason for selling..."
-          placeholderTextColor={colors.textTertiary}
+          placeholderTextColor={theme.textTertiary}
           value={description}
           onChangeText={setDescription}
           multiline
           numberOfLines={4}
-          style={[styles.textInput, styles.textArea]}
+          style={[styles.textInput, styles.textArea, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.textPrimary }]}
         />
 
         {/* Submit Button */}
         <TouchableOpacity
           activeOpacity={0.85}
-          style={styles.submitButton}
+          style={[styles.submitButton, { backgroundColor: theme.primary }]}
           onPress={handleSubmit}
           disabled={isSubmitting}
           testID="add-listing-publish-btn"

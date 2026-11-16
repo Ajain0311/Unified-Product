@@ -72,8 +72,12 @@
 
 ## 4. Google Play Console Service Account
 
-- **Project Root Location**: `pc-api-key.json`
-- **Original Source File**: `C:\Users\admin\Downloads\zupify-514510-a19d980c7ce3.json`
+- **Purpose**: Automated Google Play Console App Publishing via EAS Submit (`androidpublisher` scope).
+- **Service Account Email**: `zupify-play-deployer@zupify-514510.iam.gserviceaccount.com`
+- **GCP Project ID**: `zupify-514510`
+- **Source File**: `C:\Users\admin\Downloads\zupify-514510-a19d980c7ce3.json`
+- **Project Root Location**: `pc-api-key.json` (gitignored, contains deployment key)
+- **Important Note**: This credential is for Google Play Store upload only, NOT for Firebase Cloud Messaging.
 - **EAS Submit Command**:
   ```bash
   npx eas submit -p android --profile production
@@ -81,7 +85,18 @@
 
 ---
 
-## 5. Live App Updates (EAS OTA Updates - Primary & Unlimited)
+## 5. Firebase Cloud Messaging (FCM HTTP v1) Service Account (Pending)
+
+- **Purpose**: Direct native Android push notification delivery via Firebase HTTP v1 API (`https://fcm.googleapis.com/v1/projects/{project-id}/messages:send`).
+- **Firebase Project ID (from `google-services.json`)**: `project-d5fca028-5873-44ba-924`
+- **Target VM Path**: `/opt/superapp/firebase-service-account.json` (permissions `0600`)
+- **Environment Variable**: `FIREBASE_SERVICE_ACCOUNT_JSON=/opt/superapp/firebase-service-account.json`
+- **Status**: **PENDING**. Download the Firebase Admin SDK private key JSON from Firebase Console -> Project Settings -> Service Accounts for project `project-d5fca028-5873-44ba-924` and install securely on the VM.
+- **Fallback In Place**: Expo Push service fallback operates independently and is fully active.
+
+---
+
+## 6. Live App Updates (EAS OTA Updates - Primary & Unlimited)
 
 - **Why EAS Update**: EAS Update allows publishing code and UI changes directly to testers' devices without consuming EAS build quotas.
 - **Commands**:

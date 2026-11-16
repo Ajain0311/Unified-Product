@@ -397,6 +397,14 @@ export const DriverHomeScreen: React.FC = () => {
           // Real-time live incoming ride requests broadcast
           unregisterRequested = signalRService.onRideRequested((incoming: any) => {
             if (!incoming) return;
+
+            // Vehicle compatibility check: ignore ride request broadcast if incompatible with driver vehicle
+            const driverVehicleType = (profile?.vehicle?.type || 'BIKE').toUpperCase();
+            const rideVehicleType = (incoming.vehicleType || 'BIKE').toUpperCase();
+            if (rideVehicleType !== driverVehicleType) {
+              return;
+            }
+
             // Mark incoming as alerted to deduplicate with incoming push notifications
             if (alertedRideIdsRef.current.has(incoming.id)) return;
             alertedRideIdsRef.current.add(incoming.id);

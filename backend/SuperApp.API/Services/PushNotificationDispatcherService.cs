@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.EntityFrameworkCore;
 using SuperApp.API.Data;
 using SuperApp.API.DTOs;
@@ -401,62 +402,188 @@ public class PushNotificationDispatcherService : INotificationService
         return (succeeded, failed, pruned);
     }
 
+    private static GoogleCredential? _cachedCredential;
+    private static string? _cachedAccessToken;
+    private static DateTime _tokenExpiry = DateTime.MinValue;
+    private static string? _fcmProjectId;
+    private static readonly SemaphoreSlim _credentialLock = new(1, 1);
+
+    private async Task<(string? accessToken, string? projectId)> GetFcmV1TokenAsync()
+    {
+        if (_cachedAccessToken != null && DateTime.UtcNow < _tokenExpiry.AddMinutes(-5) && !string.IsNullOrEmpty(_fcmProjectId))
+        {
+            return (_cachedAccessToken, _fcmProjectId);
+        }
+
+        await _credentialLock.WaitAsync();
+        try
+        {
+            if (_cachedAccessToken != null && DateTime.UtcNow < _tokenExpiry.AddMinutes(-5) && !string.IsNullOrEmpty(_fcmProjectId))
+            {
+                return (_cachedAccessToken, _fcmProjectId);
+            }
+
+            var serviceAccountPath = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON")
+                ?? Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS")
+                ?? _configuration["Firebase:ServiceAccountJson"];
+
+            if (string.IsNullOrWhiteSpace(serviceAccountPath) || !File.Exists(serviceAccountPath))
+            {
+                return (null, null);
+            }
+
+            // Extract project_id from service account file
+            if (string.IsNullOrEmpty(_fcmProjectId))
+            {
+                try
+                {
+                    using var stream = File.OpenRead(serviceAccountPath);
+                    using var doc = JsonDocument.Parse(stream);
+                    if (doc.RootElement.TryGetProperty("project_id", out var projProp))
+                    {
+                        _fcmProjectId = projProp.GetString();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[PushDispatch] Failed to parse project_id from service account file: {Path}", serviceAccountPath);
+                }
+            }
+
+            _cachedCredential ??= GoogleCredential.FromFile(serviceAccountPath)
+                .CreateScoped("https://www.googleapis.com/auth/firebase.messaging");
+
+            var token = await _cachedCredential.UnderlyingCredential.GetAccessTokenForRequestAsync();
+            _cachedAccessToken = token;
+            _tokenExpiry = DateTime.UtcNow.AddHours(1);
+
+            return (_cachedAccessToken, _fcmProjectId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PushDispatch] Failed to acquire Google OAuth2 token for FCM v1");
+            return (null, null);
+        }
+        finally
+        {
+            _credentialLock.Release();
+        }
+    }
+
     private async Task<(int succeeded, int failed, int pruned)> DispatchFcmBatchAsync(List<UserDeviceToken> tokens, object payload)
     {
         int succeeded = 0;
         int failed = 0;
         int pruned = 0;
 
-        var fcmKey = Environment.GetEnvironmentVariable("FCM_SERVER_KEY")
+        var (v1Token, projectId) = await GetFcmV1TokenAsync();
+        var fcmLegacyKey = Environment.GetEnvironmentVariable("FCM_SERVER_KEY")
             ?? Environment.GetEnvironmentVariable("FIREBASE_SERVER_KEY")
             ?? _configuration["Firebase:ServerKey"];
 
-        if (string.IsNullOrWhiteSpace(fcmKey))
+        var useV1 = !string.IsNullOrEmpty(v1Token) && !string.IsNullOrEmpty(projectId);
+
+        if (!useV1 && string.IsNullOrWhiteSpace(fcmLegacyKey))
         {
-            _logger.LogWarning("[PushDispatch] Direct FCM dispatch attempted but FCM_SERVER_KEY is unconfigured.");
+            _logger.LogWarning("[PushDispatch] Direct FCM dispatch attempted but neither FCM HTTP v1 (FIREBASE_SERVICE_ACCOUNT_JSON) nor Legacy (FCM_SERVER_KEY) is configured.");
             return (0, tokens.Count, 0);
+        }
+
+        var title = GetProperty(payload, "title");
+        var body = GetProperty(payload, "body");
+        var dataObj = GetProperty(payload, "data");
+
+        // Format data dictionary for FCM v1 (string-to-string mapping)
+        var stringData = new Dictionary<string, string>();
+        if (dataObj != null)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(dataObj);
+                using var doc = JsonDocument.Parse(json);
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    stringData[prop.Name] = prop.Value.ToString();
+                }
+            }
+            catch {}
         }
 
         foreach (var token in tokens)
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Post, "https://fcm.googleapis.com/fcm/send");
-                request.Headers.TryAddWithoutValidation("Authorization", $"key={fcmKey}");
+                HttpResponseMessage response;
 
-                var bodyObj = new
+                if (useV1)
                 {
-                    to = token.DeviceToken,
-                    notification = new
-                    {
-                        title = GetProperty(payload, "title"),
-                        body = GetProperty(payload, "body"),
-                        sound = "default"
-                    },
-                    data = GetProperty(payload, "data"),
-                    priority = "high"
-                };
+                    // HTTP v1 endpoint: https://fcm.googleapis.com/v1/projects/{project-id}/messages:send
+                    using var request = new HttpRequestMessage(HttpMethod.Post, $"https://fcm.googleapis.com/v1/projects/{projectId}/messages:send");
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", v1Token);
 
-                request.Content = new StringContent(JsonSerializer.Serialize(bodyObj), Encoding.UTF8, "application/json");
-                var response = await _httpClient.SendAsync(request);
+                    var v1Body = new
+                    {
+                        message = new
+                        {
+                            token = token.DeviceToken,
+                            notification = new
+                            {
+                                title = title,
+                                body = body
+                            },
+                            data = stringData.Count > 0 ? stringData : null,
+                            android = new
+                            {
+                                priority = "HIGH",
+                                notification = new
+                                {
+                                    sound = "default",
+                                    channel_id = "ride-requests"
+                                }
+                            }
+                        }
+                    };
+
+                    request.Content = new StringContent(JsonSerializer.Serialize(v1Body), Encoding.UTF8, "application/json");
+                    response = await _httpClient.SendAsync(request);
+                }
+                else
+                {
+                    // Legacy HTTP endpoint fallback
+                    using var request = new HttpRequestMessage(HttpMethod.Post, "https://fcm.googleapis.com/fcm/send");
+                    request.Headers.TryAddWithoutValidation("Authorization", $"key={fcmLegacyKey}");
+
+                    var legacyBody = new
+                    {
+                        to = token.DeviceToken,
+                        notification = new
+                        {
+                            title = title,
+                            body = body,
+                            sound = "default"
+                        },
+                        data = dataObj,
+                        priority = "high"
+                    };
+
+                    request.Content = new StringContent(JsonSerializer.Serialize(legacyBody), Encoding.UTF8, "application/json");
+                    response = await _httpClient.SendAsync(request);
+                }
 
                 if (response.IsSuccessStatusCode)
                 {
+                    succeeded++;
+                }
+                else
+                {
                     var resJson = await response.Content.ReadAsStringAsync();
-                    if (resJson.Contains("\"failure\":1") || resJson.Contains("NotRegistered") || resJson.Contains("InvalidRegistration"))
+                    // Prune unregistered / not registered / invalid tokens
+                    if (resJson.Contains("UNREGISTERED") || resJson.Contains("NotRegistered") || resJson.Contains("InvalidRegistration") || response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     {
                         token.IsActive = false;
                         token.UpdatedAt = DateTime.UtcNow;
                         pruned++;
-                        failed++;
                     }
-                    else
-                    {
-                        succeeded++;
-                    }
-                }
-                else
-                {
                     failed++;
                 }
             }

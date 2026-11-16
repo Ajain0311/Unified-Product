@@ -415,37 +415,37 @@ export const SavedAddressesScreen: React.FC = () => {
                 onSelect={handlePlaceSelect}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.textPrimary }]}
                 placeholder="House / street"
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.textTertiary}
                 value={form.addressLine1}
                 onChangeText={(addressLine1) => setForm((f) => ({ ...f, addressLine1 }))}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.textPrimary }]}
                 placeholder="Landmark (optional)"
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.textTertiary}
                 value={form.addressLine2}
                 onChangeText={(addressLine2) => setForm((f) => ({ ...f, addressLine2 }))}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.textPrimary }]}
                 placeholder="City"
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.textTertiary}
                 value={form.city}
                 onChangeText={(city) => setForm((f) => ({ ...f, city }))}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.textPrimary }]}
                 placeholder="State"
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.textTertiary}
                 value={form.state}
                 onChangeText={(state) => setForm((f) => ({ ...f, state }))}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.textPrimary }]}
                 placeholder="PIN code"
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.textTertiary}
                 keyboardType="number-pad"
                 maxLength={6}
                 value={form.pinCode}

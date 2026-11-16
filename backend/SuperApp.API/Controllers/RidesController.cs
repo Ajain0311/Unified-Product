@@ -354,6 +354,7 @@ public class RidesController : ControllerBase
             {
                 id = ride.Id,
                 rideNumber = ride.RideNumber,
+                vehicleType = ride.VehicleType,
                 pickupAddress = ride.PickupAddress,
                 dropoffAddress = ride.DropoffAddress,
                 fare = ride.EstimatedFare,
