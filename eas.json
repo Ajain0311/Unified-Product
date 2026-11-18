@@ -44,7 +44,7 @@
     "production": {
       "android": {
         "serviceAccountKeyPath": "./pc-api-key.json",
-        "track": "closed-testing"
+        "track": "alpha"
       }
     }
   }
