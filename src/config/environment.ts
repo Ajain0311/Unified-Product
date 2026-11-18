@@ -32,8 +32,8 @@ export class AppEnvironment {
       return explicitUrl.trim();
     }
 
-    // 2. Default to production Azure / DuckDNS hosted domain
-    return 'https://makemyfree.duckdns.org/api';
+    // 2. Default to production Render / Supabase hosted domain
+    return 'https://zupify-api.onrender.com/api';
   }
 
   /**

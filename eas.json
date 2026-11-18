@@ -8,8 +8,8 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_ENV": "prod",
-        "EXPO_PUBLIC_API_BASE_URL": "https://makemyfree.duckdns.org/api",
-        "EXPO_PUBLIC_SIGNALR_HUB_URL": "https://makemyfree.duckdns.org",
+        "EXPO_PUBLIC_API_BASE_URL": "https://zupify-api.onrender.com/api",
+        "EXPO_PUBLIC_SIGNALR_HUB_URL": "https://zupify-api.onrender.com",
         "EXPO_PUBLIC_SHOW_TEST_OTP": "false"
       },
       "channel": "development"
@@ -21,8 +21,8 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "prod",
-        "EXPO_PUBLIC_API_BASE_URL": "https://makemyfree.duckdns.org/api",
-        "EXPO_PUBLIC_SIGNALR_HUB_URL": "https://makemyfree.duckdns.org",
+        "EXPO_PUBLIC_API_BASE_URL": "https://zupify-api.onrender.com/api",
+        "EXPO_PUBLIC_SIGNALR_HUB_URL": "https://zupify-api.onrender.com",
         "EXPO_PUBLIC_SHOW_TEST_OTP": "false"
       },
       "channel": "preview"
@@ -33,8 +33,8 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "prod",
-        "EXPO_PUBLIC_API_BASE_URL": "https://makemyfree.duckdns.org/api",
-        "EXPO_PUBLIC_SIGNALR_HUB_URL": "https://makemyfree.duckdns.org",
+        "EXPO_PUBLIC_API_BASE_URL": "https://zupify-api.onrender.com/api",
+        "EXPO_PUBLIC_SIGNALR_HUB_URL": "https://zupify-api.onrender.com",
         "EXPO_PUBLIC_SHOW_TEST_OTP": "false"
       },
       "channel": "production"
