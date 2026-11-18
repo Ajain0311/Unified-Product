@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.zupify.app",
-      "versionCode": 8,
+      "versionCode": 9,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
