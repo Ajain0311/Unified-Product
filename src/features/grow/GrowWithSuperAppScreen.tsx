@@ -12,68 +12,50 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useAppTheme } from '../../theme/themeStore';
+import { useLanguageStore } from '../../store/languageStore';
 
 export const GrowWithSuperAppScreen: React.FC = () => {
   const { theme } = useAppTheme();
+  const { language } = useLanguageStore();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  // All partner onboarding options
-  const partnerJourneys = [
+  // Core 4 MVP Business Partner categories - Simple, clear and easy to understand
+  const partnerOptions = [
     {
       id: 'driver',
-      title: 'Become a Rider / Driver',
-      subtitle: 'City cabs, bike taxis, auto & parcel logistics',
-      icon: 'car-outline',
-      badge: 'Mobility',
+      title: language === 'hi' ? 'राइडर / ड्राइवर बनें' : 'Become a Rider / Driver',
+      subtitle: language === 'hi' ? 'बाइक, ऑटो या कैब चलाएं और रोज़ाना कमाएं' : 'Drive bike taxi, auto, or cab & earn daily',
+      icon: 'bicycle',
+      iconColor: '#2563EB',
+      bgColor: '#EFF6FF',
       action: () => navigation.navigate('RoleApplication', { role: 'DRIVER' }),
     },
     {
       id: 'restaurant',
-      title: 'Open / Partner a Restaurant',
-      subtitle: 'Cloud kitchens, fine dining, quick bites & cafes',
-      icon: 'restaurant-outline',
-      badge: 'Food & Dining',
+      title: language === 'hi' ? 'रेस्टोरेंट / कैफे जोड़ें' : 'Add Your Restaurant / Cafe',
+      subtitle: language === 'hi' ? 'ऑनलाइन खाने के ऑर्डर प्राप्त करें और बिक्री बढ़ाएं' : 'Receive online food orders & grow sales',
+      icon: 'restaurant',
+      iconColor: '#EA580C',
+      bgColor: '#FFF7ED',
       action: () => navigation.navigate('RoleApplication', { role: 'RESTAURANT_OWNER' }),
     },
     {
       id: 'hotel',
-      title: 'Open / Host a Hotel & Stays',
-      subtitle: 'Heritage palaces, luxury resorts & budget stays',
-      icon: 'business-outline',
-      badge: 'Hospitality',
+      title: language === 'hi' ? 'होटल / स्टे रजिस्टर करें' : 'List Hotel / Home Stay',
+      subtitle: language === 'hi' ? 'कमरे लिस्ट करें और डायरेक्ट कस्टमर बुकिंग पाएं' : 'List rooms & get verified guest bookings',
+      icon: 'business',
+      iconColor: '#7C3AED',
+      bgColor: '#F5F3FF',
       action: () => navigation.navigate('HotelOwnerDashboard'),
     },
     {
       id: 'seller',
-      title: 'Marketplace Seller / Store',
-      subtitle: 'Mobiles, electronics, vehicles & local retail',
-      icon: 'storefront-outline',
-      badge: 'City Bazaar',
+      title: language === 'hi' ? 'दुकानदार / सेलर बनें' : 'Sell on City Bazaar',
+      subtitle: language === 'hi' ? 'इलेक्ट्रॉनिक्स, सामान या अपनी दुकान का सामान बेचें' : 'Sell retail goods, mobiles, vehicles & more',
+      icon: 'storefront',
+      iconColor: '#059669',
+      bgColor: '#ECFDF5',
       action: () => navigation.navigate('AddListing'),
-    },
-    {
-      id: 'bar',
-      title: 'Bar & Lounge Partner',
-      subtitle: 'Rooftops, craft breweries & curated nightlife',
-      icon: 'wine-outline',
-      badge: 'Nightlife',
-      action: () => navigation.navigate('BarHub'),
-    },
-    {
-      id: 'beverage',
-      title: 'Cafe & Beverage Specialist',
-      subtitle: 'Artisan roasters, juice bars & cold brews',
-      icon: 'cafe-outline',
-      badge: 'Beverages',
-      action: () => navigation.navigate('BeverageHub'),
-    },
-    {
-      id: 'supplies',
-      title: 'B2B Water & Bulk Goods Supplier',
-      subtitle: '20L water cans, corporate orders & bulk delivery',
-      icon: 'water-outline',
-      badge: 'Commercial',
-      action: () => navigation.navigate('B2BWaterSupplies'),
     },
   ];
 
@@ -89,81 +71,65 @@ export const GrowWithSuperAppScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={20} color={theme.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerTitleWrap}>
-          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Grow with SuperApp</Text>
+          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
+            {language === 'hi' ? 'पार्टनर बनें' : 'Grow with Zupify'}
+          </Text>
           <Text style={[styles.headerSubtitle, { color: theme.textTertiary }]}>
-            Partner & Business Onboarding
+            {language === 'hi' ? 'बिज़नेस जोड़ें और कमाई शुरू करें' : 'Start earning with your vehicle or business'}
           </Text>
         </View>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('MyBusinessRequests')}
-          style={[styles.trackButton, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="receipt-outline" size={14} color={theme.accent} />
-          <Text style={[styles.trackButtonText, { color: theme.accent }]}>My Requests</Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Hero Card */}
-        <View style={[styles.heroCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-          <View style={[styles.heroIconBadge, { backgroundColor: '#FEF3C7' }]}>
-            <Ionicons name="trending-up" size={24} color={theme.accent} />
-          </View>
-          <Text style={[styles.heroTitle, { color: theme.textPrimary }]}>
-            Expand Your Business with Zupify
+        {/* Simple MVP Callout */}
+        <View style={[styles.calloutCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.calloutTitle, { color: theme.textPrimary }]}>
+            {language === 'hi' ? 'आप क्या शुरू करना चाहते हैं?' : 'How would you like to partner?'}
           </Text>
-          <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>
-            Join Chittorgarh's premier ecosystem. Choose your category below to onboard as a rider, open a hotel/restaurant, or start your retail store.
+          <Text style={[styles.calloutSub, { color: theme.textSecondary }]}>
+            {language === 'hi'
+              ? 'नीचे से अपनी श्रेणी चुनें और 2 मिनट में अपनी प्रोफाइल जमा करें।'
+              : 'Choose a category below to submit your details in 2 minutes.'}
           </Text>
-
-          <View style={[styles.heroStatsRow, { borderTopColor: theme.cardBorder }]}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.accent }]}>0%</Text>
-              <Text style={[styles.statLabel, { color: theme.textTertiary }]}>Setup Fee</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.accent }]}>Instant</Text>
-              <Text style={[styles.statLabel, { color: theme.textTertiary }]}>Direct Payouts</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.accent }]}>24/7</Text>
-              <Text style={[styles.statLabel, { color: theme.textTertiary }]}>Support Desk</Text>
-            </View>
-          </View>
         </View>
 
-        <Text style={[styles.sectionHeading, { color: theme.textPrimary }]}>
-          Select Your Business Category
-        </Text>
-        <Text style={[styles.sectionSub, { color: theme.textTertiary }]}>
-          Tap any option below to register and start earning immediately.
-        </Text>
-
-        {partnerJourneys.map((p) => (
-          <TouchableOpacity
-            key={p.id}
-            onPress={p.action}
-            style={[styles.partnerCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-            activeOpacity={0.75}
-          >
-            <View style={[styles.partnerIconWrap, { backgroundColor: theme.surface }]}>
-              <Ionicons name={p.icon as any} size={24} color={theme.accent} />
-            </View>
-            <View style={styles.partnerInfo}>
-              <View style={styles.partnerTitleRow}>
-                <Text style={[styles.partnerTitle, { color: theme.textPrimary }]}>{p.title}</Text>
-                <View style={[styles.partnerBadge, { backgroundColor: '#FEF3C7' }]}>
-                  <Text style={[styles.partnerBadgeText, { color: theme.accent }]}>{p.badge}</Text>
-                </View>
+        {/* 4 Clean Partner Options */}
+        <View style={styles.cardsContainer}>
+          {partnerOptions.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                styles.card,
+                { backgroundColor: theme.card, borderColor: theme.cardBorder },
+              ]}
+              onPress={item.action}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.iconBox, { backgroundColor: item.bgColor }]}>
+                <Ionicons name={item.icon as any} size={26} color={item.iconColor} />
               </View>
-              <Text style={[styles.partnerSubtitle, { color: theme.textSecondary }]}>{p.subtitle}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-          </TouchableOpacity>
-        ))}
+              <View style={styles.cardTextContainer}>
+                <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>{item.title}</Text>
+                <Text style={[styles.cardSub, { color: theme.textSecondary }]}>{item.subtitle}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Simple Bottom Help / Request link */}
+        <TouchableOpacity
+          style={[styles.customHelpBox, { borderColor: theme.cardBorder }]}
+          onPress={() => navigation.navigate('SubmitBusinessRequest', { defaultType: 'NEW_PRODUCT' })}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="bulb-outline" size={18} color={theme.accent} />
+          <Text style={[styles.customHelpText, { color: theme.textSecondary }]}>
+            {language === 'hi'
+              ? 'कोई अन्य बिज़नेस या नया सामान लिस्ट कराना है? यहाँ टैप करें'
+              : 'Looking to list a different business or product? Tap here'}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -182,9 +148,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -192,125 +158,76 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
   headerSubtitle: {
-    fontSize: 11,
-    marginTop: 1,
-  },
-  trackButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-    gap: 4,
-  },
-  trackButtonText: {
     fontSize: 12,
-    fontWeight: '700',
+    marginTop: 2,
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 32,
   },
-  heroCard: {
+  calloutCard: {
     borderRadius: 16,
     borderWidth: 1,
     padding: 18,
-    marginBottom: 20,
-  },
-  heroIconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  heroTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    lineHeight: 24,
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
     marginBottom: 16,
   },
-  heroStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingTop: 14,
-    borderTopWidth: 1,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  statLabel: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 24,
-  },
-  sectionHeading: {
-    fontSize: 16,
+  calloutTitle: {
+    fontSize: 17,
     fontWeight: '700',
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  sectionSub: {
-    fontSize: 12,
-    marginBottom: 14,
+  calloutSub: {
+    fontSize: 13,
+    lineHeight: 18,
   },
-  partnerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 10,
+  cardsContainer: {
     gap: 12,
   },
-  partnerIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 14,
+  },
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  partnerInfo: {
+  cardTextContainer: {
     flex: 1,
   },
-  partnerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
     marginBottom: 3,
   },
-  partnerTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+  cardSub: {
+    fontSize: 12,
+    lineHeight: 16,
   },
-  partnerBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
+  customHelpBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    gap: 8,
   },
-  partnerBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  partnerSubtitle: {
-    fontSize: 11,
+  customHelpText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
