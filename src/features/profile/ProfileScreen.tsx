@@ -401,71 +401,39 @@ export const ProfileScreen: React.FC = () => {
           />
         </View>
 
-        {/* Grow with SuperApp — role requests */}
+        {/* Grow with SuperApp & Solution Proposals */}
         <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
-          {language === 'hi' ? 'सुपरऐप के साथ बिज़नेस बढ़ाएं' : 'Grow with SuperApp'}
+          {language === 'hi' ? 'सुपरऐप के साथ बिज़नेस व समाधान' : 'Business & Solutions'}
         </Text>
         <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
           <MenuItem
-            icon="two-wheeler"
-            title={language === 'hi' ? 'राइडर / कैप्टन बनें' : 'Become a Rider / Captain'}
-            subtitle={
-              driverBadge?.subtitle ||
-              (language === 'hi' ? 'बाइक, ऑटो या कार — एडमिन द्वारा सत्यापन' : 'Bike, Auto, or Car/Taxi — admin approves each vehicle')
-            }
-            color={colors.blue}
-            badgeLabel={driverBadge?.label}
-            badgeColor={driverBadge?.color}
-            onPress={() => requireAuth(() => navigation.navigate('RoleApplication', { role: 'DRIVER' }))}
-          />
-          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
-          <MenuItem
-            icon="restaurant"
-            title={language === 'hi' ? 'होटल / कैफे रजिस्टर करें' : 'Open a Hotel / Cafe'}
-            subtitle={
-              hotelBadge?.subtitle ||
-              (language === 'hi' ? 'होटल, रेस्टोरेंट या कैफे पार्टनर बनें' : 'Hotel, restaurant, or cafe — admin approves each outlet')
-            }
-            color={colors.secondary}
-            badgeLabel={hotelBadge?.label}
-            badgeColor={hotelBadge?.color}
-            onPress={() => requireAuth(() => navigation.navigate('RoleApplication', { role: 'RESTAURANT_OWNER' }))}
-          />
-          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
-          <MenuItem
-            icon="storefront"
-            title={language === 'hi' ? 'बाज़ार में बेचें' : 'Sell on Bazaar'}
-            subtitle={language === 'hi' ? 'कोई भी नागरिक सामान बेच सकता है' : 'Anyone can sell — no admin approval needed'}
-            color={colors.primary}
-            onPress={() =>
-              Alert.alert(
-                'Marketplace',
-                'Any citizen can sell on Bazaar. Open the Bazaar tab and tap Post Ad / Add Listing. Seller role is granted automatically when you publish.',
-                [
-                  { text: 'OK', style: 'cancel' },
-                  {
-                    text: 'Go to Bazaar',
-                    onPress: () => navigation.navigate('MainTabs', { screen: 'Bazaar' } as any),
-                  },
-                ]
-              )
-            }
-          />
-          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
-          <MenuItem
             icon="rocket-launch"
-            title={language === 'hi' ? 'पार्टनर ऑनबोर्डिंग' : 'Grow with SuperApp'}
-            subtitle={language === 'hi' ? 'नया प्रोडक्ट, कैटेगरी व पार्टनर रिक्वेस्ट' : 'New product, category, module & partner onboarding'}
+            title={language === 'hi' ? 'सुपरऐप के साथ बिज़नेस बढ़ाएं' : 'Grow with SuperApp'}
+            subtitle={
+              language === 'hi'
+                ? 'राइडर, होटल, रेस्टोरेंट, सेलर या बार पार्टनर बनें'
+                : 'Become a Rider, open Hotel/Restaurant, Seller & Bar partner'
+            }
             color="#D97706"
+            badgeLabel={driverBadge?.label || hotelBadge?.label}
+            badgeColor={driverBadge?.color || hotelBadge?.color}
             onPress={() => navigation.navigate('GrowWithSuperApp')}
           />
           <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
           <MenuItem
-            icon="layers"
-            title={language === 'hi' ? 'मॉड्यूल और स्टोरेज' : 'Modules & Storage Manager'}
-            subtitle={language === 'hi' ? 'ऑन-डिमांड डिलीवरी, वाई-फाई डाउनलोड व कैश' : 'On-demand delivery, Wi-Fi downloads & cache manager'}
-            color="#059669"
-            onPress={() => navigation.navigate('ModuleCatalog')}
+            icon="lightbulb"
+            title={language === 'hi' ? 'नया प्रोडक्ट / समाधान का प्रस्ताव दें' : 'Propose a Solution'}
+            subtitle={
+              language === 'hi'
+                ? 'नया प्रोडक्ट, कैटेगरी या सर्विस शुरू करने की रिक्वेस्ट'
+                : 'Request a new product, category, module or enterprise partnership'
+            }
+            color="#2563EB"
+            onPress={() =>
+              navigation.navigate('SubmitBusinessRequest', {
+                defaultType: 'NEW_PRODUCT',
+              })
+            }
           />
         </View>
 

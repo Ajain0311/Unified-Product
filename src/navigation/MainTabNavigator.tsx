@@ -40,9 +40,9 @@ const MainTabNavigatorComponent: React.FC = () => {
       backgroundColor: theme.tabBarBg,
       borderTopColor: theme.cardBorder,
       borderTopWidth: 1,
-      height: 54 + bottomInset,
-      paddingBottom: bottomInset,
-      paddingTop: 6,
+      height: 60 + bottomInset,
+      paddingBottom: Math.max(bottomInset, 6),
+      paddingTop: 8,
       elevation: 8,
       shadowColor: '#000000',
       shadowOffset: { width: 0, height: -2 },
@@ -52,9 +52,10 @@ const MainTabNavigatorComponent: React.FC = () => {
     tabBarActiveTintColor: activeColor,
     tabBarInactiveTintColor: inactiveColor,
     tabBarLabelStyle: {
-      fontSize: 10,
-      fontWeight: '700' as const,
-      marginTop: 2,
+      fontSize: 11,
+      fontWeight: '600' as const,
+      marginTop: 3,
+      paddingBottom: 2,
     },
   }), [theme.background, theme.tabBarBg, theme.cardBorder, isDark, activeColor, inactiveColor, bottomInset]);
 
