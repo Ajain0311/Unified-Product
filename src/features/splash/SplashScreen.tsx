@@ -1,7 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, Animated, Image } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
 import { useAppTheme } from '../../theme/themeStore';
 import { shadowStyle, USE_NATIVE_DRIVER } from '../../utils/platformStyles';
@@ -14,27 +12,27 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
   const checkAuth = useAuthStore((state) => state.checkAuth);
   const { theme } = useAppTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.5)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
 
   useEffect(() => {
-    // Smooth intro animation matching Flutter SingleTickerProviderStateMixin
+    // Smooth intro animation matching native app icon
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1200,
+        duration: 800,
         useNativeDriver: USE_NATIVE_DRIVER,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        friction: 5,
+        friction: 6,
         tension: 40,
         useNativeDriver: USE_NATIVE_DRIVER,
       }),
     ]).start();
 
-    // Verify authentication immediately and keep a short branded intro.
+    // Verify authentication immediately with maximum 1.5s intro
     let cancelled = false;
-    const minimumIntro = new Promise((resolve) => setTimeout(resolve, 900));
+    const minimumIntro = new Promise((resolve) => setTimeout(resolve, 800));
 
     Promise.all([checkAuth(), minimumIntro])
       .then(([isAuthenticated]) => {
@@ -44,7 +42,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
           const isAdmin = roles.some((role) => role.toUpperCase() === 'ADMIN');
           navigation.replace(isAdmin ? 'AdminPortal' : 'MainTabs');
         } else {
-          // Guest mode: route directly to MainTabs so users can freely explore
+          // Guest mode: route directly to MainTabs
           navigation.replace('MainTabs');
         }
       })
@@ -58,7 +56,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
   }, [navigation, checkAuth, fadeAnim, scaleAnim]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
       <Animated.View
         style={[
           styles.content,
@@ -68,17 +66,17 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
           },
         ]}
       >
-        <LinearGradient
-          colors={['#FF6B35', '#FF8A5C']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.logoContainer}
-        >
-          <Ionicons name="sparkles" size={44} color="#FFFFFF" />
-        </LinearGradient>
+        {/* Official Play Store Zupify App Logo */}
+        <View style={styles.logoWrapper}>
+          <Image
+            source={require('../../../assets/icon.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </View>
 
-        <Text style={[styles.appName, { color: theme.textPrimary }]}>Zupify</Text>
-        <Text style={[styles.tagline, { color: theme.textSecondary }]}>Everything in a Tap</Text>
+        <Text style={[styles.appName, { color: '#0F172A' }]}>Zupify</Text>
+        <Text style={[styles.tagline, { color: '#64748B' }]}>Everything in a Tap</Text>
       </Animated.View>
     </View>
   );
@@ -93,31 +91,37 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
   },
-  logoContainer: {
-    width: 96,
-    height: 96,
+  logoWrapper: {
+    width: 120,
+    height: 120,
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
     ...shadowStyle({
-      color: '#FF6B35',
+      color: '#000000',
       offsetY: 6,
-      opacity: 0.25,
+      opacity: 0.12,
       radius: 16,
       elevation: 6,
     }),
     marginBottom: 20,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
   },
   appName: {
     fontSize: 32,
     fontWeight: '800',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     marginBottom: 6,
   },
   tagline: {
     fontSize: 12,
     fontWeight: '600',
-    letterSpacing: 2.5,
+    letterSpacing: 2,
     textTransform: 'uppercase',
   },
 });
