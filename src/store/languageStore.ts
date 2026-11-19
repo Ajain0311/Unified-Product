@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { configService } from '../services/configService';
 
 export type LanguageCode = 'en' | 'hi';
 
@@ -93,6 +94,14 @@ export const useLanguageStore = create<LanguageState>((set, get) => {
     t: translators.en,
 
     setLanguage: (lang: LanguageCode) => {
+      if (!configService.isLanguageSwitchAllowed()) {
+        return;
+      }
+      const supported = configService.getPlatformControls()?.language?.supportedLanguages;
+      if (supported && supported.length > 0 && !supported.includes(lang)) {
+        return;
+      }
+
       // 1. Immediate synchronous UI state transition (0ms latency)
       set({
         currentLanguage: lang,
@@ -107,20 +116,51 @@ export const useLanguageStore = create<LanguageState>((set, get) => {
     },
 
     toggleLanguage: () => {
+      if (!configService.isLanguageSwitchAllowed()) {
+        return;
+      }
       const next: LanguageCode = get().currentLanguage === 'en' ? 'hi' : 'en';
+      const supported = configService.getPlatformControls()?.language?.supportedLanguages;
+      if (supported && supported.length > 0 && !supported.includes(next)) {
+        return;
+      }
       get().setLanguage(next);
     },
 
     initLanguage: async () => {
+      const remoteLang = configService.getPlatformControls()?.language;
+      if (remoteLang && !remoteLang.allowUserLanguageSwitch) {
+        const locked: LanguageCode = remoteLang.defaultLanguage === 'hi' ? 'hi' : 'en';
+        set({
+          currentLanguage: locked,
+          language: locked,
+          translations: TRANSLATIONS[locked] || TRANSLATIONS.en,
+          t: translators[locked] || translators.en,
+        });
+        return;
+      }
+
       const saved = await AsyncStorage.getItem('superapp_language');
       if (saved === 'hi' || saved === 'en') {
-        set({
-          currentLanguage: saved,
-          language: saved,
-          translations: TRANSLATIONS[saved] || TRANSLATIONS.en,
-          t: translators[saved] || translators.en,
-        });
+        const supported = remoteLang?.supportedLanguages;
+        if (!supported || supported.includes(saved)) {
+          set({
+            currentLanguage: saved as LanguageCode,
+            language: saved as LanguageCode,
+            translations: TRANSLATIONS[saved as LanguageCode] || TRANSLATIONS.en,
+            t: translators[saved as LanguageCode] || translators.en,
+          });
+          return;
+        }
       }
+
+      const defaultLang: LanguageCode = remoteLang?.defaultLanguage === 'hi' ? 'hi' : 'en';
+      set({
+        currentLanguage: defaultLang,
+        language: defaultLang,
+        translations: TRANSLATIONS[defaultLang] || TRANSLATIONS.en,
+        t: translators[defaultLang] || translators.en,
+      });
     },
   };
 });

@@ -163,6 +163,23 @@ export const ApiEndpoints = {
     rejectRoleApplication: (id: string | number) => `/admin/role-applications/${id}/reject`,
   },
 
+  // Master Admin
+  masterAdmin: {
+    auth: {
+      login: '/master-admin/auth/login',
+      setupTotp: '/master-admin/auth/setup-totp',
+      confirmTotp: '/master-admin/auth/confirm-totp',
+      status: '/master-admin/auth/status',
+    },
+    config: {
+      get: '/master-admin/config',
+      updateModules: '/master-admin/config/modules',
+      updateTheme: '/master-admin/config/theme',
+      updateLanguage: '/master-admin/config/language',
+      updateSettings: '/master-admin/config/settings',
+    },
+  },
+
   // SignalR Hub Paths
   hubs: {
     ride: '/hubs/ride',

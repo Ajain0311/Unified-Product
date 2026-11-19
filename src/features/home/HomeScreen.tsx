@@ -30,7 +30,7 @@ import { useCartStore } from '../../store/cartStore';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
 import { useAuthStore } from '../../store/authStore';
-import { BUSINESS_MODULES } from '../../config/businessModules';
+import { BUSINESS_MODULES, resolveConfiguredModules, isModuleEnabled } from '../../config/businessModules';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { AppEnvironment } from '../../config/environment';
@@ -39,6 +39,15 @@ import { ListingSummary } from '../../models/marketplace';
 import { resolveRestaurantImage } from '../food/FoodHomeScreen';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const TRENDING_SEARCHES = [
+  { label: 'Pizza', icon: 'pizza-outline' },
+  { label: 'Biryani', icon: 'restaurant-outline' },
+  { label: 'Bike Taxi', icon: 'bicycle-outline' },
+  { label: 'Used Mobiles', icon: 'phone-portrait-outline' },
+  { label: 'Hotel near Sanwariya Seth', icon: 'bed-outline' },
+  { label: 'Pure Veg Thali', icon: 'leaf-outline' },
+];
 
 function parseBroadcastExpiry(referenceId: unknown): Date | null {
   const raw = String(referenceId ?? '').trim();
@@ -588,7 +597,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
         <View style={styles.moduleSection}>
           <ModuleGrid
-            modules={BUSINESS_MODULES}
+            modules={resolveConfiguredModules()}
             onSelectModule={(route) => {
               if (route === 'Food' || route === 'Rides' || route === 'Bazaar') {
                 navigation.navigate(route);
@@ -600,45 +609,47 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
 
         {/* 7. QUICK RIDE SHORTCUT STRIP (Floating Action Card Style) */}
-        <TouchableOpacity
-          style={[
-            styles.rideShortcutCard,
-            {
-              backgroundColor: isDark ? '#0B132B' : '#F0F7FF',
-              borderColor: isDark ? '#1D4ED8' : '#BFDBFE',
-            },
-            AppShadows.card,
-          ]}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('Rides')}
-        >
-          <View style={styles.rideShortcutLeft}>
-            <View style={styles.rideIconGlowWrap}>
-              <LinearGradient
-                colors={['#1D4ED8', '#3B82F6']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.rideShortcutIconBox}
-              >
-                <Ionicons name="car-sport" size={22} color="#FFFFFF" />
-              </LinearGradient>
-            </View>
-            <View style={styles.rideShortcutTextCol}>
-              <View style={styles.shortcutTagRow}>
-                <Text style={[styles.rideShortcutTitle, { color: theme.textPrimary }]}>
-                  {language === 'hi' ? 'तुरंत कैब या बाइक चाहिए?' : 'Need an instant ride?'}
+        {isModuleEnabled('rides') && (
+          <TouchableOpacity
+            style={[
+              styles.rideShortcutCard,
+              {
+                backgroundColor: isDark ? '#0B132B' : '#F0F7FF',
+                borderColor: isDark ? '#1D4ED8' : '#BFDBFE',
+              },
+              AppShadows.card,
+            ]}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Rides')}
+          >
+            <View style={styles.rideShortcutLeft}>
+              <View style={styles.rideIconGlowWrap}>
+                <LinearGradient
+                  colors={['#1D4ED8', '#3B82F6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.rideShortcutIconBox}
+                >
+                  <Ionicons name="car-sport" size={22} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+              <View style={styles.rideShortcutTextCol}>
+                <View style={styles.shortcutTagRow}>
+                  <Text style={[styles.rideShortcutTitle, { color: theme.textPrimary }]}>
+                    {language === 'hi' ? 'तुरंत कैब या बाइक चाहिए?' : 'Need an instant ride?'}
+                  </Text>
+                </View>
+                <Text style={[styles.rideShortcutSubtitle, { color: theme.textSecondary }]}>
+                  {language === 'hi' ? 'बाइक, ऑटो व कैब नजदीकी उपलब्ध • 0% सर्ज' : 'Verified captains nearby • Zero surge'}
                 </Text>
               </View>
-              <Text style={[styles.rideShortcutSubtitle, { color: theme.textSecondary }]}>
-                {language === 'hi' ? 'बाइक, ऑटो व कैब नजदीकी उपलब्ध • 0% सर्ज' : 'Verified captains nearby • Zero surge'}
-              </Text>
             </View>
-          </View>
-          <View style={styles.rideShortcutActionBtn}>
-            <Text style={styles.rideShortcutActionText}>Book Now</Text>
-            <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
+            <View style={styles.rideShortcutActionBtn}>
+              <Text style={styles.rideShortcutActionText}>Book Now</Text>
+              <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* 7b. GROW WITH SUPERAPP ENTRY STRIP (Banner Pill / Accent Style) */}
         <TouchableOpacity
@@ -685,130 +696,126 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
 
         {/* 9. FOOD DISCOVERY CUISINES */}
-        <View style={styles.sectionContainer}>
-          <SectionHeader
-            title={language === 'hi' ? 'स्वादिष्ट श्रेणियां' : 'Cuisine Discovery'}
-            subtitle={
-              language === 'hi'
-                ? 'लोकप्रिय भोजन श्रेणियां'
-                : 'Browse trending dishes & specialties'
-            }
-            actionText="Explore"
-            onAction={() => navigation.navigate('Food')}
-          />
+        {isModuleEnabled('food') && (
+          <View style={styles.sectionContainer}>
+            <SectionHeader
+              title={language === 'hi' ? 'स्वादिष्ट श्रेणियां' : 'Cuisine Discovery'}
+              subtitle={
+                language === 'hi'
+                  ? 'लोकप्रिय भोजन श्रेणियां'
+                  : 'Browse trending dishes & specialties'
+              }
+              actionText="Explore"
+              onAction={() => navigation.navigate('Food')}
+            />
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cuisinesScroll}
-          >
-            {CUISINE_RECOMMENDATIONS.map((c) => (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cuisinesScroll}
+            >
+              {CUISINE_RECOMMENDATIONS.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[
+                    styles.cuisinePill,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.cardBorder,
+                    },
+                    AppShadows.subtle,
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('Food')}
+                >
+                  <View style={[styles.cuisineIconCircle, { backgroundColor: `${c.color}18` }]}>
+                    <Ionicons name={c.icon as any} size={20} color={c.color} />
+                  </View>
+                  <Text style={[styles.cuisineName, { color: theme.textPrimary }]}>{c.name}</Text>
+                  <Text style={[styles.cuisineCount, { color: theme.textTertiary }]}>{c.count}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* 10. POPULAR RESTAURANTS */}
+        {isModuleEnabled('food') && (
+          <View style={styles.sectionContainer}>
+            <SectionHeader
+              title={language === 'hi' ? 'नजदीकी लोकप्रिय रेस्तरां' : 'Top Restaurants Near You'}
+              subtitle={
+                language === 'hi'
+                  ? 'रेटेड भोजन एवं तेज़ डिलीवरी'
+                  : 'Speedy doorstep delivery with live tracking'
+              }
+              actionText={restaurants.length > 0 ? `View all (${restaurants.length})` : undefined}
+              onAction={() => navigation.navigate('Food')}
+            />
+
+            {restaurants.length === 0 ? (
+              <View style={[styles.emptyRestCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                <Ionicons name="storefront-outline" size={28} color={theme.textTertiary} />
+                <Text style={[styles.emptyRestTitle, { color: theme.textPrimary }]}>No restaurants are live yet</Text>
+                <Text style={[styles.emptyRestSubtitle, { color: theme.textSecondary }]}>
+                  Restaurants will appear here once they are onboarded in your area.
+                </Text>
+              </View>
+            ) : restaurants.slice(0, 4).map((restaurant) => (
               <TouchableOpacity
-                key={c.id}
+                key={restaurant.id}
                 style={[
-                  styles.cuisinePill,
+                  styles.restCard,
                   {
                     backgroundColor: theme.card,
                     borderColor: theme.cardBorder,
                   },
                   AppShadows.subtle,
                 ]}
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate('Food')}
+                activeOpacity={0.9}
+                onPress={() =>
+                  navigation.navigate('RestaurantDetail', {
+                    restaurantId: restaurant.id.toString(),
+                  })
+                }
               >
-                <View style={[styles.cuisineIconCircle, { backgroundColor: `${c.color}18` }]}>
-                  <Ionicons name={c.icon as any} size={20} color={c.color} />
+                <Image
+                  source={{ uri: resolveRestaurantImage(restaurant.imageUrl) }}
+                  style={styles.restImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.restInfo}>
+                  <View style={styles.restTitleRow}>
+                    <Text style={[styles.restName, { color: theme.textPrimary }]}>{restaurant.name}</Text>
+                    <View style={styles.ratingBadge}>
+                      <Ionicons name="star" size={10} color="#FFFFFF" />
+                      <Text style={styles.ratingText}>
+                        {Number(restaurant.rating || 4.5).toFixed(1)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={[styles.restCuisines, { color: theme.textSecondary }]}>{restaurant.cuisines || restaurant.description || 'Multi-cuisine • Fast Food'}</Text>
+
+                  <View style={styles.restMetaRow}>
+                    <View style={styles.restMetaItem}>
+                      <Ionicons name="time-outline" size={13} color={theme.textTertiary} />
+                      <Text style={[styles.restMetaText, { color: theme.textTertiary }]}>{restaurant.avgDeliveryTimeMinutes || 25} mins</Text>
+                    </View>
+                    <Text style={[styles.metaDot, { color: theme.textTertiary }]}>•</Text>
+                    <View style={styles.restMetaItem}>
+                      <Ionicons name="bicycle-outline" size={13} color={theme.textTertiary} />
+                      <Text style={[styles.restMetaText, { color: theme.textTertiary }]}>{restaurant.deliveryFee === 0 ? 'Free Delivery' : `₹${restaurant.deliveryFee} drop`}</Text>
+                    </View>
+                  </View>
                 </View>
-                <Text style={[styles.cuisineName, { color: theme.textPrimary }]}>{c.name}</Text>
-                <Text style={[styles.cuisineCount, { color: theme.textTertiary }]}>{c.count}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
-        </View>
-
-        {/* 10. POPULAR RESTAURANTS */}
-        <View style={styles.sectionContainer}>
-          <SectionHeader
-            title={language === 'hi' ? 'नजदीकी लोकप्रिय रेस्तरां' : 'Top Restaurants Near You'}
-            subtitle={
-              language === 'hi'
-                ? 'रेटेड भोजन एवं तेज़ डिलीवरी'
-                : 'Speedy doorstep delivery with live tracking'
-            }
-            actionText={restaurants.length > 0 ? `View all (${restaurants.length})` : undefined}
-            onAction={() => navigation.navigate('Food')}
-          />
-
-          {restaurants.length === 0 ? (
-            <View style={[styles.emptyRestCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-              <Ionicons name="storefront-outline" size={28} color={theme.textTertiary} />
-              <Text style={[styles.emptyRestTitle, { color: theme.textPrimary }]}>No restaurants are live yet</Text>
-              <Text style={[styles.emptyRestSubtitle, { color: theme.textSecondary }]}>
-                Restaurants will appear here once they are onboarded in your area.
-              </Text>
-            </View>
-          ) : restaurants.slice(0, 4).map((restaurant) => (
-            <TouchableOpacity
-              key={restaurant.id}
-              style={[
-                styles.restCard,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.cardBorder,
-                },
-                AppShadows.subtle,
-              ]}
-              activeOpacity={0.9}
-              onPress={() =>
-                navigation.navigate('RestaurantDetail', {
-                  restaurantId: restaurant.id.toString(),
-                })
-              }
-            >
-              <Image
-                source={{ uri: resolveRestaurantImage(restaurant.imageUrl) }}
-                style={styles.restImage}
-                resizeMode="cover"
-              />
-              <View style={styles.restInfo}>
-                <View style={styles.restTitleRow}>
-                  <Text style={[styles.restName, { color: theme.textPrimary }]} numberOfLines={1}>
-                    {restaurant.name}
-                  </Text>
-                  <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={10} color="#FFFFFF" />
-                    <Text style={styles.ratingText}>
-                      {Number(restaurant.rating || 4.5).toFixed(1)}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={[styles.restCuisines, { color: theme.textSecondary }]} numberOfLines={1}>
-                  {restaurant.cuisines || restaurant.description || 'Multi-cuisine • Fast Food'}
-                </Text>
-
-                <View style={styles.restMetaRow}>
-                  <View style={styles.restMetaItem}>
-                    <Ionicons name="time-outline" size={13} color={theme.textTertiary} />
-                    <Text style={[styles.restMetaText, { color: theme.textTertiary }]}>
-                      {restaurant.avgDeliveryTimeMinutes || 25} mins
-                    </Text>
-                  </View>
-                  <Text style={[styles.metaDot, { color: theme.textTertiary }]}>•</Text>
-                  <View style={styles.restMetaItem}>
-                    <Ionicons name="bicycle-outline" size={13} color={theme.textTertiary} />
-                    <Text style={[styles.restMetaText, { color: theme.textTertiary }]}>
-                      {restaurant.deliveryFee === 0 ? 'Free Delivery' : `₹${restaurant.deliveryFee} drop`}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+          </View>
+        )}
 
         {/* 11. BAZAAR PICKS */}
-        {bazaarListings.length > 0 && (
+        {isModuleEnabled('bazaar') && bazaarListings.length > 0 && (
           <View style={styles.sectionContainer}>
             <SectionHeader
               title={language === 'hi' ? 'स्थानीय कम्युनिटी बाज़ार' : 'Community Bazaar Finds'}
@@ -988,15 +995,71 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
-                <View style={styles.searchEmptyBox}>
-                  <Ionicons name="search-outline" size={44} color={theme.textTertiary} />
-                  <Text style={[styles.searchEmptyTitle, { color: theme.textPrimary }]}>
-                    {searchQuery.trim().length > 0 ? 'No matching items' : 'Type to search everything'}
-                  </Text>
-                  <Text style={[styles.searchEmptySubtitle, { color: theme.textSecondary }]}>
-                    Find verified restaurants, dishes, luxury hotel stays and community bazaar listings.
-                  </Text>
-                </View>
+                searchQuery.trim().length > 0 ? (
+                  <View style={styles.searchEmptyBox}>
+                    <Ionicons name="search-outline" size={44} color={theme.textTertiary} />
+                    <Text style={[styles.searchEmptyTitle, { color: theme.textPrimary }]}>
+                      No matching items
+                    </Text>
+                    <Text style={[styles.searchEmptySubtitle, { color: theme.textSecondary }]}>
+                      No results found for "{searchQuery}". Try searching for another dish, stay, or item.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.trendingSearchContainer}>
+                    <View style={styles.trendingHeaderRow}>
+                      <Ionicons name="trending-up-outline" size={16} color={theme.primary} />
+                      <Text style={[styles.trendingHeaderTitle, { color: theme.textPrimary }]}>
+                        {language === 'hi' ? 'ट्रेंडिंग सर्च' : 'Trending Searches'}
+                      </Text>
+                    </View>
+                    <View style={styles.trendingChipsWrap}>
+                      {TRENDING_SEARCHES.map((item, idx) => (
+                        <TouchableOpacity
+                          key={idx}
+                          style={[
+                            styles.trendingChip,
+                            { backgroundColor: theme.card, borderColor: theme.cardBorder },
+                            AppShadows.subtle,
+                          ]}
+                          onPress={() => setSearchQuery(item.label)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name={item.icon as any}
+                            size={14}
+                            color={theme.primary}
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text style={[styles.trendingChipText, { color: theme.textPrimary }]}>
+                            {item.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <View
+                      style={[
+                        styles.searchTipsBox,
+                        {
+                          backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC',
+                          borderColor: theme.cardBorder,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="bulb-outline"
+                        size={16}
+                        color={theme.textTertiary}
+                        style={{ marginRight: 8, marginTop: 2 }}
+                      />
+                      <Text style={[styles.searchTipsText, { color: theme.textSecondary }]}>
+                        {language === 'hi'
+                          ? 'ज़ुपिफाई पर आप खाना, राइड, होटल और बाज़ार के उत्पाद एक ही जगह खोज सकते हैं।'
+                          : 'Search across food dishes, cab/bike rides, hotel stays, and community marketplace in one place.'}
+                      </Text>
+                    </View>
+                  </View>
+                )
               }
             />
           )}
@@ -1582,5 +1645,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 18,
+  },
+  trendingSearchContainer: {
+    paddingHorizontal: AppSpacing.lg,
+    paddingTop: AppSpacing.md,
+  },
+  trendingHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  trendingHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  trendingChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  trendingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: AppRadius.full,
+    borderWidth: 1,
+  },
+  trendingChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  searchTipsBox: {
+    flexDirection: 'row',
+    padding: 12,
+    borderRadius: AppRadius.md,
+    borderWidth: 1,
+  },
+  searchTipsText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
   },
 });

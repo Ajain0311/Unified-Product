@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { storage } from '../services/storage';
 
-export type AppRole = 'CUSTOMER' | 'ADMIN' | 'DRIVER' | 'RESTAURANT_OWNER' | 'MARKETPLACE_SELLER';
+export type AppRole = 'CUSTOMER' | 'ADMIN' | 'DRIVER' | 'RESTAURANT_OWNER' | 'MARKETPLACE_SELLER' | 'MASTER_ADMIN';
 
 export interface RoleConfig {
   key: AppRole;
@@ -53,9 +53,17 @@ export const ROLE_CONFIGS: Record<AppRole, RoleConfig> = {
     tagline: 'Platform KPIs & Oversight Management',
     color: '#EF4444',
   },
+  MASTER_ADMIN: {
+    key: 'MASTER_ADMIN',
+    label: 'Master Admin',
+    badge: '👑 Master Admin',
+    icon: 'key-outline',
+    tagline: 'Platform Killswitch & Remote Config Controller',
+    color: '#D97706',
+  },
 };
 
-const ALL_ROLES: AppRole[] = ['CUSTOMER', 'ADMIN', 'DRIVER', 'RESTAURANT_OWNER', 'MARKETPLACE_SELLER'];
+const ALL_ROLES: AppRole[] = ['CUSTOMER', 'ADMIN', 'DRIVER', 'RESTAURANT_OWNER', 'MARKETPLACE_SELLER', 'MASTER_ADMIN'];
 
 export function normalizeRole(roleStr: string): AppRole | null {
   if (!roleStr) return null;
@@ -130,6 +138,15 @@ export const useRoleStore = create<RoleState>((set, get) => ({
     if (!availableRoles.includes(role)) {
       console.warn(`[RoleStore] Cannot switch to role '${role}'. Not in available roles:`, availableRoles);
       return false;
+    }
+
+    // MASTER_ADMIN requires explicit Authenticator MFA verification
+    if (role === 'MASTER_ADMIN') {
+      const isMfaVerified = await storage.isMasterAdminMfaVerified();
+      if (!isMfaVerified) {
+        console.warn('[RoleStore] Switching to MASTER_ADMIN requires Authenticator MFA login');
+        return false;
+      }
     }
 
     set({ isRoleSwitching: true });

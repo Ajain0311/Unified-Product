@@ -550,7 +550,8 @@ public class AppDbContext : DbContext
             new Role { Id = 3, Name = RoleNames.RestaurantOwner, Description = "Restaurant owner/manager", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
             new Role { Id = 4, Name = RoleNames.Driver, Description = "Ride driver", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
             new Role { Id = 5, Name = RoleNames.MarketplaceSeller, Description = "Marketplace seller", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new Role { Id = 6, Name = RoleNames.WaterSupplier, Description = "Verified water supplier", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+            new Role { Id = 6, Name = RoleNames.WaterSupplier, Description = "Verified water supplier", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Role { Id = 7, Name = RoleNames.MasterAdmin, Description = "Platform Owner & Master Controller", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
         
         // Seed default admin user (password: Admin@123)

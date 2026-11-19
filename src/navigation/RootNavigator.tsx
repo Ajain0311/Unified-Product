@@ -46,6 +46,8 @@ import { GrowWithSuperAppScreen } from '../features/grow/GrowWithSuperAppScreen'
 import { SubmitBusinessRequestScreen } from '../features/grow/SubmitBusinessRequestScreen';
 import { MyBusinessRequestsScreen } from '../features/grow/MyBusinessRequestsScreen';
 import { AdminBusinessRequestsScreen } from '../features/admin/AdminBusinessRequestsScreen';
+import { MasterAdminLoginScreen } from '../features/masterAdmin/MasterAdminLoginScreen';
+import { MasterAdminControlPanelScreen } from '../features/masterAdmin/MasterAdminControlPanelScreen';
 import { LazyScreen } from '../components/LazyScreen';
 import { useAppTheme } from '../theme/themeStore';
 
@@ -108,6 +110,8 @@ const RootNavigatorComponent: React.FC = () => {
       <Stack.Screen name="SubmitBusinessRequest" component={SubmitBusinessRequestScreen} />
       <Stack.Screen name="MyBusinessRequests" component={MyBusinessRequestsScreen} />
       <Stack.Screen name="AdminBusinessRequests" component={AdminBusinessRequestsScreen} />
+      <Stack.Screen name="MasterAdminLogin" component={MasterAdminLoginScreen} />
+      <Stack.Screen name="MasterAdminControlPanel" component={MasterAdminControlPanelScreen} />
     </Stack.Navigator>
   );
 };

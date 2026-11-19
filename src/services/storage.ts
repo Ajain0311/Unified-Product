@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 const AUTH_TOKEN_KEY = 'superapp_auth_token';
 const USER_DATA_KEY = 'superapp_user_data';
 const ACTIVE_ROLE_KEY = 'superapp_active_role';
+const MASTER_ADMIN_MFA_KEY = 'superapp_master_admin_mfa_verified';
 
 class StorageService {
   private isWeb = Platform.OS === 'web';
@@ -70,10 +71,24 @@ class StorageService {
     await AsyncStorage.removeItem(ACTIVE_ROLE_KEY);
   }
 
+  async setMasterAdminMfaVerified(verified: boolean): Promise<void> {
+    if (verified) {
+      await AsyncStorage.setItem(MASTER_ADMIN_MFA_KEY, 'true');
+    } else {
+      await AsyncStorage.removeItem(MASTER_ADMIN_MFA_KEY);
+    }
+  }
+
+  async isMasterAdminMfaVerified(): Promise<boolean> {
+    const val = await AsyncStorage.getItem(MASTER_ADMIN_MFA_KEY);
+    return val === 'true';
+  }
+
   async clearAll(): Promise<void> {
     await this.clearToken();
     await AsyncStorage.removeItem(USER_DATA_KEY);
     await this.clearActiveRole();
+    await AsyncStorage.removeItem(MASTER_ADMIN_MFA_KEY);
   }
 }
 

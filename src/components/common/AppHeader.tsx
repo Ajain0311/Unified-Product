@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
 import { useAuthStore } from '../../store/authStore';
+import { configService } from '../../services/configService';
 import { AppSpacing, AppRadius, AppShadows } from '../../theme/spacing';
 
 interface AppHeaderProps {
@@ -84,36 +85,40 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       {/* Right Quick Actions */}
       <View style={styles.actionsRow}>
         {/* Language Switch */}
-        <TouchableOpacity
-          style={[
-            styles.actionButton,
-            { backgroundColor: theme.card, borderColor: theme.cardBorder },
-            AppShadows.subtle,
-          ]}
-          onPress={toggleLanguage}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.langText, { color: theme.primary }]}>
-            {language === 'hi' ? 'EN' : 'हि'}
-          </Text>
-        </TouchableOpacity>
+        {configService.isLanguageSwitchAllowed() && (
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              { backgroundColor: theme.card, borderColor: theme.cardBorder },
+              AppShadows.subtle,
+            ]}
+            onPress={toggleLanguage}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.langText, { color: theme.primary }]}>
+              {language === 'hi' ? 'EN' : 'हि'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Theme Toggle */}
-        <TouchableOpacity
-          style={[
-            styles.actionButton,
-            { backgroundColor: theme.card, borderColor: theme.cardBorder },
-            AppShadows.subtle,
-          ]}
-          onPress={toggleTheme}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={isDark ? 'sunny' : 'moon'}
-            size={18}
-            color={isDark ? '#F59E0B' : '#475569'}
-          />
-        </TouchableOpacity>
+        {configService.isThemeSwitchAllowed() && (
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              { backgroundColor: theme.card, borderColor: theme.cardBorder },
+              AppShadows.subtle,
+            ]}
+            onPress={toggleTheme}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={isDark ? 'sunny' : 'moon'}
+              size={18}
+              color={isDark ? '#F59E0B' : '#475569'}
+            />
+          </TouchableOpacity>
+        )}
 
         {/* Notifications */}
         <TouchableOpacity

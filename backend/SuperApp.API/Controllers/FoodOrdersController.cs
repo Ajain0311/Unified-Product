@@ -16,6 +16,7 @@ namespace SuperApp.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
+[RequireModuleEnabled("food")]
 public class FoodOrdersController : ControllerBase
 {
     private readonly AppDbContext _db;

@@ -50,7 +50,17 @@ public class AuthController : ControllerBase
             .FirstOrDefaultAsync(u => u.MobileNumber == request.MobileNumber || u.MobileNumber == cleanMobile);
 
         bool isNewUser = user == null;
+        bool isMasterAdmin = user?.UserRoles.Any(ur => ur.Role.Name == RoleNames.MasterAdmin) ?? false;
         bool isAdmin = user?.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin) ?? false;
+
+        if (isMasterAdmin)
+        {
+            return BadRequest(new SendOtpResponse
+            {
+                Success = false,
+                Message = "Master Admin accounts require Email/Password + Authenticator (TOTP) login via the Master Admin portal."
+            });
+        }
 
         if (user != null && !user.IsActive)
             return BadRequest(new SendOtpResponse { Success = false, Message = "Account is deactivated. Please contact support." });
@@ -88,14 +98,21 @@ public class AuthController : ControllerBase
             return BadRequest(new AuthResponse { Success = false, Message = "Invalid request" });
 
         var cleanMobile = BigBSmsService.NormalizeMobileNumber(request.MobileNumber);
-        var isValid = await _otpService.VerifyOtpAsync(cleanMobile, request.OtpCode);
-        if (!isValid)
-            return BadRequest(new AuthResponse { Success = false, Message = "Invalid or expired OTP" });
 
+        // Pre-check: Master Admin accounts can NEVER log in via citizen OTP verification
         var user = await _db.Users
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.MobileNumber == request.MobileNumber || u.MobileNumber == cleanMobile);
+
+        if (user != null && user.UserRoles.Any(ur => ur.Role.Name == RoleNames.MasterAdmin))
+        {
+            return BadRequest(new AuthResponse { Success = false, Message = "Master Admin accounts must use the Master Admin portal with Password & Authenticator (TOTP)." });
+        }
+
+        var isValid = await _otpService.VerifyOtpAsync(cleanMobile, request.OtpCode);
+        if (!isValid)
+            return BadRequest(new AuthResponse { Success = false, Message = "Invalid or expired OTP" });
 
         if (user == null)
         {
@@ -127,7 +144,10 @@ public class AuthController : ControllerBase
         }
         else
         {
-            // Check if user is admin - admins must use the admin-login endpoint with Password + OTP
+            // Check if user is master admin or admin - they must use their designated secure login endpoints
+            if (user.UserRoles.Any(ur => ur.Role.Name == RoleNames.MasterAdmin))
+                return BadRequest(new AuthResponse { Success = false, Message = "Master Admin accounts must use the Master Admin portal with Password & Authenticator (TOTP)." });
+
             if (user.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin))
                 return BadRequest(new AuthResponse { Success = false, Message = "Admin users must use the admin login endpoint with Password & OTP" });
 
@@ -169,7 +189,11 @@ public class AuthController : ControllerBase
             }
         }
 
-        var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
+        // Master Admin role is strictly excluded from standard AdminLogin tokens (MFA via Authenticator is mandatory)
+        var roles = user.UserRoles
+            .Select(ur => ur.Role.Name)
+            .Where(r => r != RoleNames.MasterAdmin)
+            .ToList();
         var token = _tokenService.GenerateToken(user, roles);
 
         return Ok(new AuthResponse
@@ -256,7 +280,11 @@ public class AuthController : ControllerBase
                 .FirstAsync(u => u.Id == user.Id);
         }
 
-        var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
+        // Master Admin role is strictly excluded from standard AdminLogin tokens (MFA via Authenticator is mandatory)
+        var roles = user.UserRoles
+            .Select(ur => ur.Role.Name)
+            .Where(r => r != RoleNames.MasterAdmin)
+            .ToList();
         var token = _tokenService.GenerateToken(user, roles);
 
         return Ok(new AuthResponse

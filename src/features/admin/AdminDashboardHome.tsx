@@ -15,6 +15,8 @@ import { AppColors } from '../../theme/colors';
 import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
+import { storage } from '../../services/storage';
+import { configService } from '../../services/configService';
 import { AdminDashboardData, AdminActivity } from './types';
 
 interface AdminDashboardHomeProps {
@@ -116,13 +118,15 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity
-            style={[styles.themeBtn, { backgroundColor: theme.surfaceLight, borderColor: theme.border }]}
-            onPress={toggleTheme}
-            activeOpacity={0.8}
-          >
-            <Ionicons name={isDark ? 'sunny' : 'moon'} size={18} color={isDark ? '#F59E0B' : '#6366F1'} />
-          </TouchableOpacity>
+          {configService.isThemeSwitchAllowed() && (
+            <TouchableOpacity
+              style={[styles.themeBtn, { backgroundColor: theme.surfaceLight, borderColor: theme.border }]}
+              onPress={toggleTheme}
+              activeOpacity={0.8}
+            >
+              <Ionicons name={isDark ? 'sunny' : 'moon'} size={18} color={isDark ? '#F59E0B' : '#6366F1'} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={20} color={AppColors.red} />
           </TouchableOpacity>
@@ -194,6 +198,34 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
       {/* Quick Navigation Cards */}
       <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>MANAGEMENT SECTIONS</Text>
       <View style={styles.navGrid}>
+        <TouchableOpacity
+          style={[styles.navCard, { backgroundColor: isDark ? '#2D2006' : '#FFFBEB', borderColor: '#F59E0B' }]}
+          onPress={async () => {
+            const isMfa = await storage.isMasterAdminMfaVerified();
+            if (isMfa) {
+              navigation.navigate('MasterAdminControlPanel');
+            } else {
+              navigation.navigate('MasterAdminLogin');
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.navIconBox, { backgroundColor: '#F59E0B25' }]}>
+            <Ionicons name="key" size={24} color="#D97706" />
+          </View>
+          <View style={styles.navCardInfo}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={[styles.navCardTitle, { color: '#D97706', fontWeight: '800' }]}>Master Admin Controls</Text>
+              <View style={{ backgroundColor: '#D97706', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, color: '#FFFFFF', fontWeight: '800' }}>MFA</Text>
+              </View>
+            </View>
+            <Text style={[styles.navCardSubtitle, { color: isDark ? '#FDE68A' : '#92400E' }]}>
+              Killswitches, module reordering, theme & language
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#D97706" />
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.navCard, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate('AdminPushNotifications')}

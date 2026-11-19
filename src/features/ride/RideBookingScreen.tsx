@@ -10,8 +10,10 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  Platform,
+  Dimensions,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
@@ -24,13 +26,27 @@ import { locationService } from '../../services/locationService';
 import { configService } from '../../services/configService';
 import { LocationMapPicker } from '../../components/maps/LocationMapPicker';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
-import { mapboxService, SelectedMapPlace } from '../../services/mapboxService';
+import { mapboxService, SelectedMapPlace, MapPlaceSuggestion } from '../../services/mapboxService';
+import { boundsFromPoints } from './rideMapUtils';
 import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthModalStore } from '../../store/authModalStore';
 import { isAuthenticationError } from '../../utils/authErrors';
 import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const canUseNativeMap = Platform.OS === 'ios' || Platform.OS === 'android';
+
+let MapboxMaps: typeof import('@rnmapbox/maps') | null = null;
+if (canUseNativeMap) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    MapboxMaps = require('@rnmapbox/maps');
+  } catch {
+    MapboxMaps = null;
+  }
+}
 
 interface VehicleOption {
   type: string;
@@ -88,7 +104,7 @@ export const RideBookingScreen: React.FC = () => {
   const [routeMetrics, setRouteMetrics] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
 
-  // Real Customer Device GPS State - initialized empty without hardcoded dummy locations
+  // GPS Coordinates and Address States
   const [pickupCoords, setPickupCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [pickupAddress, setPickupAddress] = useState('Locating your position...');
   const [pickupLocationKind, setPickupLocationKind] = useState<'GPS fresh' | 'GPS cached' | 'Manual' | null>(null);
@@ -99,7 +115,8 @@ export const RideBookingScreen: React.FC = () => {
   const [gpsStatus, setGpsStatus] = useState<'ONLINE' | 'LOCATING' | 'DENIED' | 'UNAVAILABLE'>('LOCATING');
   const [optionCatalog, setOptionCatalog] = useState<{ code: string; name: string; additionalAmount: number }[]>([]);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [placeQuery, setPlaceQuery] = useState('');
+
+  // Autocomplete and Place Search States
   const [placeHits, setPlaceHits] = useState<{ label: string; latitude: number; longitude: number }[]>([]);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -108,19 +125,98 @@ export const RideBookingScreen: React.FC = () => {
   const [pickupInput, setPickupInput] = useState('');
   const [dropoffInput, setDropoffInput] = useState('');
   const [activeInput, setActiveInput] = useState<'pickup' | 'dropoff' | null>(null);
+
+  // Dynamic nearby destination suggestions from Mapbox results
+  const [nearbySuggestions, setNearbySuggestions] = useState<MapPlaceSuggestion[]>([]);
+  const [isLoadingNearby, setIsLoadingNearby] = useState(false);
+
   const isMountedRef = useRef(true);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pickupInputRef = useRef<TextInput | null>(null);
   const dropoffInputRef = useRef<TextInput | null>(null);
   const rideIdempotencyKeyRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  const cameraRef = useRef<any>(null);
+
+  const [tokenReady, setTokenReady] = useState(mapboxService.isConfigured());
+  const MapView = MapboxMaps?.MapView;
+  const Camera = MapboxMaps?.Camera;
+  const PointAnnotation = MapboxMaps?.PointAnnotation;
 
   useEffect(() => {
     isMountedRef.current = true;
+    if (!tokenReady) {
+      configService.fetchConfig().then(() => {
+        if (mapboxService.isConfigured()) {
+          setTokenReady(true);
+        }
+      });
+    }
     return () => {
       isMountedRef.current = false;
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-  }, []);
+  }, [tokenReady]);
+
+  useEffect(() => {
+    if (MapboxMaps?.default?.setAccessToken && tokenReady) {
+      MapboxMaps.default.setAccessToken(mapboxService.getAccessToken());
+    }
+  }, [tokenReady]);
+
+  // Adjust Camera whenever pickup and/or dropoff coordinates change
+  useEffect(() => {
+    if (!cameraRef.current) return;
+    if (pickupCoords && dropoffCoords) {
+      const bounds = boundsFromPoints([pickupCoords, dropoffCoords]);
+      if (bounds) {
+        try {
+          cameraRef.current.fitBounds(bounds.ne, bounds.sw, 48, 600);
+        } catch {
+          // ignore
+        }
+      }
+    } else if (pickupCoords) {
+      try {
+        cameraRef.current.setCamera({
+          centerCoordinate: [pickupCoords.longitude, pickupCoords.latitude],
+          zoomLevel: 14,
+          animationDuration: 600,
+        });
+      } catch {
+        // ignore
+      }
+    }
+  }, [pickupCoords?.latitude, pickupCoords?.longitude, dropoffCoords?.latitude, dropoffCoords?.longitude]);
+
+  // Fetch dynamic nearby destination suggestions based on user GPS & real Mapbox POI search
+  useEffect(() => {
+    if (pickupCoords && !dropoffCoords) {
+      let active = true;
+      setIsLoadingNearby(true);
+      mapboxService
+        .getNearbySuggestions(pickupCoords)
+        .then((items) => {
+          if (active && isMountedRef.current) {
+            setNearbySuggestions(items);
+          }
+        })
+        .catch(() => {
+          if (active && isMountedRef.current) {
+            setNearbySuggestions([]);
+          }
+        })
+        .finally(() => {
+          if (active && isMountedRef.current) {
+            setIsLoadingNearby(false);
+          }
+        });
+      return () => {
+        active = false;
+      };
+    } else if (dropoffCoords) {
+      setNearbySuggestions([]);
+    }
+  }, [pickupCoords?.latitude, pickupCoords?.longitude, Boolean(dropoffCoords)]);
 
   const fetchEstimate = (
     pickup: { latitude: number; longitude: number } | null,
@@ -180,16 +276,18 @@ export const RideBookingScreen: React.FC = () => {
             setVehicles(mapped);
           }
           if (Array.isArray(data.availableOptions)) {
-            setOptionCatalog(data.availableOptions.map((o: any) => ({
-              code: o.code,
-              name: o.name,
-              additionalAmount: Number(o.additionalAmount) || 0,
-            })));
+            setOptionCatalog(
+              data.availableOptions.map((o: any) => ({
+                code: o.code,
+                name: o.name,
+                additionalAmount: Number(o.additionalAmount) || 0,
+              }))
+            );
           }
         }
       })
       .catch((error: any) => {
-        setRouteMetrics(error?.message || 'Fare could not be calculated. Check the connection and try again.');
+        setRouteMetrics(error?.message || 'Fare could not be calculated. Check connection and try again.');
       });
   };
 
@@ -246,7 +344,7 @@ export const RideBookingScreen: React.FC = () => {
         if (isInteractive) {
           Alert.alert(
             'Location Permission Blocked',
-            'Location access is blocked in your phone settings. Please enable location permission to locate yourself.',
+            'Location access is blocked in your phone settings. Please enable location permission in settings.',
             [
               { text: 'Cancel', style: 'cancel' },
               {
@@ -333,6 +431,26 @@ export const RideBookingScreen: React.FC = () => {
     }
   };
 
+  const onNativeMapTap = async (event: any) => {
+    const coords = event?.geometry?.coordinates;
+    if (Array.isArray(coords) && coords.length >= 2) {
+      const [longitude, latitude] = coords;
+      try {
+        const place = await mapboxService.reverseGeocode(latitude, longitude);
+        handlePlaceSelect(place, activePoint);
+      } catch {
+        handlePlaceSelect(
+          {
+            latitude,
+            longitude,
+            address: `${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°`,
+          },
+          activePoint
+        );
+      }
+    }
+  };
+
   useEffect(() => {
     handleLocateMe(false);
   }, []);
@@ -349,18 +467,15 @@ export const RideBookingScreen: React.FC = () => {
 
     if (point === 'pickup') {
       setPickupInput(text);
-      // Invalidate confirmed place coordinates since query was edited
       setPickupCoords(null);
       setPickupLocationKind(null);
       setPickupAddress(text);
     } else {
       setDropoffInput(text);
-      // Invalidate confirmed place coordinates since query was edited
       setDropoffCoords(null);
       setDropoffAddress(text);
     }
 
-    // Invalidate route metrics as coordinates are unconfirmed
     setRouteMetrics(null);
     setSearchError(null);
 
@@ -520,363 +635,513 @@ export const RideBookingScreen: React.FC = () => {
     }
   };
 
+  const defaultCenter = pickupCoords || { latitude: 24.8887, longitude: 74.6269 };
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor="transparent" translucent />
 
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.cardBorder }]}>
-        <TouchableOpacity
-          style={[styles.backButton, { backgroundColor: theme.chipBg }]}
-          onPress={() => {
-            if (navigation.canGoBack()) {
-              navigation.goBack();
-              return;
-            }
-            navigation.navigate('MainTabs', { screen: 'Home' });
-          }}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <MaterialIcons name="chevron-left" size={24} color={theme.textPrimary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-          {language === 'hi' ? 'सवारी खोजें' : 'Find Your Ride'}
-        </Text>
-        <TouchableOpacity
-          style={[
-            styles.gpsChip,
-            gpsStatus === 'DENIED' && styles.gpsChipDenied,
-            gpsStatus === 'LOCATING' && styles.gpsChipLocating,
-          ]}
-          onPress={() => handleLocateMe(true)}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons
-            name={gpsStatus === 'DENIED' ? 'location-off' : isLocating ? 'sync' : 'gps-fixed'}
-            size={13}
-            color={gpsStatus === 'DENIED' ? theme.error : isLocating ? '#2563EB' : '#10B981'}
-          />
-          <Text
-            style={[
-              styles.gpsText,
-              gpsStatus === 'DENIED' && { color: theme.error },
-              gpsStatus === 'LOCATING' && { color: '#2563EB' },
-            ]}
+      {/* 1. MAP-FIRST VIEWPORT */}
+      <View style={styles.mapViewport}>
+        {canUseNativeMap && MapView && Camera && tokenReady ? (
+          <MapView
+            style={StyleSheet.absoluteFill}
+            styleURL={isDark ? 'mapbox://styles/mapbox/navigation-night-v1' : 'mapbox://styles/mapbox/streets-v12'}
+            logoEnabled={false}
+            attributionEnabled={false}
+            onPress={onNativeMapTap}
           >
-            {isLocating
-              ? (language === 'hi' ? 'स्थान खोज रहे हैं...' : 'Locating...')
-              : gpsStatus === 'DENIED'
-              ? (language === 'hi' ? 'जीपीएस बंद' : 'GPS Denied')
-              : (language === 'hi' ? 'जीपीएस चालू' : 'GPS Active')}
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Camera
+              ref={cameraRef}
+              zoomLevel={14}
+              centerCoordinate={[defaultCenter.longitude, defaultCenter.latitude]}
+              animationMode="flyTo"
+              animationDuration={600}
+            />
 
-      <FormKeyboardAvoid>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Location Inputs Card */}
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
-          {/* Pickup Row */}
-          <View style={styles.inputRow}>
-            <View style={[styles.dot, { backgroundColor: theme.secondary }]} />
-            <View style={styles.inputWrapper}>
-              <View style={styles.pickupHeaderRow}>
-                <Text style={styles.locationLabel}>
-                  {language === 'hi' ? 'पिकअप स्थान' : 'PICKUP LOCATION'}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => handleLocateMe(true)}
-                  disabled={isLocating}
-                  style={styles.locateMeButton}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons name="my-location" size={12} color={theme.primary} />
-                  <Text style={styles.locateMeText}>
-                    {isLocating
-                      ? (language === 'hi' ? 'खोज रहे...' : 'Locating...')
-                      : (language === 'hi' ? 'जीपीएस उपयोग करें' : 'Use GPS')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.inputFieldContainer}>
-                <TextInput
-                  ref={pickupInputRef}
-                  value={activeInput === 'pickup' ? pickupInput : (pickupAddress || '')}
-                  onChangeText={(t) => searchPlaces(t, 'pickup')}
-                  onFocus={() => {
-                    setActiveInput('pickup');
-                    setActivePoint('pickup');
-                    setPickupInput(pickupAddress.startsWith('Locating') ? '' : pickupAddress);
-                  }}
-                  placeholder={language === 'hi' ? 'पिकअप स्थान कहां है?' : 'Where to pick you up?'}
-                  placeholderTextColor={theme.textTertiary}
-                  style={styles.textInput}
-                  selectTextOnFocus
-                  autoCorrect={false}
-                />
-                {(activeInput === 'pickup' ? pickupInput.length > 0 : !!pickupAddress && !pickupAddress.startsWith('Locating')) && (
-                  <TouchableOpacity
-                    style={styles.clearBtn}
-                    onPress={() => handleClearField('pickup')}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    accessibilityLabel="Clear pickup location"
-                  >
-                    <MaterialIcons name="cancel" size={18} color={theme.textTertiary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-              {pickupLocationKind && (
-                <Text style={{ color: theme.textTertiary, fontSize: 11, marginTop: 4 }}>
-                  {pickupLocationKind} location{pickupLocationKind === 'GPS cached' ? ' · refreshed before booking' : ''}
-                </Text>
-              )}
-            </View>
-            <TouchableOpacity
-              style={styles.pinMapBtn}
-              onPress={() => openMapModal('pickup')}
-              accessibilityLabel="Pin pickup on map"
-            >
-              <MaterialIcons name="map" size={20} color={theme.secondary} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLineVertical} />
-            <View style={styles.dividerHorizontal} />
-          </View>
-
-          {/* Destination Row */}
-          <View style={styles.inputRow}>
-            <View style={[styles.dot, { backgroundColor: theme.error }]} />
-            <View style={styles.inputWrapper}>
-              <Text style={styles.locationLabel}>
-                {language === 'hi' ? 'ड्रॉप स्थान (कहाँ जाना है?)' : 'WHERE TO?'}
-              </Text>
-              <View style={styles.inputFieldContainer}>
-                <TextInput
-                  ref={dropoffInputRef}
-                  value={activeInput === 'dropoff' ? dropoffInput : (dropoffAddress.startsWith('Tap map') ? '' : dropoffAddress)}
-                  onChangeText={(t) => searchPlaces(t, 'dropoff')}
-                  onFocus={() => {
-                    setActiveInput('dropoff');
-                    setActivePoint('dropoff');
-                    setDropoffInput(dropoffAddress.startsWith('Tap map') ? '' : dropoffAddress);
-                  }}
-                  placeholder={language === 'hi' ? 'ड्रॉप स्थान दर्ज करें' : 'Enter drop destination'}
-                  placeholderTextColor={theme.textTertiary}
-                  style={styles.textInput}
-                  selectTextOnFocus
-                  autoCorrect={false}
-                />
-                {(activeInput === 'dropoff' ? dropoffInput.length > 0 : !!dropoffAddress && !dropoffAddress.startsWith('Tap map')) && (
-                  <TouchableOpacity
-                    style={styles.clearBtn}
-                    onPress={() => handleClearField('dropoff')}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    accessibilityLabel="Clear destination"
-                  >
-                    <MaterialIcons name="cancel" size={18} color={theme.textTertiary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.pinMapBtn}
-              onPress={() => openMapModal('dropoff')}
-              accessibilityLabel="Pin destination on map"
-            >
-              <MaterialIcons name="map" size={20} color={theme.error} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Autocomplete Dropdown List */}
-          {isSearchingPlaces && placeHits.length === 0 && (
-            <View style={[styles.autocompleteContainer, { padding: 12, alignItems: 'center' }]}>
-              <ActivityIndicator size="small" color={theme.primary} />
-            </View>
-          )}
-
-          {placeHits.length > 0 && (
-            <View style={styles.autocompleteContainer}>
-              {placeHits.map((hit, idx) => (
-                <TouchableOpacity
-                  key={`${hit.latitude}-${hit.longitude}-${idx}`}
-                  onPress={() => chooseSearchHit(hit)}
-                  style={styles.autocompleteItem}
-                >
-                  <MaterialIcons name="place" size={18} color={theme.primary} />
-                  <Text style={styles.autocompleteText} numberOfLines={2}>
-                    {hit.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {searchError ? (
-            <Text style={{ color: theme.error, fontSize: 12, marginTop: 6 }}>{searchError}</Text>
-          ) : null}
-        </View>
-
-        {/* Route Metrics / Guidance Badge */}
-        {routeMetrics ? (
-          <View style={styles.metricsBadge}>
-            <MaterialIcons name="alt-route" size={16} color={theme.info} />
-            <Text style={styles.metricsText}>{routeMetrics}</Text>
-          </View>
-        ) : (
-          <View style={[styles.metricsBadge, { backgroundColor: isDark ? 'rgba(255, 122, 69, 0.15)' : 'rgba(255, 90, 31, 0.08)' }]}>
-            <MaterialIcons name="touch-app" size={16} color={theme.primary} />
-            <Text style={[styles.metricsText, { color: theme.textSecondary }]}>
-              {dropoffCoords
-                ? 'Calculating route & fares...'
-                : 'Type drop location or tap 🗺️ map icon to set on map'}
-            </Text>
-          </View>
-        )}
-
-        {/* Available Vehicles Section Header */}
-        {optionCatalog.length > 0 && (
-          <View style={{ marginBottom: 12 }}>
-            <Text style={styles.sectionHeader}>RIDE OPTIONS</Text>
-            {optionCatalog.map((option) => {
-              const on = selectedOptions.includes(option.code);
-              return (
-                <TouchableOpacity
-                  key={option.code}
-                  onPress={() => setSelectedOptions((current) => on ? current.filter((code) => code !== option.code) : [...current, option.code])}
-                  style={{ paddingVertical: 8 }}
-                >
-                  <Text style={{ color: theme.textPrimary }}>
-                    {on ? '✓' : '○'} {option.name}  +₹{option.additionalAmount}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-        {selectedVehicle.baseFare ? (
-          <View style={{ marginBottom: 12 }}>
-            <Text style={{ color: theme.textSecondary }}>Estimated fare · {routeMetrics || 'set pickup and destination'}</Text>
-            <Text style={{ color: theme.textPrimary }}>Base ₹{selectedVehicle.baseFare} · Distance ₹{selectedVehicle.distanceFare} · Time ₹{selectedVehicle.timeFare}</Text>
-            <Text style={{ color: theme.textPrimary }}>Booking ₹{selectedVehicle.bookingFee} · Platform ₹{selectedVehicle.platformFee} · Options ₹{selectedVehicle.optionsTotal || 0}</Text>
-          </View>
-        ) : null}
-
-        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
-          {language === 'hi' ? 'उपलब्ध सवारियां' : 'AVAILABLE VEHICLES'}
-        </Text>
-
-        {/* Vehicles List */}
-        {vehicles.map((vehicle, index) => {
-          const isSelected = index === selectedIndex;
-          return (
-            <TouchableOpacity
-              key={vehicle.type}
-              activeOpacity={0.88}
-              style={[
-                styles.vehicleCard,
-                { backgroundColor: theme.card, borderColor: theme.cardBorder },
-                isSelected && { borderColor: '#2563EB', borderWidth: 1.5, backgroundColor: isDark ? '#1E293B' : '#EFF6FF' },
-                AppShadows.subtle,
-              ]}
-              onPress={() => setSelectedIndex(index)}
-            >
-              <View
-                style={[
-                  styles.vehicleIconContainer,
-                  { backgroundColor: `${vehicle.tagColor}18` },
-                ]}
+            {/* Pickup Marker */}
+            {PointAnnotation && pickupCoords && (
+              <PointAnnotation
+                id="pickup-map-marker"
+                coordinate={[pickupCoords.longitude, pickupCoords.latitude]}
+                title="Pickup"
               >
-                <MaterialIcons name={vehicle.icon as any} size={24} color={vehicle.tagColor} />
-              </View>
-
-              <View style={styles.vehicleInfo}>
-                <View style={styles.vehicleTitleRow}>
-                  <Text
-                    style={[
-                      styles.vehicleName,
-                      { color: theme.textPrimary },
-                      isSelected && { fontWeight: '800' },
-                    ]}
-                  >
-                    {vehicle.name}
-                  </Text>
-                  <View
-                    style={[
-                      styles.tagBadge,
-                      { backgroundColor: `${vehicle.tagColor}20` },
-                    ]}
-                  >
-                    <Text style={[styles.tagText, { color: vehicle.tagColor }]}>
-                      {vehicle.tag}
-                    </Text>
+                <View style={styles.mapMarkerContainer}>
+                  <View style={[styles.markerBadge, { backgroundColor: '#10B981' }]}>
+                    <MaterialIcons name="my-location" size={13} color="#FFFFFF" />
                   </View>
+                  <View style={[styles.markerTriangle, { borderTopColor: '#10B981' }]} />
                 </View>
-                <Text style={[styles.vehicleSubtitle, { color: theme.textTertiary }]}>{vehicle.subtitle}</Text>
-              </View>
+              </PointAnnotation>
+            )}
 
-              <Text
-                style={[
-                  styles.vehicleFare,
-                  { color: theme.textPrimary },
-                  isSelected && { color: '#2563EB', fontWeight: '800' },
-                ]}
+            {/* Dropoff Marker */}
+            {PointAnnotation && dropoffCoords && (
+              <PointAnnotation
+                id="dropoff-map-marker"
+                coordinate={[dropoffCoords.longitude, dropoffCoords.latitude]}
+                title="Dropoff"
               >
-                {vehicle.fare > 0 ? `₹${vehicle.fare.toFixed(0)}` : '--'}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+                <View style={styles.mapMarkerContainer}>
+                  <View style={[styles.markerBadge, { backgroundColor: '#EF4444' }]}>
+                    <MaterialIcons name="flag" size={13} color="#FFFFFF" />
+                  </View>
+                  <View style={[styles.markerTriangle, { borderTopColor: '#EF4444' }]} />
+                </View>
+              </PointAnnotation>
+            )}
+          </MapView>
+        ) : (
+          <LocationMapPicker
+            key={`map-fallback-${activePoint}`}
+            height={280}
+            hideSearchInput={true}
+            initialCoordinate={activePoint === 'pickup' ? pickupCoords || undefined : dropoffCoords || undefined}
+            initialAddress={activePoint === 'pickup' ? pickupAddress : dropoffAddress}
+            proximity={pickupCoords || undefined}
+            onSelect={(place) => handlePlaceSelect(place, activePoint)}
+          />
+        )}
 
-        {/* Bottom Action Bar */}
-        <View style={styles.actionBar}>
-          <View style={[styles.paymentButton, { backgroundColor: theme.chipBg, borderColor: theme.cardBorder }]}>
-            <MaterialIcons name="payment" size={17} color={theme.textSecondary} />
-            <Text style={[styles.paymentText, { color: theme.textPrimary }]}>Cash / UPI ▼</Text>
-          </View>
-
+        {/* Floating Top Controls Overlay */}
+        <View style={styles.floatingControls}>
           <TouchableOpacity
-            activeOpacity={0.88}
-            style={[
-              styles.bookButton,
-              { backgroundColor: '#2563EB' },
-              (isBooking || !dropoffCoords) && { opacity: 0.5 },
-              AppShadows.md,
-            ]}
-            disabled={isBooking || !dropoffCoords}
-            onPress={handleBookRide}
-            testID="book-ride-button"
-            accessibilityLabel="Book Ride"
+            style={[styles.floatingCircleBtn, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}
+            onPress={() => {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+                return;
+              }
+              navigation.navigate('MainTabs', { screen: 'Home' });
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Back"
           >
-            <Text style={styles.bookButtonText}>
-              {isBooking
-                ? (language === 'hi' ? 'राइड बुक हो रही है...' : 'Booking Ride...')
-                : !dropoffCoords
-                ? (language === 'hi' ? 'बुक करने के लिए ड्रॉप स्थान चुनें' : 'Select Destination to Book')
-                : selectedVehicle.fare > 0
-                ? (language === 'hi'
-                    ? `राइड कन्फर्म करें · अनुमानित ₹${selectedVehicle.fare.toFixed(0)}`
-                    : `Confirm ride · estimated ₹${selectedVehicle.fare.toFixed(0)}`)
-                : (language === 'hi' ? 'राइड कन्फर्म करें' : 'Confirm ride')}
+            <MaterialIcons name="chevron-left" size={26} color={theme.textPrimary} />
+          </TouchableOpacity>
+
+          {/* Active Tap Pin Mode Indicator Chip */}
+          <TouchableOpacity
+            style={[styles.modeIndicatorPill, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}
+            activeOpacity={0.8}
+            onPress={() => setActivePoint(activePoint === 'pickup' ? 'dropoff' : 'pickup')}
+          >
+            <View
+              style={[
+                styles.modeDot,
+                { backgroundColor: activePoint === 'pickup' ? '#10B981' : '#EF4444' },
+              ]}
+            />
+            <Text style={[styles.modeText, { color: theme.textPrimary }]}>
+              {activePoint === 'pickup'
+                ? (language === 'hi' ? 'पिकअप पिन सक्रिय · टैप करें' : 'Pickup pin active · Tap to set')
+                : (language === 'hi' ? 'ड्रॉप पिन सक्रिय · टैप करें' : 'Dropoff pin active · Tap to set')}
             </Text>
           </TouchableOpacity>
-        </View>
-      </ScrollView>
-      </FormKeyboardAvoid>
 
-      {/* Pin on Map Modal */}
+          {/* Re-center GPS Button */}
+          <TouchableOpacity
+            style={[
+              styles.floatingCircleBtn,
+              { backgroundColor: theme.surface, borderColor: theme.cardBorder },
+              gpsStatus === 'DENIED' && { borderColor: theme.error },
+            ]}
+            onPress={() => handleLocateMe(true)}
+            disabled={isLocating}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Re-center to GPS"
+          >
+            <MaterialIcons
+              name={isLocating ? 'sync' : gpsStatus === 'DENIED' ? 'location-off' : 'my-location'}
+              size={20}
+              color={gpsStatus === 'DENIED' ? theme.error : isLocating ? '#2563EB' : '#10B981'}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 2. COMPACT BOTTOM SHEET */}
+      <View style={[styles.bottomSheet, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <View style={[styles.sheetHandle, { backgroundColor: theme.border }]} />
+
+        <FormKeyboardAvoid>
+          <ScrollView
+            contentContainerStyle={styles.sheetScrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Location Inputs Block */}
+            <View style={[styles.inputsCard, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+              {/* Pickup Input Row */}
+              <TouchableOpacity
+                activeOpacity={1}
+                style={[styles.inputRow, activePoint === 'pickup' && styles.activeInputRow]}
+                onPress={() => {
+                  setActivePoint('pickup');
+                  pickupInputRef.current?.focus();
+                }}
+              >
+                <View style={[styles.dot, { backgroundColor: '#10B981' }]} />
+                <View style={styles.inputWrapper}>
+                  <View style={styles.inputHeaderRow}>
+                    <Text style={[styles.locationLabel, { color: activePoint === 'pickup' ? theme.primary : theme.textTertiary }]}>
+                      {language === 'hi' ? 'पिकअप स्थान' : 'PICKUP LOCATION'}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleLocateMe(true)}
+                      disabled={isLocating}
+                      style={styles.gpsActionBtn}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialIcons name="my-location" size={11} color={theme.primary} />
+                      <Text style={[styles.gpsActionText, { color: theme.primary }]}>
+                        {isLocating
+                          ? (language === 'hi' ? 'खोज रहे...' : 'Locating...')
+                          : (language === 'hi' ? 'जीपीएस' : 'Use GPS')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.inputFieldContainer}>
+                    <TextInput
+                      ref={pickupInputRef}
+                      value={activeInput === 'pickup' ? pickupInput : (pickupAddress || '')}
+                      onChangeText={(t) => searchPlaces(t, 'pickup')}
+                      onFocus={() => {
+                        setActiveInput('pickup');
+                        setActivePoint('pickup');
+                        setPickupInput(pickupAddress.startsWith('Locating') ? '' : pickupAddress);
+                      }}
+                      placeholder={language === 'hi' ? 'पिकअप स्थान कहां है?' : 'Where to pick you up?'}
+                      placeholderTextColor={theme.textTertiary}
+                      style={[styles.textInput, { color: theme.textPrimary }]}
+                      selectTextOnFocus
+                      autoCorrect={false}
+                    />
+                    {(activeInput === 'pickup' ? pickupInput.length > 0 : !!pickupAddress && !pickupAddress.startsWith('Locating')) && (
+                      <TouchableOpacity
+                        style={styles.clearBtn}
+                        onPress={() => handleClearField('pickup')}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        accessibilityLabel="Clear pickup location"
+                      >
+                        <MaterialIcons name="cancel" size={16} color={theme.textTertiary} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.pinIconBtn, { backgroundColor: `${theme.primary}15` }]}
+                  onPress={() => openMapModal('pickup')}
+                  accessibilityLabel="Pin pickup on map"
+                >
+                  <MaterialIcons name="map" size={18} color={theme.primary} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+
+              {/* Connecting Divider */}
+              <View style={styles.dividerRow}>
+                <View style={[styles.dividerLineVertical, { backgroundColor: theme.border }]} />
+                <View style={[styles.dividerHorizontal, { backgroundColor: theme.borderSubtle }]} />
+              </View>
+
+              {/* Destination Input Row */}
+              <TouchableOpacity
+                activeOpacity={1}
+                style={[styles.inputRow, activePoint === 'dropoff' && styles.activeInputRow]}
+                onPress={() => {
+                  setActivePoint('dropoff');
+                  dropoffInputRef.current?.focus();
+                }}
+              >
+                <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
+                <View style={styles.inputWrapper}>
+                  <Text style={[styles.locationLabel, { color: activePoint === 'dropoff' ? theme.primary : theme.textTertiary }]}>
+                    {language === 'hi' ? 'ड्रॉप स्थान (कहाँ जाना है?)' : 'WHERE TO?'}
+                  </Text>
+                  <View style={styles.inputFieldContainer}>
+                    <TextInput
+                      ref={dropoffInputRef}
+                      value={activeInput === 'dropoff' ? dropoffInput : (dropoffAddress.startsWith('Tap map') ? '' : dropoffAddress)}
+                      onChangeText={(t) => searchPlaces(t, 'dropoff')}
+                      onFocus={() => {
+                        setActiveInput('dropoff');
+                        setActivePoint('dropoff');
+                        setDropoffInput(dropoffAddress.startsWith('Tap map') ? '' : dropoffAddress);
+                      }}
+                      placeholder={language === 'hi' ? 'ड्रॉप स्थान दर्ज करें' : 'Enter drop destination'}
+                      placeholderTextColor={theme.textTertiary}
+                      style={[styles.textInput, { color: theme.textPrimary }]}
+                      selectTextOnFocus
+                      autoCorrect={false}
+                    />
+                    {(activeInput === 'dropoff' ? dropoffInput.length > 0 : !!dropoffAddress && !dropoffAddress.startsWith('Tap map')) && (
+                      <TouchableOpacity
+                        style={styles.clearBtn}
+                        onPress={() => handleClearField('dropoff')}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        accessibilityLabel="Clear destination"
+                      >
+                        <MaterialIcons name="cancel" size={16} color={theme.textTertiary} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.pinIconBtn, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}
+                  onPress={() => openMapModal('dropoff')}
+                  accessibilityLabel="Pin destination on map"
+                >
+                  <MaterialIcons name="map" size={18} color="#EF4444" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
+
+            {/* Autocomplete Dropdown List */}
+            {isSearchingPlaces && placeHits.length === 0 && (
+              <View style={[styles.autocompleteContainer, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <Text style={[styles.searchingText, { color: theme.textTertiary }]}>Searching addresses...</Text>
+              </View>
+            )}
+
+            {placeHits.length > 0 && (
+              <View style={[styles.autocompleteContainer, { backgroundColor: theme.surface, borderColor: theme.cardBorder }, AppShadows.md]}>
+                {placeHits.map((hit, idx) => (
+                  <TouchableOpacity
+                    key={`${hit.latitude}-${hit.longitude}-${idx}`}
+                    onPress={() => chooseSearchHit(hit)}
+                    style={[styles.autocompleteItem, { borderBottomColor: theme.borderSubtle }]}
+                  >
+                    <MaterialIcons name="place" size={18} color={theme.primary} style={{ marginRight: 8 }} />
+                    <Text style={[styles.autocompleteText, { color: theme.textPrimary }]} numberOfLines={2}>
+                      {hit.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {searchError ? (
+              <Text style={{ color: theme.error, fontSize: 12, marginTop: 4 }}>{searchError}</Text>
+            ) : null}
+
+            {/* 3. DYNAMIC NEARBY DESTINATION SUGGESTIONS (Mapbox POIs) */}
+            {nearbySuggestions.length > 0 && !dropoffCoords && (
+              <View style={styles.suggestionsContainer}>
+                <View style={styles.suggestionsHeaderRow}>
+                  <Ionicons name="sparkles" size={13} color={theme.primary} />
+                  <Text style={[styles.suggestionsTitle, { color: theme.textSecondary }]}>
+                    {language === 'hi' ? 'आस-पास के सुझाव' : 'Nearby suggestions'}
+                  </Text>
+                  {isLoadingNearby && <ActivityIndicator size="small" color={theme.primary} style={{ marginLeft: 6 }} />}
+                </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.suggestionsScroll}
+                >
+                  {nearbySuggestions.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.suggestionChip,
+                        { backgroundColor: theme.surface, borderColor: theme.cardBorder },
+                        AppShadows.subtle,
+                      ]}
+                      onPress={() => {
+                        handlePlaceSelect(
+                          {
+                            latitude: item.latitude,
+                            longitude: item.longitude,
+                            address: item.address || item.name,
+                          },
+                          'dropoff'
+                        );
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <MaterialIcons name="place" size={14} color={theme.primary} style={{ marginRight: 4 }} />
+                      <Text style={[styles.suggestionChipText, { color: theme.textPrimary }]} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Route Metrics / Guidance Badge */}
+            {routeMetrics ? (
+              <View style={[styles.metricsBadge, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : 'rgba(37, 99, 235, 0.08)' }]}>
+                <MaterialIcons name="alt-route" size={16} color={theme.info} />
+                <Text style={[styles.metricsText, { color: theme.info }]}>{routeMetrics}</Text>
+              </View>
+            ) : (
+              <View style={[styles.metricsBadge, { backgroundColor: isDark ? 'rgba(255, 90, 31, 0.15)' : 'rgba(255, 90, 31, 0.08)' }]}>
+                <MaterialIcons name="touch-app" size={16} color={theme.primary} />
+                <Text style={[styles.metricsText, { color: theme.textSecondary }]}>
+                  {dropoffCoords
+                    ? (language === 'hi' ? 'किराया व रूट गणना हो रही है...' : 'Calculating route & fares...')
+                    : (language === 'hi' ? 'ड्रॉप स्थान चुनें या मैप पर टैप करें' : 'Select drop destination or tap map')}
+                </Text>
+              </View>
+            )}
+
+            {/* Available Vehicles Section Header */}
+            <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
+              {language === 'hi' ? 'उपलब्ध सवारियां' : 'AVAILABLE VEHICLES'}
+            </Text>
+
+            {/* Vehicles Selector */}
+            <View style={styles.vehiclesContainer}>
+              {vehicles.map((vehicle, index) => {
+                const isSelected = index === selectedIndex;
+                return (
+                  <TouchableOpacity
+                    key={vehicle.type}
+                    activeOpacity={0.88}
+                    style={[
+                      styles.vehicleCard,
+                      { backgroundColor: theme.surface, borderColor: theme.cardBorder },
+                      isSelected && {
+                        borderColor: '#2563EB',
+                        borderWidth: 1.5,
+                        backgroundColor: isDark ? '#1E293B' : '#EFF6FF',
+                      },
+                      AppShadows.subtle,
+                    ]}
+                    onPress={() => setSelectedIndex(index)}
+                  >
+                    <View
+                      style={[
+                        styles.vehicleIconContainer,
+                        { backgroundColor: `${vehicle.tagColor}18` },
+                      ]}
+                    >
+                      <MaterialIcons name={vehicle.icon as any} size={24} color={vehicle.tagColor} />
+                    </View>
+
+                    <View style={styles.vehicleInfo}>
+                      <View style={styles.vehicleTitleRow}>
+                        <Text
+                          style={[
+                            styles.vehicleName,
+                            { color: theme.textPrimary },
+                            isSelected && { fontWeight: '800' },
+                          ]}
+                        >
+                          {vehicle.name}
+                        </Text>
+                        <View
+                          style={[
+                            styles.tagBadge,
+                            { backgroundColor: `${vehicle.tagColor}20` },
+                          ]}
+                        >
+                          <Text style={[styles.tagText, { color: vehicle.tagColor }]}>
+                            {vehicle.tag}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.vehicleSubtitle, { color: theme.textTertiary }]}>{vehicle.subtitle}</Text>
+                    </View>
+
+                    <Text
+                      style={[
+                        styles.vehicleFare,
+                        { color: theme.textPrimary },
+                        isSelected && { color: '#2563EB', fontWeight: '800' },
+                      ]}
+                    >
+                      {vehicle.fare > 0 ? `₹${vehicle.fare.toFixed(0)}` : '--'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Ride Options Catalog (if configured) */}
+            {optionCatalog.length > 0 && (
+              <View style={styles.optionsCatalogSection}>
+                <Text style={[styles.optionsCatalogTitle, { color: theme.textSecondary }]}>RIDE OPTIONS</Text>
+                {optionCatalog.map((option) => {
+                  const on = selectedOptions.includes(option.code);
+                  return (
+                    <TouchableOpacity
+                      key={option.code}
+                      onPress={() =>
+                        setSelectedOptions((current) =>
+                          on ? current.filter((code) => code !== option.code) : [...current, option.code]
+                        )
+                      }
+                      style={styles.optionRow}
+                    >
+                      <MaterialIcons
+                        name={on ? 'check-box' : 'check-box-outline-blank'}
+                        size={18}
+                        color={on ? theme.primary : theme.textTertiary}
+                      />
+                      <Text style={[styles.optionName, { color: theme.textPrimary }]}>
+                        {option.name} (+₹{option.additionalAmount})
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Action Bar */}
+            <View style={styles.actionBar}>
+              <View style={[styles.paymentButton, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+                <MaterialIcons name="payment" size={17} color={theme.textSecondary} />
+                <Text style={[styles.paymentText, { color: theme.textPrimary }]}>Cash / UPI ▼</Text>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={[
+                  styles.bookButton,
+                  { backgroundColor: '#2563EB' },
+                  (isBooking || !dropoffCoords) && { opacity: 0.5 },
+                  AppShadows.md,
+                ]}
+                disabled={isBooking || !dropoffCoords}
+                onPress={handleBookRide}
+                testID="book-ride-button"
+                accessibilityLabel="Book Ride"
+              >
+                {isBooking ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.bookButtonText}>
+                    {!dropoffCoords
+                      ? (language === 'hi' ? 'ड्रॉप स्थान चुनें' : 'Select Destination')
+                      : selectedVehicle.fare > 0
+                      ? (language === 'hi'
+                          ? `राइड बुक करें · ₹${selectedVehicle.fare.toFixed(0)}`
+                          : `Confirm ride · ₹${selectedVehicle.fare.toFixed(0)}`)
+                      : (language === 'hi' ? 'राइड बुक करें' : 'Confirm ride')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </FormKeyboardAvoid>
+      </View>
+
+      {/* Pin on Map Full Modal (preserved for fallback or deep map interaction) */}
       {isMapModalVisible && (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { backgroundColor: theme.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+              <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
                 Pin {modalPoint === 'pickup' ? 'Pickup' : 'Destination'} on Map
               </Text>
-              <TouchableOpacity
-                onPress={() => setIsMapModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
+              <TouchableOpacity onPress={() => setIsMapModalVisible(false)} style={styles.modalCloseBtn}>
                 <MaterialIcons name="close" size={24} color={theme.textPrimary} />
               </TouchableOpacity>
             </View>
@@ -897,7 +1162,7 @@ export const RideBookingScreen: React.FC = () => {
             </View>
 
             <TouchableOpacity
-              style={styles.modalDoneBtn}
+              style={[styles.modalDoneBtn, { backgroundColor: theme.primary }]}
               onPress={() => setIsMapModalVisible(false)}
             >
               <Text style={styles.modalDoneBtnText}>Confirm Location</Text>
@@ -915,212 +1180,364 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
       flex: 1,
       backgroundColor: theme.background,
     },
-    header: {
+    mapViewport: {
+      height: SCREEN_HEIGHT * 0.38,
+      width: '100%',
+      position: 'relative',
+      backgroundColor: isDark ? '#111827' : '#E2E8F0',
+    },
+    floatingControls: {
+      position: 'absolute',
+      top: 14,
+      left: 14,
+      right: 14,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
     },
-    backButton: {
-      padding: spacing.xs,
+    floatingCircleBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      ...AppShadows.md,
     },
-    headerTitle: {
-      ...typography.h2,
-      color: theme.textPrimary,
-    },
-    gpsChip: {
+    modeIndicatorPill: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: 'rgba(0, 200, 83, 0.15)',
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: spacing.radiusLg,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: AppRadius.pill,
       borderWidth: 1,
-      borderColor: 'rgba(0, 200, 83, 0.3)',
-      gap: 4,
+      gap: 6,
+      ...AppShadows.md,
     },
-    gpsChipDenied: {
-      backgroundColor: 'rgba(244, 67, 54, 0.15)',
-      borderColor: 'rgba(244, 67, 54, 0.3)',
+    modeDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
     },
-    gpsChipLocating: {
-      backgroundColor: 'rgba(33, 150, 243, 0.15)',
-      borderColor: 'rgba(33, 150, 243, 0.3)',
-    },
-    gpsText: {
-      ...typography.caption,
-      color: theme.secondary,
+    modeText: {
+      fontSize: 12,
       fontWeight: '700',
     },
-    scrollContent: {
-      padding: spacing.md,
-      paddingBottom: spacing.xxl,
+    mapMarkerContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    card: {
-      backgroundColor: theme.card,
-      borderRadius: 18,
-      padding: spacing.md,
+    markerBadge: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+      ...AppShadows.md,
+    },
+    markerTriangle: {
+      width: 0,
+      height: 0,
+      backgroundColor: 'transparent',
+      borderStyle: 'solid',
+      borderLeftWidth: 5,
+      borderRightWidth: 5,
+      borderTopWidth: 6,
+      borderLeftColor: 'transparent',
+      borderRightColor: 'transparent',
+      alignSelf: 'center',
+      marginTop: -1,
+    },
+    bottomSheet: {
+      flex: 1,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      borderTopWidth: 1,
+      marginTop: -18,
+      overflow: 'hidden',
+      ...AppShadows.card,
+    },
+    sheetHandle: {
+      width: 38,
+      height: 4,
+      borderRadius: 2,
+      alignSelf: 'center',
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    sheetScrollContent: {
+      paddingHorizontal: AppSpacing.md,
+      paddingTop: 8,
+      paddingBottom: 36,
+    },
+    inputsCard: {
+      borderRadius: AppRadius.lg,
       borderWidth: 1,
-      borderColor: theme.cardBorder,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 10,
     },
-    locationRow: {
+    inputRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      paddingVertical: 6,
+    },
+    activeInputRow: {
+      borderRadius: AppRadius.md,
     },
     dot: {
       width: 10,
       height: 10,
       borderRadius: 5,
-      marginRight: spacing.sm,
-    },
-    locationTextGroup: {
-      flex: 1,
-    },
-    pickupHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    locateMeButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      backgroundColor: isDark ? 'rgba(255, 122, 69, 0.2)' : 'rgba(255, 90, 31, 0.12)',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
-    },
-    locateMeText: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: theme.primary,
-    },
-    locationLabel: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: theme.textTertiary,
-      letterSpacing: 0.8,
-    },
-    locationValue: {
-      ...typography.bodyMedium,
-      color: theme.textPrimary,
-      fontWeight: '700',
-      marginTop: 2,
-    },
-    coordsSubtitle: {
-      fontSize: 10,
-      color: theme.textTertiary,
-      marginTop: 2,
-    },
-    dividerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginVertical: 8,
-    },
-    dividerLineVertical: {
-      width: 2,
-      height: 20,
-      backgroundColor: theme.cardBorder,
-      marginLeft: 4,
-      marginRight: spacing.md,
-    },
-    dividerHorizontal: {
-      flex: 1,
-      height: 1,
-      backgroundColor: theme.cardBorder,
-    },
-    metricsBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.surfaceLight,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      borderRadius: spacing.radiusMd,
-      borderWidth: 1,
-      borderColor: theme.cardBorder,
-      marginTop: spacing.sm,
-      gap: 6,
-    },
-    metricsText: {
-      ...typography.caption,
-      color: theme.textSecondary,
-      fontWeight: '600',
-    },
-    inputRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
+      marginRight: 10,
     },
     inputWrapper: {
       flex: 1,
     },
+    inputHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 2,
+    },
+    locationLabel: {
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 0.6,
+    },
+    gpsActionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    gpsActionText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
     inputFieldContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 2,
     },
     textInput: {
       flex: 1,
-      color: theme.textPrimary,
-      fontSize: 14,
-      fontWeight: '600',
-      paddingVertical: 4,
-      paddingRight: 6,
+      fontSize: 13,
+      fontWeight: '500',
+      paddingVertical: 2,
+      marginRight: 6,
     },
     clearBtn: {
       padding: 4,
-      justifyContent: 'center',
-      alignItems: 'center',
     },
-    pinMapBtn: {
-      padding: 8,
-      borderRadius: 10,
-      backgroundColor: theme.surfaceLight,
-      borderWidth: 1,
-      borderColor: theme.cardBorder,
+    pinIconBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 6,
+    },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      height: 12,
+      marginVertical: 1,
+    },
+    dividerLineVertical: {
+      width: 2,
+      height: 12,
+      marginLeft: 4,
+    },
+    dividerHorizontal: {
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+      marginLeft: 14,
     },
     autocompleteContainer: {
-      marginTop: 10,
-      backgroundColor: theme.surfaceLight,
-      borderRadius: 12,
+      borderRadius: AppRadius.md,
       borderWidth: 1,
-      borderColor: theme.cardBorder,
+      marginBottom: 10,
       overflow: 'hidden',
-      maxHeight: 180,
+    },
+    searchingText: {
+      fontSize: 12,
+      marginLeft: 8,
     },
     autocompleteItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.cardBorder,
+      borderBottomWidth: StyleSheet.hairlineWidth,
     },
     autocompleteText: {
       flex: 1,
-      color: theme.textPrimary,
       fontSize: 13,
+      fontWeight: '500',
+    },
+    suggestionsContainer: {
+      marginBottom: 10,
+    },
+    suggestionsHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 6,
+      paddingHorizontal: 2,
+    },
+    suggestionsTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 0.4,
+      marginLeft: 4,
+    },
+    suggestionsScroll: {
+      gap: 8,
+      paddingRight: 8,
+    },
+    suggestionChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: AppRadius.pill,
+      borderWidth: 1,
+    },
+    suggestionChipText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    metricsBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: AppRadius.md,
+      gap: 6,
+      marginBottom: 12,
+    },
+    metricsText: {
+      fontSize: 12,
+      fontWeight: '600',
+      flex: 1,
+    },
+    sectionHeader: {
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.8,
+      marginBottom: 8,
+    },
+    vehiclesContainer: {
+      gap: 8,
+      marginBottom: 12,
+    },
+    vehicleCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 10,
+      borderRadius: AppRadius.md,
+      borderWidth: 1,
+    },
+    vehicleIconContainer: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+    },
+    vehicleInfo: {
+      flex: 1,
+    },
+    vehicleTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 2,
+    },
+    vehicleName: {
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    tagBadge: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    tagText: {
+      fontSize: 9,
+      fontWeight: '800',
+    },
+    vehicleSubtitle: {
+      fontSize: 11,
+    },
+    vehicleFare: {
+      fontSize: 16,
+      fontWeight: '700',
+      marginLeft: 8,
+    },
+    optionsCatalogSection: {
+      marginBottom: 12,
+    },
+    optionsCatalogTitle: {
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 0.6,
+      marginBottom: 6,
+    },
+    optionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 4,
+      gap: 6,
+    },
+    optionName: {
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    actionBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginTop: 6,
+    },
+    paymentButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      borderRadius: AppRadius.md,
+      borderWidth: 1,
+      gap: 6,
+    },
+    paymentText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    bookButton: {
+      flex: 1,
+      paddingVertical: 13,
+      borderRadius: AppRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bookButtonText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '800',
     },
     modalOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
       justifyContent: 'flex-end',
-      zIndex: 999,
     },
     modalSheet: {
-      backgroundColor: theme.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
       padding: spacing.md,
-      borderTopWidth: 1,
-      borderColor: theme.cardBorder,
+      maxHeight: '85%',
     },
     modalHeader: {
       flexDirection: 'row',
@@ -1130,123 +1547,24 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
     },
     modalTitle: {
       ...typography.h3,
-      color: theme.textPrimary,
+      fontWeight: '700',
     },
     modalCloseBtn: {
       padding: 4,
     },
     modalMapContent: {
-      marginVertical: 4,
+      marginBottom: spacing.md,
+      borderRadius: spacing.radiusMd,
+      overflow: 'hidden',
     },
     modalDoneBtn: {
-      backgroundColor: theme.primary,
-      borderRadius: 12,
       paddingVertical: 14,
+      borderRadius: AppRadius.md,
       alignItems: 'center',
-      marginTop: 8,
     },
     modalDoneBtnText: {
       color: '#FFFFFF',
-      fontWeight: '800',
+      fontWeight: '700',
       fontSize: 15,
-    },
-    sectionHeader: {
-      fontSize: 11,
-      fontWeight: '800',
-      color: theme.textTertiary,
-      letterSpacing: 1.0,
-      marginTop: spacing.lg,
-      marginBottom: spacing.sm,
-    },
-    vehicleCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: theme.surface,
-      borderRadius: 16,
-      padding: spacing.md,
-      borderWidth: 1,
-      borderColor: theme.cardBorder,
-      marginBottom: 10,
-    },
-    vehicleCardSelected: {
-      backgroundColor: theme.surfaceLight,
-      borderColor: theme.primary,
-      borderWidth: 1.5,
-    },
-    vehicleIconContainer: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    vehicleInfo: {
-      flex: 1,
-      marginLeft: spacing.sm,
-      marginRight: spacing.sm,
-    },
-    vehicleTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    vehicleName: {
-      ...typography.bodyMedium,
-      color: theme.textPrimary,
-      fontWeight: '600',
-    },
-    tagBadge: {
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
-    },
-    tagText: {
-      fontSize: 9,
-      fontWeight: '800',
-    },
-    vehicleSubtitle: {
-      ...typography.caption,
-      color: theme.textSecondary,
-      marginTop: 3,
-    },
-    vehicleFare: {
-      fontSize: 18,
-      fontWeight: '900',
-      color: theme.textPrimary,
-    },
-    actionBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: spacing.lg,
-      gap: 12,
-    },
-    paymentButton: {
-      height: 52,
-      paddingHorizontal: 14,
-      backgroundColor: theme.surfaceLight,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: theme.cardBorder,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    paymentText: {
-      ...typography.bodySmall,
-      color: theme.textPrimary,
-      fontWeight: '600',
-    },
-    bookButton: {
-      flex: 1,
-      height: 52,
-      backgroundColor: theme.primary,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    bookButtonText: {
-      ...typography.bodyLarge,
-      color: '#FFFFFF',
-      fontWeight: '800',
     },
   });

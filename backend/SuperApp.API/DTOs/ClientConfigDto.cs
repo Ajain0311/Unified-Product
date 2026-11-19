@@ -12,6 +12,7 @@ public class ClientConfigDto
     public string SignalRHubUrl { get; set; } = string.Empty;
     public double GpsMaxCachedAgeSeconds { get; set; }
     public double GpsMaxAccuracyMeters { get; set; }
+    public PlatformPublicControlsDto? PlatformControls { get; set; }
 }
 
 /// <summary>Public Help &amp; Support content configured by admin via AppSettings.</summary>

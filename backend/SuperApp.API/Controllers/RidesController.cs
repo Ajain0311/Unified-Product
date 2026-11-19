@@ -15,6 +15,7 @@ namespace SuperApp.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
+[RequireModuleEnabled("rides")]
 public class RidesController : ControllerBase
 {
     private readonly AppDbContext _db;

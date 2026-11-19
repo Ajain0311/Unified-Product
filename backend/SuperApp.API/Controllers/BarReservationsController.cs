@@ -13,6 +13,7 @@ namespace SuperApp.API.Controllers;
 
 [ApiController]
 [Route("api/bars")]
+[RequireModuleEnabled("bars")]
 public sealed class BarReservationsController(AppDbContext db) : ControllerBase
 {
     private long? CurrentUserId => long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;

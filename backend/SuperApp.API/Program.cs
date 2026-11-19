@@ -122,6 +122,11 @@ var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET")
 
 ProductionSecurityValidator.ValidateJwtSecret(jwtSecret, isProduction);
 
+var mfaKey = Environment.GetEnvironmentVariable("TOTP_ENCRYPTION_KEY")
+    ?? Environment.GetEnvironmentVariable("MFA_ENCRYPTION_KEY")
+    ?? builder.Configuration["Mfa:EncryptionKey"];
+ProductionSecurityValidator.ValidateMfaEncryptionKey(mfaKey, jwtSecret, isProduction);
+
 var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER")
     ?? builder.Configuration["Jwt:Issuer"] 
     ?? "SuperApp";
@@ -159,9 +164,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("MasterAdminOnly", policy =>
+        policy.RequireRole(SuperApp.API.Models.RoleNames.MasterAdmin)
+              .RequireClaim("mfa_verified", "true"));
+});
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ServiceAreaPolicyProvider>();
+builder.Services.AddScoped<PlatformConfigService>();
 builder.Services.AddScoped<IdempotencyActionFilter>();
 
 
@@ -327,6 +338,7 @@ else
 
 // 6. Security & Identity Tokens
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<ITotpService, TotpService>();
 builder.Services.AddScoped<RoleApplicationService>();
 
 
@@ -651,6 +663,11 @@ ALTER TABLE banners ADD COLUMN IF NOT EXISTS cta_text VARCHAR(80) NULL;
 ALTER TABLE coupons DROP CONSTRAINT IF EXISTS chk_coupons_module;
 ALTER TABLE coupons ADD CONSTRAINT chk_coupons_module CHECK (applicable_module IN ('FOOD', 'RIDE', 'MARKETPLACE', 'ALL'));
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(100) NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_totp_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_recovery_codes VARCHAR(1000) NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_totp_step BIGINT NULL;
+ALTER TABLE app_settings ALTER COLUMN setting_value TYPE TEXT;
 CREATE TABLE IF NOT EXISTS chat_conversations (
     id BIGSERIAL PRIMARY KEY,
     listing_id BIGINT NOT NULL REFERENCES marketplace_listings(id) ON DELETE CASCADE,

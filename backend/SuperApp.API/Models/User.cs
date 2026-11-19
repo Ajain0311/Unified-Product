@@ -22,6 +22,16 @@ public class User
     
     [MaxLength(255)]
     public string? PasswordHash { get; set; }
+
+    [MaxLength(100)]
+    public string? TotpSecret { get; set; }
+
+    public bool IsTotpEnabled { get; set; } = false;
+
+    [MaxLength(1000)]
+    public string? TotpRecoveryCodes { get; set; }
+
+    public long? LastTotpStep { get; set; }
     
     public bool IsActive { get; set; } = true;
     

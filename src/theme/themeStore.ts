@@ -1,6 +1,7 @@
 import { Appearance } from 'react-native';
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { configService } from '../services/configService';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -142,11 +143,27 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 
   toggleTheme: () => {
+    if (!configService.isThemeSwitchAllowed()) {
+      return;
+    }
     const next: ThemeMode = get().mode === 'dark' ? 'light' : 'dark';
     get().setMode(next);
   },
 
   initTheme: async () => {
+    const remoteTheme = configService.getPlatformControls()?.theme;
+    if (remoteTheme && !remoteTheme.allowUserThemeSwitch) {
+      const lockedMode: ThemeMode = remoteTheme.defaultTheme === 'dark' ? 'dark' : 'light';
+      const chosenColors = lockedMode === 'dark' ? darkTheme : lightTheme;
+      set({
+        mode: lockedMode,
+        isDark: lockedMode === 'dark',
+        colors: chosenColors,
+        theme: chosenColors,
+      });
+      return;
+    }
+
     const saved = await AsyncStorage.getItem('superapp_theme_mode');
     if (saved === 'light' || saved === 'dark') {
       const chosenColors = saved === 'dark' ? darkTheme : lightTheme;
@@ -157,11 +174,11 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
         theme: chosenColors,
       });
     } else {
-      const isSysDark = Appearance.getColorScheme() === 'dark';
-      const chosenColors = isSysDark ? darkTheme : lightTheme;
+      const defaultMode: ThemeMode = remoteTheme?.defaultTheme === 'dark' ? 'dark' : (Appearance.getColorScheme() === 'dark' ? 'dark' : 'light');
+      const chosenColors = defaultMode === 'dark' ? darkTheme : lightTheme;
       set({
-        mode: isSysDark ? 'dark' : 'light',
-        isDark: isSysDark,
+        mode: defaultMode,
+        isDark: defaultMode === 'dark',
         colors: chosenColors,
         theme: chosenColors,
       });

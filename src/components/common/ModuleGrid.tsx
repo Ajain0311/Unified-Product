@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BUSINESS_MODULES, BusinessModuleConfig } from '../../config/businessModules';
+import { BUSINESS_MODULES, BusinessModuleConfig, resolveConfiguredModules } from '../../config/businessModules';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
 import { AppSpacing, AppRadius, AppShadows } from '../../theme/spacing';
@@ -22,14 +22,14 @@ interface ModuleGridProps {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const ModuleGrid: React.FC<ModuleGridProps> = ({
-  modules = BUSINESS_MODULES,
+  modules,
   onSelectModule,
   variant = 'cards',
 }) => {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
 
-  const activeModules = modules.filter(
+  const activeModules = (modules || resolveConfiguredModules()).filter(
     (m) => m.isReady !== false && m.isEnabled !== false
   );
 

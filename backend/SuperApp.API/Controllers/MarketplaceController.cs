@@ -13,6 +13,7 @@ namespace SuperApp.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[RequireModuleEnabled("bazaar")]
 public class MarketplaceController : ControllerBase
 {
     private readonly AppDbContext _db;

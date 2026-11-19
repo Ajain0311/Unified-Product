@@ -31,6 +31,7 @@ import { typography } from '../../theme/typography';
 import { spacing, AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
+import { configService } from '../../services/configService';
 
 interface MenuItemProps {
   icon: keyof typeof MaterialIcons.glyphMap;
@@ -470,61 +471,70 @@ export const ProfileScreen: React.FC = () => {
             color={colors.purple}
             onPress={() => navigation.navigate('HelpSupport')}
           />
-          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
-          <TouchableOpacity style={styles.menuItem} onPress={toggleLanguage} activeOpacity={0.7}>
-            <View
-              style={[
-                styles.menuIconContainer,
-                { backgroundColor: 'rgba(16, 185, 129, 0.12)' },
-              ]}
-            >
-              <Ionicons
-                name="language"
-                size={22}
-                color="#10B981"
-              />
-            </View>
-            <View style={styles.menuContent}>
-              <Text style={[styles.menuTitle, { color: theme.textPrimary }]}>
-                {language === 'hi' ? 'भाषा (Language)' : 'Language (भाषा)'}
-              </Text>
-              <Text style={[styles.menuSubtitle, { color: theme.textSecondary }]}>
-                {language === 'hi' ? 'वर्तमान: हिन्दी (English में बदलें)' : 'Current: English (Switch to हिन्दी)'}
-              </Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={22} color={theme.textSecondary} />
-          </TouchableOpacity>
-          <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
-          <View style={styles.menuItem}>
-            <View
-              style={[
-                styles.menuIconContainer,
-                { backgroundColor: isDark ? 'rgba(251, 191, 36, 0.18)' : 'rgba(99, 102, 241, 0.12)' },
-              ]}
-            >
-              <Ionicons
-                name={isDark ? 'moon' : 'sunny'}
-                size={22}
-                color={isDark ? '#FBBF24' : '#6366F1'}
-              />
-            </View>
-            <View style={styles.menuContent}>
-              <Text style={[styles.menuTitle, { color: theme.textPrimary }]}>
-                {language === 'hi' ? 'डार्क मोड' : 'Dark Mode'}
-              </Text>
-              <Text style={[styles.menuSubtitle, { color: theme.textSecondary }]}>
-                {language === 'hi'
-                  ? (isDark ? 'डार्क थीम सक्रिय' : 'लाइट थीम सक्रिय')
-                  : (isDark ? 'Dark theme active' : 'Light theme active')}
-              </Text>
-            </View>
-            <Switch
-              value={isDark}
-              onValueChange={toggleTheme}
-              trackColor={{ false: theme.border, true: theme.primary }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
+          {configService.isLanguageSwitchAllowed() && (
+            <>
+              <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
+              <TouchableOpacity style={styles.menuItem} onPress={toggleLanguage} activeOpacity={0.7}>
+                <View
+                  style={[
+                    styles.menuIconContainer,
+                    { backgroundColor: 'rgba(16, 185, 129, 0.12)' },
+                  ]}
+                >
+                  <Ionicons
+                    name="language"
+                    size={22}
+                    color="#10B981"
+                  />
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={[styles.menuTitle, { color: theme.textPrimary }]}>
+                    {language === 'hi' ? 'भाषा (Language)' : 'Language (भाषा)'}
+                  </Text>
+                  <Text style={[styles.menuSubtitle, { color: theme.textSecondary }]}>
+                    {language === 'hi' ? 'वर्तमान: हिन्दी (English में बदलें)' : 'Current: English (Switch to हिन्दी)'}
+                  </Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={22} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </>
+          )}
+
+          {configService.isThemeSwitchAllowed() && (
+            <>
+              <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
+              <View style={styles.menuItem}>
+                <View
+                  style={[
+                    styles.menuIconContainer,
+                    { backgroundColor: isDark ? 'rgba(251, 191, 36, 0.18)' : 'rgba(99, 102, 241, 0.12)' },
+                  ]}
+                >
+                  <Ionicons
+                    name={isDark ? 'moon' : 'sunny'}
+                    size={22}
+                    color={isDark ? '#FBBF24' : '#6366F1'}
+                  />
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={[styles.menuTitle, { color: theme.textPrimary }]}>
+                    {language === 'hi' ? 'डार्क मोड' : 'Dark Mode'}
+                  </Text>
+                  <Text style={[styles.menuSubtitle, { color: theme.textSecondary }]}>
+                    {language === 'hi'
+                      ? (isDark ? 'डार्क थीम सक्रिय' : 'लाइट थीम सक्रिय')
+                      : (isDark ? 'Dark theme active' : 'Light theme active')}
+                  </Text>
+                </View>
+                <Switch
+                  value={isDark}
+                  onValueChange={toggleTheme}
+                  trackColor={{ false: theme.border, true: theme.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            </>
+          )}
         </View>
 
         {/* Logout or Sign In Button */}

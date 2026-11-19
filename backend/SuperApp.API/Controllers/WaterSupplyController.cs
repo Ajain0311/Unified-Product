@@ -12,6 +12,7 @@ namespace SuperApp.API.Controllers;
 
 [ApiController]
 [Route("api/water")]
+[RequireModuleEnabled("supplies")]
 public sealed class WaterSupplyController(AppDbContext db) : ControllerBase
 {
     private long? CurrentUserId => long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;

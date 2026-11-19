@@ -74,6 +74,7 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   const parsedParamId = Number(route.params?.restaurantId);
   const restaurantNumericId = Number.isInteger(parsedParamId) && parsedParamId > 0 ? parsedParamId : null;
   const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(0);
+  const [isVegOnly, setIsVegOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeItemForCustomization, setActiveItemForCustomization] = useState<FoodItemRow | null>(null);
   const [isCartVisible, setIsCartVisible] = useState(false);
@@ -176,6 +177,8 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
   }, [restaurantNumericId]);
 
   const filteredItems = foodItems.filter((f) => {
+    // Veg only filter
+    if (isVegOnly && !f.isVeg) return false;
     // Category filter
     if (selectedCategoryIndex > 0) {
       if (f.category !== menuCategories[selectedCategoryIndex]) return false;
@@ -486,31 +489,57 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
             </View>
           )}
 
-          {/* Category Pills - Connected to backend menuCategories */}
-          {!isLoadingMenu && !loadError && menuCategories.length > 1 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoriesRow}
-            >
-              {menuCategories.map((cat, idx) => {
-                const isSelected = idx === selectedCategoryIndex;
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[styles.categoryPill, isSelected ? styles.categoryPillActive : null]}
-                    onPress={() => setSelectedCategoryIndex(idx)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={[styles.categoryText, isSelected ? styles.categoryTextActive : null]}
-                    >
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+          {/* Filter Bar: Veg Only toggle + Categories */}
+          {!isLoadingMenu && !loadError && (
+            <View style={styles.filterBarContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.vegFilterButton,
+                  isVegOnly && styles.vegFilterButtonActive,
+                ]}
+                onPress={() => setIsVegOnly(!isVegOnly)}
+                activeOpacity={0.8}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: isVegOnly }}
+                testID="restaurant-veg-only-toggle"
+              >
+                <View style={[styles.vegSquareIcon, isVegOnly && styles.vegSquareIconActive]}>
+                  <View style={[styles.vegCircleDot, isVegOnly && styles.vegCircleDotActive]} />
+                </View>
+                <Text style={[styles.vegFilterText, isVegOnly && styles.vegFilterTextActive]}>
+                  {language === 'hi' ? 'शाकाहारी' : 'Veg Only'}
+                </Text>
+                {isVegOnly && (
+                  <Ionicons name="checkmark-sharp" size={13} color="#10B981" style={{ marginLeft: 3 }} />
+                )}
+              </TouchableOpacity>
+
+              {menuCategories.length > 1 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoriesRow}
+                >
+                  {menuCategories.map((cat, idx) => {
+                    const isSelected = idx === selectedCategoryIndex;
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[styles.categoryPill, isSelected ? styles.categoryPillActive : null]}
+                        onPress={() => setSelectedCategoryIndex(idx)}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[styles.categoryText, isSelected ? styles.categoryTextActive : null]}
+                        >
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
           )}
 
           {/* Dishes List */}
@@ -618,8 +647,20 @@ export const RestaurantDetailScreen: React.FC<RestaurantDetailScreenProps> = ({
                 No dishes found
               </Text>
               <Text style={{ fontSize: 13, color: theme.textTertiary, marginTop: 4, textAlign: 'center' }}>
-                {searchQuery ? `No results matching "${searchQuery}"` : 'Please select another category or check back later.'}
+                {isVegOnly && !searchQuery
+                  ? 'No vegetarian dishes found in this category. Try turning off the Veg Only filter.'
+                  : searchQuery
+                  ? `No results matching "${searchQuery}"`
+                  : 'Please select another category or check back later.'}
               </Text>
+              {isVegOnly && (
+                <TouchableOpacity
+                  style={[styles.addButton, { marginTop: 12, paddingHorizontal: 16, height: 36 }]}
+                  onPress={() => setIsVegOnly(false)}
+                >
+                  <Text style={styles.addButtonText}>Show All Dishes</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -756,9 +797,60 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
       color: theme.textTertiary,
       fontSize: 13,
     },
+    filterBarContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    vegFilterButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.card,
+      borderWidth: 1.5,
+      borderColor: theme.cardBorder,
+      borderRadius: AppRadius.full,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      marginRight: 10,
+    },
+    vegFilterButtonActive: {
+      borderColor: '#10B981',
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+    },
+    vegSquareIcon: {
+      width: 14,
+      height: 14,
+      borderRadius: 3,
+      borderWidth: 1.5,
+      borderColor: '#10B981',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 6,
+    },
+    vegSquareIconActive: {
+      borderColor: '#10B981',
+    },
+    vegCircleDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: '#10B981',
+    },
+    vegCircleDotActive: {
+      backgroundColor: '#10B981',
+    },
+    vegFilterText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.textSecondary,
+    },
+    vegFilterTextActive: {
+      color: '#10B981',
+      fontWeight: '700',
+    },
     categoriesRow: {
       paddingRight: 16,
-      marginBottom: 18,
+      alignItems: 'center',
     },
     categoryPill: {
       backgroundColor: theme.chipBg,

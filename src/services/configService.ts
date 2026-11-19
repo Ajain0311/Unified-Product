@@ -2,6 +2,40 @@ import { apiClient } from './apiClient';
 import { ApiEndpoints } from '../constants/api';
 import { AppEnvironment } from '../config/environment';
 
+export interface PlatformModulePublicConfig {
+  id: string;
+  key: string;
+  nameEn: string;
+  nameHi: string;
+  badgeEn?: string;
+  badgeHi?: string;
+  icon: string;
+  route: string;
+  category: string;
+  isEnabled: boolean;
+  sortOrder: number;
+  rolesAllowed?: string[];
+  layoutVariant?: string;
+}
+
+export interface PlatformThemeControlConfig {
+  allowUserThemeSwitch: boolean;
+  defaultTheme: 'light' | 'dark';
+}
+
+export interface PlatformLanguageControlConfig {
+  allowUserLanguageSwitch: boolean;
+  supportedLanguages: string[];
+  defaultLanguage: string;
+}
+
+export interface PlatformPublicControls {
+  modules: PlatformModulePublicConfig[];
+  theme: PlatformThemeControlConfig;
+  language: PlatformLanguageControlConfig;
+  systemSettings: Record<string, string>;
+}
+
 export interface RemoteClientConfig {
   mapProvider: string;
   mapboxAccessToken: string;
@@ -13,6 +47,7 @@ export interface RemoteClientConfig {
   signalRHubUrl: string;
   gpsMaxCachedAgeSeconds?: number;
   gpsMaxAccuracyMeters?: number;
+  platformControls?: PlatformPublicControls;
 }
 
 let cachedRemoteConfig: RemoteClientConfig | null = null;
@@ -58,5 +93,23 @@ export const configService = {
 
   getCachedConfig(): RemoteClientConfig | null {
     return cachedRemoteConfig;
+  },
+
+  getPlatformControls(): PlatformPublicControls | undefined {
+    return cachedRemoteConfig?.platformControls;
+  },
+
+  getEnabledModules(): PlatformModulePublicConfig[] | undefined {
+    return cachedRemoteConfig?.platformControls?.modules
+      .filter((m) => m.isEnabled)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  },
+
+  isThemeSwitchAllowed(): boolean {
+    return cachedRemoteConfig?.platformControls?.theme.allowUserThemeSwitch ?? true;
+  },
+
+  isLanguageSwitchAllowed(): boolean {
+    return cachedRemoteConfig?.platformControls?.language.allowUserLanguageSwitch ?? true;
   },
 };

@@ -77,5 +77,18 @@ public static class ProductionSecurityValidator
             throw new InvalidOperationException("CRITICAL: MockNotificationService cannot be used in a Production environment. Configure NOTIFICATION_PROVIDER=Push, Expo, or Fcm.");
         }
     }
+
+    public static void ValidateMfaEncryptionKey(string? mfaKey, string? jwtSecret, bool isProduction)
+    {
+        if (!isProduction) return;
+
+        var keyToUse = !string.IsNullOrWhiteSpace(mfaKey) ? mfaKey : jwtSecret;
+        if (string.IsNullOrWhiteSpace(keyToUse) ||
+            string.Equals(keyToUse, DefaultDevJwtSecret, StringComparison.OrdinalIgnoreCase) ||
+            keyToUse.Length < 32)
+        {
+            throw new InvalidOperationException("CRITICAL: Insecure or default MFA/TOTP encryption key cannot be used in Production. Configure a strong TOTP_ENCRYPTION_KEY or JWT_SECRET with at least 32 characters.");
+        }
+    }
 }
 

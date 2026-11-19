@@ -1,3 +1,5 @@
+import { configService } from '../services/configService';
+
 /**
  * Centralized Ecosystem Module Registry
  *
@@ -174,6 +176,74 @@ export function getAvailableModules(
     if (!m.rolesAllowed) return true;
     return m.rolesAllowed.includes(activeRole as any);
   });
+}
+
+/**
+ * Resolves ecosystem modules dynamically respecting Master Admin remote configuration
+ * (active killswitch status, visibility, and custom sort order).
+ */
+export function resolveConfiguredModules(
+  activeRole: string = 'CUSTOMER'
+): BusinessModuleConfig[] {
+  const remoteModules = configService.getPlatformControls()?.modules;
+  if (!remoteModules || remoteModules.length === 0) {
+    return getAvailableModules(activeRole);
+  }
+
+  const remoteMap = new Map<string, any>();
+  remoteModules.forEach((rm) => remoteMap.set(rm.key.toLowerCase(), rm));
+
+  const resolved: BusinessModuleConfig[] = [];
+
+  for (const base of BUSINESS_MODULES) {
+    const remote = remoteMap.get(base.key.toLowerCase());
+    if (remote) {
+      if (!remote.isEnabled) {
+        // Disabled by Master Admin
+        continue;
+      }
+      if (base.rolesAllowed && !base.rolesAllowed.includes(activeRole as any)) {
+        continue;
+      }
+      resolved.push({
+        ...base,
+        nameEn: remote.nameEn || base.nameEn,
+        nameHi: remote.nameHi || base.nameHi,
+        badgeEn: remote.badgeEn ?? base.badgeEn,
+        badgeHi: remote.badgeHi ?? base.badgeHi,
+        isEnabled: remote.isEnabled,
+      });
+    } else {
+      if (base.isEnabled && base.isReady && (!base.rolesAllowed || base.rolesAllowed.includes(activeRole as any))) {
+        resolved.push(base);
+      }
+    }
+  }
+
+  // Sort by Master Admin sortOrder
+  resolved.sort((a, b) => {
+    const orderA = remoteMap.get(a.key.toLowerCase())?.sortOrder ?? 999;
+    const orderB = remoteMap.get(b.key.toLowerCase())?.sortOrder ?? 999;
+    return orderA - orderB;
+  });
+
+  return resolved;
+}
+
+/**
+ * Checks if a specific module is active according to Master Admin controls.
+ */
+export function isModuleEnabled(key: string): boolean {
+  if (!key) return true;
+  const remoteModules = configService.getPlatformControls()?.modules;
+  if (remoteModules && remoteModules.length > 0) {
+    const found = remoteModules.find((m) => m.key.toLowerCase() === key.toLowerCase());
+    if (found) {
+      return found.isEnabled;
+    }
+  }
+  const base = BUSINESS_MODULES.find((m) => m.key.toLowerCase() === key.toLowerCase());
+  return base ? base.isEnabled && base.isReady : true;
 }
 
 /**

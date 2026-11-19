@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
@@ -58,6 +58,30 @@ async function openPhoneDialer(rawPhone: string): Promise<void> {
     await Linking.openURL(telUrl);
   } catch {
     Alert.alert('Call Error', `Could not open phone dialer. Number: ${rawPhone}`);
+  }
+}
+
+function sanitizeWhatsAppNumber(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  if (digits.length === 10) return `91${digits}`;
+  return digits;
+}
+
+async function openWhatsAppChat(rawPhone: string, listingTitle?: string): Promise<void> {
+  const sanitized = sanitizeWhatsAppNumber(rawPhone);
+  if (!sanitized) {
+    Alert.alert('Invalid WhatsApp Number', 'Seller phone number format is invalid.');
+    return;
+  }
+  const defaultMsg = listingTitle
+    ? `Namaste! I am interested in your listing "${listingTitle}" on Zupify. Is it still available?`
+    : `Namaste! I am interested in your listing on Zupify. Is it still available?`;
+  const url = `https://wa.me/${sanitized}?text=${encodeURIComponent(defaultMsg)}`;
+  try {
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert('WhatsApp Error', 'Could not open WhatsApp on this device.');
   }
 }
 
@@ -282,6 +306,19 @@ export const ListingDetailScreen: React.FC = () => {
     await openPhoneDialer(rawPhone);
   };
 
+  const handleWhatsAppSeller = async () => {
+    if (!detail || isOwner) return;
+    const rawPhone = detail.sellerPhone?.trim();
+    if (!rawPhone) {
+      Alert.alert(
+        'WhatsApp Unavailable',
+        'Seller has not shared a mobile number for WhatsApp. Use in-app chat instead.',
+      );
+      return;
+    }
+    await openWhatsAppChat(rawPhone, detail.title);
+  };
+
   const handleReportListing = async () => {
     if (!reportReason) return;
     setIsSubmittingReport(true);
@@ -499,13 +536,18 @@ export const ListingDetailScreen: React.FC = () => {
                 <View style={styles.sellerDivider} />
                 <View style={styles.sellerActionsRow}>
                   <TouchableOpacity style={styles.sellerChatBtn} onPress={handleOpenChat}>
-                    <MaterialIcons name="chat-bubble-outline" size={16} color="#FFFFFF" />
+                    <MaterialIcons name="chat-bubble-outline" size={16} color={theme.textPrimary} />
                     <Text style={styles.sellerActionText}>Chat</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={styles.sellerCallBtn} onPress={handleCallSeller}>
-                    <MaterialIcons name="call" size={16} color="#FFFFFF" />
+                    <MaterialIcons name="call" size={16} color={theme.textPrimary} />
                     <Text style={styles.sellerActionText}>Call</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.sellerWhatsAppBtn} onPress={handleWhatsAppSeller}>
+                    <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
+                    <Text style={[styles.sellerActionText, { color: '#FFFFFF' }]}>WhatsApp</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -528,8 +570,17 @@ export const ListingDetailScreen: React.FC = () => {
       {/* Persistent Bottom Action Bar */}
       {canContactSeller ? (
         <View style={[styles.bottomBar, { backgroundColor: theme.surface, borderTopColor: theme.cardBorder }]}>
+          <TouchableOpacity
+            style={styles.bottomWhatsAppBtn}
+            onPress={handleWhatsAppSeller}
+            accessibilityLabel="Chat on WhatsApp"
+            activeOpacity={0.85}
+          >
+            <Ionicons name="logo-whatsapp" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+
           <TouchableOpacity style={[styles.bottomContactBtn, { borderColor: theme.primary }]} onPress={() => setShowContactModal(true)}>
-            <Text style={[styles.bottomContactText, { color: theme.primary }]}>Chat / Call</Text>
+            <Text style={[styles.bottomContactText, { color: theme.primary }]}>Call / Chat</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.bottomOfferBtn, { backgroundColor: theme.primary }]} onPress={() => setShowOfferModal(true)}>
@@ -606,6 +657,22 @@ export const ListingDetailScreen: React.FC = () => {
                 <MaterialIcons name="close" size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              style={styles.contactOptionRow}
+              onPress={async () => {
+                setShowContactModal(false);
+                await handleWhatsAppSeller();
+              }}
+            >
+              <View style={[styles.contactIconCircle, { backgroundColor: 'rgba(37, 211, 102, 0.18)' }]}>
+                <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
+              </View>
+              <View>
+                <Text style={styles.contactOptionTitle}>Chat on WhatsApp</Text>
+                <Text style={styles.contactOptionSub}>Direct inquiry with seller via WhatsApp</Text>
+              </View>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.contactOptionRow}
@@ -972,6 +1039,16 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
       borderRadius: 10,
       gap: 6,
     },
+    sellerWhatsAppBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#25D366',
+      paddingVertical: 10,
+      borderRadius: 10,
+      gap: 6,
+    },
     sellerActionText: {
       color: theme.textPrimary,
       fontWeight: '600',
@@ -1006,13 +1083,22 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
       left: 0,
       right: 0,
       flexDirection: 'row',
+      alignItems: 'center',
       paddingHorizontal: spacing.md,
       paddingVertical: 12,
       paddingBottom: 24,
       backgroundColor: theme.surface,
       borderTopWidth: 1,
       borderTopColor: theme.cardBorder,
-      gap: 12,
+      gap: 10,
+    },
+    bottomWhatsAppBtn: {
+      width: 48,
+      height: 48,
+      backgroundColor: '#25D366',
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     bottomContactBtn: {
       flex: 1,

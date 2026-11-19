@@ -238,4 +238,43 @@ export const mapboxService = {
       return null;
     }
   },
+
+  async getNearbySuggestions(
+    proximity: { latitude: number; longitude: number }
+  ): Promise<MapPlaceSuggestion[]> {
+    const token = this.getAccessToken();
+    if (!token) return [];
+
+    const results: MapPlaceSuggestion[] = [];
+    const seenNames = new Set<string>();
+
+    try {
+      const params = new URLSearchParams({
+        access_token: token,
+        country: 'IN',
+        limit: '8',
+        types: 'poi,place,locality',
+        proximity: `${proximity.longitude.toFixed(5)},${proximity.latitude.toFixed(5)}`,
+        language: 'en',
+      });
+
+      const url = `${GEOCODE_BASE}/station%20hospital%20market%20temple%20point.json?${params.toString()}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        const features: MapboxFeature[] = Array.isArray(data?.features) ? data.features : [];
+        for (const f of features) {
+          const sug = featureToSuggestion(f);
+          if (sug && sug.name && !seenNames.has(sug.name.toLowerCase().trim())) {
+            seenNames.add(sug.name.toLowerCase().trim());
+            results.push(sug);
+          }
+        }
+      }
+    } catch {
+      // Silent fallback
+    }
+
+    return results.slice(0, 6);
+  },
 };

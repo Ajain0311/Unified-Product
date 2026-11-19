@@ -8,7 +8,7 @@ using SuperApp.API.Services;
 
 namespace SuperApp.API.Controllers;
 
-[Authorize(Roles = RoleNames.Admin)]
+[Authorize(Roles = $"{RoleNames.Admin},{RoleNames.MasterAdmin}")]
 [ApiController]
 [Route("api/[controller]")]
 public class AdminController : ControllerBase
@@ -213,6 +213,9 @@ public class AdminController : ControllerBase
                 if (string.IsNullOrWhiteSpace(request.RoleName))
                     return BadRequest(ApiResponse.Fail("RoleName is required"));
 
+                if (string.Equals(request.RoleName.Trim(), RoleNames.MasterAdmin, StringComparison.OrdinalIgnoreCase))
+                    return BadRequest(ApiResponse.Fail("MASTER_ADMIN privileges cannot be granted or revoked via the standard Admin portal."));
+
                 var role = await _db.Roles.FirstOrDefaultAsync(r => r.Name == request.RoleName.Trim().ToUpperInvariant());
                 if (role == null)
                     return BadRequest(ApiResponse.Fail($"Role '{request.RoleName}' does not exist"));
@@ -415,6 +418,9 @@ public class AdminController : ControllerBase
 
         if (!wanted.Contains(RoleNames.Customer))
             wanted.Add(RoleNames.Customer);
+
+        if (wanted.Contains(RoleNames.MasterAdmin))
+            return BadRequest(ApiResponse<AdminUserDto>.Fail("MASTER_ADMIN role cannot be assigned via the standard Admin portal."));
 
         var known = await _db.Roles.ToListAsync();
         foreach (var name in wanted)

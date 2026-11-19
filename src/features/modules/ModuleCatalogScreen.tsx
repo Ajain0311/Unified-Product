@@ -17,6 +17,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { useAppTheme } from '../../theme/themeStore';
 import { useModuleStore } from '../../store/moduleStore';
 import { SuperAppModule } from '../../services/moduleManager';
+import { isModuleEnabled } from '../../config/businessModules';
 
 export const ModuleCatalogScreen: React.FC = () => {
   const { theme, isDark } = useAppTheme();
@@ -92,7 +93,7 @@ export const ModuleCatalogScreen: React.FC = () => {
   };
 
   const coreModules = modules.filter(m => m.isCore);
-  const businessModules = modules.filter(m => !m.isCore && m.status !== 'coming_soon');
+  const businessModules = modules.filter(m => !m.isCore && m.status !== 'coming_soon' && isModuleEnabled(m.id));
   const futureModules = modules.filter(m => m.status === 'coming_soon');
 
   return (

@@ -52,6 +52,18 @@ const CATEGORIES = [
   'Desserts',
 ];
 
+interface RecentOrderSummary {
+  id: string;
+  rawId: number | string;
+  orderNumber?: string;
+  restaurantId?: number | string;
+  restaurantName: string;
+  itemsText: string;
+  grandTotal: number;
+  status: string;
+  date: string;
+}
+
 export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) => {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
@@ -66,6 +78,7 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
   const [searchQuery, setSearchQuery] = useState('');
   const [foods, setFoods] = useState<FoodCatalogItem[]>([]);
   const [deliverTo, setDeliverTo] = useState('Chittorgarh District, Rajasthan');
+  const [recentOrder, setRecentOrder] = useState<RecentOrderSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
@@ -101,6 +114,7 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
     useCallback(() => {
       if (!isAuthenticated) {
         setDeliverTo('Chittorgarh District, Rajasthan');
+        setRecentOrder(null);
         return;
       }
       apiClient
@@ -118,6 +132,35 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
         })
         .catch(() => {
           setDeliverTo('Chittorgarh District, Rajasthan');
+        });
+
+      // Fetch user's recent food order for 1-tap reorder card
+      apiClient
+        .get<any>(ApiEndpoints.food.orders, { suppressAuthPrompt: true })
+        .then((res) => {
+          const payload = res?.data?.data ?? res?.data ?? res;
+          if (Array.isArray(payload) && payload.length > 0) {
+            const o = payload[0];
+            const itemsText = Array.isArray(o.items) && o.items.length > 0
+              ? o.items.map((i: any) => `${i.quantity}x ${i.itemName || i.name}`).join(', ')
+              : 'Dishes';
+            setRecentOrder({
+              id: `#${o.orderNumber || `FO-${o.id}`}`,
+              rawId: o.id,
+              orderNumber: o.orderNumber,
+              restaurantId: o.restaurantId,
+              restaurantName: o.restaurantName || 'Restaurant',
+              itemsText,
+              grandTotal: Number(o.grandTotal || o.totalAmount || 0),
+              status: String(o.status || 'COMPLETED').toUpperCase(),
+              date: o.createdAt ? new Date(o.createdAt).toLocaleDateString() : 'Recent',
+            });
+          } else {
+            setRecentOrder(null);
+          }
+        })
+        .catch(() => {
+          setRecentOrder(null);
         });
     }, [isAuthenticated])
   );
@@ -357,6 +400,68 @@ export const FoodHomeScreen: React.FC<FoodHomeScreenProps> = ({ navigation }) =>
             </Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Repeat Last Order Card (authenticated users with past orders) */}
+        {recentOrder && (
+          <View
+            style={[
+              styles.reorderCard,
+              { backgroundColor: theme.card, borderColor: theme.cardBorder },
+              AppShadows.subtle,
+            ]}
+          >
+            <View style={styles.reorderLeftCol}>
+              <View style={styles.reorderBadgeRow}>
+                <View style={styles.reorderIconBadge}>
+                  <Ionicons name="repeat" size={11} color="#FFFFFF" />
+                </View>
+                <Text style={styles.reorderBadgeText}>
+                  {language === 'hi' ? 'पिछला ऑर्डर दोहराएं' : 'REPEAT LAST ORDER'}
+                </Text>
+                <Text style={[styles.reorderDate, { color: theme.textTertiary }]}>
+                  · {recentOrder.date}
+                </Text>
+              </View>
+              <Text
+                style={[styles.reorderRestaurant, { color: theme.textPrimary }]}
+                numberOfLines={1}
+              >
+                {recentOrder.restaurantName}
+              </Text>
+              <Text
+                style={[styles.reorderItemsText, { color: theme.textSecondary }]}
+                numberOfLines={1}
+              >
+                {recentOrder.itemsText}
+              </Text>
+              <Text style={styles.reorderTotalText}>
+                ₹{recentOrder.grandTotal}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.reorderActionBtn}
+              onPress={() => {
+                if (recentOrder.restaurantId) {
+                  navigation.navigate('RestaurantDetail', {
+                    restaurantId: String(recentOrder.restaurantId),
+                  });
+                } else {
+                  navigation.navigate('Activity', { screen: 'Food Orders' });
+                }
+              }}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`Reorder from ${recentOrder.restaurantName}`}
+              testID="food-reorder-btn"
+            >
+              <Ionicons name="repeat-outline" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Text style={styles.reorderActionText}>
+                {language === 'hi' ? 'दोहराएं' : 'Reorder'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Category Pills */}
         <ScrollView
@@ -869,6 +974,71 @@ const styles = StyleSheet.create({
   cartBarAction: {
     color: '#FFFFFF',
     fontSize: 13,
+    fontWeight: '700',
+  },
+  reorderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 14,
+    borderRadius: AppRadius.md,
+    borderWidth: 1,
+  },
+  reorderLeftCol: {
+    flex: 1,
+    marginRight: 12,
+  },
+  reorderBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  reorderIconBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF5A1F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  reorderBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FF5A1F',
+    letterSpacing: 0.5,
+  },
+  reorderDate: {
+    fontSize: 10,
+    marginLeft: 4,
+  },
+  reorderRestaurant: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  reorderItemsText: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  reorderTotalText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#10B981',
+  },
+  reorderActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF5A1F',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: AppRadius.full,
+  },
+  reorderActionText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '700',
   },
 });

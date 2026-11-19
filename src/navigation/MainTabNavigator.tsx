@@ -20,6 +20,8 @@ import { VendorMenuScreen } from '../features/vendor/VendorMenuScreen';
 import { SellerDashboardScreen } from '../features/seller/SellerDashboardScreen';
 import { AddListingScreen } from '../features/marketplace/AddListingScreen';
 import { AdminPortalScreen } from '../features/admin/AdminPortalScreen';
+import { MasterAdminControlPanelScreen } from '../features/masterAdmin/MasterAdminControlPanelScreen';
+import { isModuleEnabled } from '../config/businessModules';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -81,48 +83,54 @@ const MainTabNavigatorComponent: React.FC = () => {
               ),
             }}
           />
-          <Tab.Screen
-            name="Food"
-            component={FoodHomeScreen}
-            options={{
-              tabBarLabel: 'Food',
-              tabBarButtonTestID: 'tab-food',
-              tabBarIcon: ({ color, focused }) => (
-                <View style={styles.iconWrapper}>
-                  <Ionicons name={focused ? 'restaurant' : 'restaurant-outline'} size={21} color={color} />
-                  {focused && <View style={[styles.dot, { backgroundColor: '#FF5A1F' }]} />}
-                </View>
-              ),
-            }}
-          />
-          <Tab.Screen
-            name="Rides"
-            component={RideBookingScreen}
-            options={{
-              tabBarLabel: 'Rides',
-              tabBarButtonTestID: 'tab-rides',
-              tabBarIcon: ({ color, focused }) => (
-                <View style={styles.iconWrapper}>
-                  <Ionicons name={focused ? 'car-sport' : 'car-sport-outline'} size={21} color={color} />
-                  {focused && <View style={[styles.dot, { backgroundColor: '#2563EB' }]} />}
-                </View>
-              ),
-            }}
-          />
-          <Tab.Screen
-            name="Bazaar"
-            component={MarketplaceHomeScreen}
-            options={{
-              tabBarLabel: 'Bazaar',
-              tabBarButtonTestID: 'tab-bazaar',
-              tabBarIcon: ({ color, focused }) => (
-                <View style={styles.iconWrapper}>
-                  <Ionicons name={focused ? 'bag-handle' : 'bag-handle-outline'} size={21} color={color} />
-                  {focused && <View style={[styles.dot, { backgroundColor: '#D97706' }]} />}
-                </View>
-              ),
-            }}
-          />
+          {isModuleEnabled('food') && (
+            <Tab.Screen
+              name="Food"
+              component={FoodHomeScreen}
+              options={{
+                tabBarLabel: 'Food',
+                tabBarButtonTestID: 'tab-food',
+                tabBarIcon: ({ color, focused }) => (
+                  <View style={styles.iconWrapper}>
+                    <Ionicons name={focused ? 'restaurant' : 'restaurant-outline'} size={21} color={color} />
+                    {focused && <View style={[styles.dot, { backgroundColor: '#FF5A1F' }]} />}
+                  </View>
+                ),
+              }}
+            />
+          )}
+          {isModuleEnabled('rides') && (
+            <Tab.Screen
+              name="Rides"
+              component={RideBookingScreen}
+              options={{
+                tabBarLabel: 'Rides',
+                tabBarButtonTestID: 'tab-rides',
+                tabBarIcon: ({ color, focused }) => (
+                  <View style={styles.iconWrapper}>
+                    <Ionicons name={focused ? 'car-sport' : 'car-sport-outline'} size={21} color={color} />
+                    {focused && <View style={[styles.dot, { backgroundColor: '#2563EB' }]} />}
+                  </View>
+                ),
+              }}
+            />
+          )}
+          {isModuleEnabled('bazaar') && (
+            <Tab.Screen
+              name="Bazaar"
+              component={MarketplaceHomeScreen}
+              options={{
+                tabBarLabel: 'Bazaar',
+                tabBarButtonTestID: 'tab-bazaar',
+                tabBarIcon: ({ color, focused }) => (
+                  <View style={styles.iconWrapper}>
+                    <Ionicons name={focused ? 'bag-handle' : 'bag-handle-outline'} size={21} color={color} />
+                    {focused && <View style={[styles.dot, { backgroundColor: '#D97706' }]} />}
+                  </View>
+                ),
+              }}
+            />
+          )}
         </>
       )}
 
@@ -256,6 +264,24 @@ const MainTabNavigatorComponent: React.FC = () => {
                 <View style={styles.iconWrapper}>
                   <Ionicons name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'} size={21} color={color} />
                   {focused && <View style={[styles.dot, { backgroundColor: activeColor }]} />}
+                </View>
+              ),
+            }}
+          />
+        </>
+      )}
+
+      {activeRole === 'MASTER_ADMIN' && (
+        <>
+          <Tab.Screen
+            name="AdminDashboard"
+            component={MasterAdminControlPanelScreen}
+            options={{
+              tabBarLabel: 'Killswitch',
+              tabBarIcon: ({ color, focused }) => (
+                <View style={styles.iconWrapper}>
+                  <Ionicons name={focused ? 'key' : 'key-outline'} size={21} color="#D97706" />
+                  {focused && <View style={[styles.dot, { backgroundColor: '#D97706' }]} />}
                 </View>
               ),
             }}

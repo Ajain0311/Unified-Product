@@ -9,7 +9,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useRoleStore, AppRole, ROLE_CONFIGS } from '../store/roleStore';
+import { storage } from '../services/storage';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
@@ -21,10 +23,24 @@ interface RoleSwitchModalProps {
 
 export const RoleSwitchModal: React.FC<RoleSwitchModalProps> = ({ visible, onClose }) => {
   const { activeRole, availableRoles, switchRole } = useRoleStore();
+  const navigation = useNavigation<any>();
 
   const handleSelectRole = async (role: AppRole) => {
     if (role !== activeRole) {
-      await switchRole(role);
+      if (role === 'MASTER_ADMIN') {
+        const isMfa = await storage.isMasterAdminMfaVerified();
+        if (!isMfa) {
+          onClose();
+          navigation.navigate('MasterAdminLogin');
+          return;
+        }
+      }
+      const switched = await switchRole(role);
+      if (!switched && role === 'MASTER_ADMIN') {
+        onClose();
+        navigation.navigate('MasterAdminLogin');
+        return;
+      }
     }
     onClose();
   };
