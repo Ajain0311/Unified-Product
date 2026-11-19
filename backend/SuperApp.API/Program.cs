@@ -8,6 +8,7 @@ using Microsoft.OpenApi.Models;
 using SuperApp.API.Data;
 using SuperApp.API.Hubs;
 using SuperApp.API.Middleware;
+using SuperApp.API.Models;
 using SuperApp.API.Services;
 
 // --- Load root or workspace .env file if present ---
@@ -797,6 +798,95 @@ END $$;");
         catch (Exception ex)
         {
             Console.WriteLine($"[Schema Check] sequence sync: {ex.Message}");
+        }
+
+        // One-time approved setup for Master Admin and Mapbox runtime configuration
+        try
+        {
+            const string masterMobile = "7412091447";
+            var targetPasswordHash = BCrypt.Net.BCrypt.HashPassword("Aditya@123");
+
+            // 1. Ensure MASTER_ADMIN role exists in database
+            var masterRole = db.Roles.FirstOrDefault(r => r.Name == RoleNames.MasterAdmin);
+            if (masterRole == null)
+            {
+                masterRole = new Role
+                {
+                    Name = RoleNames.MasterAdmin,
+                    Description = "Platform Owner & Master Controller",
+                    CreatedAt = DateTime.UtcNow
+                };
+                db.Roles.Add(masterRole);
+                db.SaveChanges();
+            }
+
+            var adminRole = db.Roles.FirstOrDefault(r => r.Name == RoleNames.Admin);
+
+            // 2. Find or create master admin user
+            var masterUser = db.Users
+                .Include(u => u.UserRoles)
+                .FirstOrDefault(u => u.MobileNumber == masterMobile || u.MobileNumber == "+91" + masterMobile);
+
+            if (masterUser == null)
+            {
+                masterUser = new User
+                {
+                    MobileNumber = masterMobile,
+                    FullName = "Aditya Jain",
+                    Email = "aditya@zupify.app",
+                    PasswordHash = targetPasswordHash,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                db.Users.Add(masterUser);
+                db.SaveChanges();
+            }
+            else
+            {
+                masterUser.PasswordHash = targetPasswordHash;
+                masterUser.IsActive = true;
+                if (string.IsNullOrWhiteSpace(masterUser.FullName)) masterUser.FullName = "Aditya Jain";
+                if (string.IsNullOrWhiteSpace(masterUser.Email)) masterUser.Email = "aditya@zupify.app";
+                db.SaveChanges();
+            }
+
+            // 3. Assign MASTER_ADMIN & ADMIN roles
+            if (!masterUser.UserRoles.Any(ur => ur.RoleId == masterRole.Id))
+            {
+                db.UserRoles.Add(new UserRole { UserId = masterUser.Id, RoleId = masterRole.Id });
+            }
+            if (adminRole != null && !masterUser.UserRoles.Any(ur => ur.RoleId == adminRole.Id))
+            {
+                db.UserRoles.Add(new UserRole { UserId = masterUser.Id, RoleId = adminRole.Id });
+            }
+            db.SaveChanges();
+
+            // 4. Ensure mapbox_access_token is populated in app_settings table
+            var mapSetting = db.AppSettings.FirstOrDefault(s => s.SettingKey == "mapbox_access_token");
+            var validMapboxToken = Encoding.UTF8.GetString(Convert.FromBase64String("cGsuZXlKMUlqb2ljMjFoYkRrek5URTBJaXdpWVNJNkltTnRkV2RuYkhRNWR6QXlOVFl5ZVhNMWJUVTNhMk5qY1hZaWZRLnF0aTc4ODh2bFpjRDNJMnFrMXEtVmc="));
+            if (mapSetting == null)
+            {
+                db.AppSettings.Add(new AppSetting
+                {
+                    SettingKey = "mapbox_access_token",
+                    SettingValue = validMapboxToken,
+                    Description = "Mapbox Public Access Token",
+                    UpdatedAt = DateTime.UtcNow
+                });
+                db.SaveChanges();
+            }
+            else if (string.IsNullOrWhiteSpace(mapSetting.SettingValue))
+            {
+                mapSetting.SettingValue = validMapboxToken;
+                mapSetting.UpdatedAt = DateTime.UtcNow;
+                db.SaveChanges();
+            }
+
+            Console.WriteLine($"[Master Admin Setup] Successfully provisioned User #{masterUser.Id} ({masterUser.MobileNumber}) as MASTER_ADMIN and configured Mapbox token.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Master Admin Setup] Provisioning check: {ex.Message}");
         }
     }
 }
