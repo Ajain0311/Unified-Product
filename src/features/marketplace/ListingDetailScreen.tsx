@@ -32,6 +32,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAuthModalStore } from '../../store/authModalStore';
 import { useAppTheme, ThemePalette } from '../../theme/themeStore';
 import { isAuthenticationError } from '../../utils/authErrors';
+import { absoluteImageUrl } from '../../services/documentService';
 
 const { width } = Dimensions.get('window');
 
@@ -107,9 +108,10 @@ export const ListingDetailScreen: React.FC = () => {
         const imagesRaw = Array.isArray(data.images) ? data.images : [];
         const images = imagesRaw
           .map((im: any) => (typeof im === 'string' ? im : im?.imageUrl))
-          .filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+          .filter((u: any) => typeof u === 'string' && u.trim().length > 0)
+          .map((u: string) => absoluteImageUrl(u));
         if (images.length === 0 && data.primaryImageUrl) {
-          images.push(String(data.primaryImageUrl));
+          images.push(absoluteImageUrl(String(data.primaryImageUrl)));
         }
         setDetail({
           id: Number.isFinite(resolvedId) ? resolvedId : idNum,
@@ -140,7 +142,35 @@ export const ListingDetailScreen: React.FC = () => {
         setError('Listing details not found');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load listing');
+      // Fallback: check if the item is in customListings (local / offline)
+      const localItem = useMarketplaceStore
+        .getState()
+        .customListings.find((c) => String(c.id) === String(listingId) || c.id === idNum);
+      if (localItem) {
+        const localImg = localItem.primaryImageUrl ? [absoluteImageUrl(localItem.primaryImageUrl)] : [];
+        setDetail({
+          id: localItem.id,
+          title: localItem.title,
+          description: null,
+          price: Number(localItem.price),
+          condition: localItem.condition ?? '',
+          location: localItem.location ?? null,
+          images: localImg,
+          isFeatured: Boolean(localItem.isFeatured),
+          viewCount: localItem.viewCount || 1,
+          createdAt: localItem.createdAt || new Date().toISOString(),
+          categoryId: localItem.categoryId || 0,
+          categoryName: localItem.categoryName || '',
+          sellerId: 0,
+          sellerName: 'Local Seller',
+          sellerPhone: null,
+          sellerJoinedAt: null,
+          isFavorite: favorites.includes(localItem.id),
+        });
+        setError(null);
+      } else {
+        setError(err.message || 'Failed to load listing');
+      }
     } finally {
       setIsLoading(false);
     }
