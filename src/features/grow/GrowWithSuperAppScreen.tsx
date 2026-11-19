@@ -46,7 +46,7 @@ export const GrowWithSuperAppScreen: React.FC = () => {
       icon: 'business',
       iconColor: '#7C3AED',
       bgColor: '#F5F3FF',
-      action: () => navigation.navigate('HotelOwnerDashboard'),
+      action: () => navigation.navigate('RoleApplication', { role: 'HOTEL_OWNER' }),
     },
     {
       id: 'seller',

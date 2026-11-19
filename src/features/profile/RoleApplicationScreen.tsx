@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,10 @@ import {
   Image,
   Platform,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,6 +26,8 @@ import { documentService } from '../../services/documentService';
 import { ApiEndpoints } from '../../constants/api';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { locationService } from '../../services/locationService';
+import { mapboxService, MapPlaceSuggestion, SelectedMapPlace } from '../../services/mapboxService';
+import { LocationMapPicker } from '../../components/maps/LocationMapPicker';
 
 type RoleKind = 'DRIVER' | 'RESTAURANT_OWNER' | 'HOTEL_OWNER';
 
@@ -142,6 +145,12 @@ export const RoleApplicationScreen: React.FC = () => {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Map & Place Search States
+  const [isMapModalVisible, setIsMapModalVisible] = useState(false);
+  const [placeHits, setPlaceHits] = useState<{ label: string; latitude: number; longitude: number; city?: string }[]>([]);
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const title = useMemo(
     () =>
       isDriver
@@ -234,6 +243,65 @@ export const RoleApplicationScreen: React.FC = () => {
     } finally {
       setFetchingGps(false);
     }
+  };
+
+  const handleAddressSearch = (text: string) => {
+    setHotelAddress(text);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    if (text.trim().length < 2) {
+      setPlaceHits([]);
+      setIsSearchingPlaces(false);
+      return;
+    }
+
+    setIsSearchingPlaces(true);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const hits = await mapboxService.searchPlaces(text.trim(), gpsCoordinates || undefined);
+        setPlaceHits(
+          hits.map((hit) => ({
+            label: hit.address || hit.name,
+            latitude: hit.latitude,
+            longitude: hit.longitude,
+            city: hit.city,
+          }))
+        );
+      } catch {
+        setPlaceHits([]);
+      } finally {
+        setIsSearchingPlaces(false);
+      }
+    }, 250);
+  };
+
+  const handleSelectPlaceHit = (hit: { label: string; latitude: number; longitude: number; city?: string }) => {
+    setHotelAddress(hit.label);
+    setGpsCoordinates({ latitude: hit.latitude, longitude: hit.longitude });
+    if (hit.city) {
+      setHotelCity(hit.city);
+    } else {
+      const parts = hit.label.split(',').map((s) => s.trim());
+      if (parts.length >= 2) {
+        setHotelCity(parts[parts.length - 2]);
+      }
+    }
+    setPlaceHits([]);
+  };
+
+  const handleMapPlaceSelect = (place: SelectedMapPlace) => {
+    setGpsCoordinates({ latitude: place.latitude, longitude: place.longitude });
+    const resolved = place.address || `${place.latitude.toFixed(6)}, ${place.longitude.toFixed(6)}`;
+    setHotelAddress(resolved);
+    if (place.city) {
+      setHotelCity(place.city);
+    } else {
+      const parts = resolved.split(',').map((s) => s.trim());
+      if (parts.length >= 2) {
+        setHotelCity(parts[parts.length - 2]);
+      }
+    }
+    setIsMapModalVisible(false);
   };
 
   const pickDocument = async () => {
@@ -617,40 +685,123 @@ export const RoleApplicationScreen: React.FC = () => {
                     placeholder="Spice Hub Cafe"
                     placeholderTextColor={theme.textTertiary}
                   />
-                  <Text style={[styles.label, { color: theme.textSecondary }]}>Outlet Address (from GPS) *</Text>
-                  <TouchableOpacity
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: theme.primaryMuted,
-                      borderColor: theme.primary,
-                      borderWidth: 1,
-                      borderRadius: 10,
-                      paddingVertical: 12,
-                      paddingHorizontal: 16,
-                      marginBottom: 10,
-                    }}
-                    onPress={handleFetchGpsLocation}
-                    disabled={fetchingGps}
-                  >
-                    {fetchingGps ? (
-                      <ActivityIndicator size="small" color={theme.primary} style={{ marginRight: 8 }} />
-                    ) : (
-                      <Ionicons name="navigate-circle-outline" size={20} color={theme.primary} style={{ marginRight: 8 }} />
+                  <Text style={[styles.label, { color: theme.textSecondary }]}>Outlet Address (Search or Pin on Map) *</Text>
+                  
+                  {/* Action buttons: GPS + Pin on Map */}
+                  <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                    <TouchableOpacity
+                      style={{
+                        flex: 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: theme.primaryMuted,
+                        borderColor: theme.primary,
+                        borderWidth: 1,
+                        borderRadius: 10,
+                        paddingVertical: 10,
+                        paddingHorizontal: 8,
+                      }}
+                      onPress={handleFetchGpsLocation}
+                      disabled={fetchingGps}
+                    >
+                      {fetchingGps ? (
+                        <ActivityIndicator size="small" color={theme.primary} style={{ marginRight: 6 }} />
+                      ) : (
+                        <MaterialIcons name="my-location" size={18} color={theme.primary} style={{ marginRight: 6 }} />
+                      )}
+                      <Text style={{ color: theme.primary, fontWeight: '700', fontSize: 13 }} numberOfLines={1}>
+                        {fetchingGps ? 'Locating…' : 'Use GPS'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={{
+                        flex: 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#EFF6FF',
+                        borderColor: '#2563EB',
+                        borderWidth: 1,
+                        borderRadius: 10,
+                        paddingVertical: 10,
+                        paddingHorizontal: 8,
+                      }}
+                      onPress={() => setIsMapModalVisible(true)}
+                    >
+                      <MaterialIcons name="map" size={18} color="#2563EB" style={{ marginRight: 6 }} />
+                      <Text style={{ color: '#2563EB', fontWeight: '700', fontSize: 13 }} numberOfLines={1}>
+                        Pick on Map
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Address Input Field with Autocomplete & Clear Button */}
+                  <View style={{ position: 'relative' }}>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: theme.inputBg,
+                          color: theme.textPrimary,
+                          borderColor: theme.cardBorder,
+                          paddingRight: hotelAddress ? 40 : 12,
+                        },
+                      ]}
+                      value={hotelAddress}
+                      onChangeText={handleAddressSearch}
+                      placeholder="Type address or search location..."
+                      placeholderTextColor={theme.textTertiary}
+                    />
+                    {hotelAddress.length > 0 && (
+                      <TouchableOpacity
+                        style={{
+                          position: 'absolute',
+                          right: 10,
+                          top: 12,
+                          padding: 4,
+                        }}
+                        onPress={() => {
+                          setHotelAddress('');
+                          setGpsCoordinates(null);
+                          setPlaceHits([]);
+                        }}
+                      >
+                        <MaterialIcons name="cancel" size={18} color={theme.textTertiary} />
+                      </TouchableOpacity>
                     )}
-                    <Text style={{ color: theme.primary, fontWeight: '700', fontSize: 14 }}>
-                      {fetchingGps ? 'Locating via GPS…' : gpsCoordinates ? 'GPS Location Captured ✓ (Tap to Refresh)' : 'Use Current GPS Location *'}
+                  </View>
+
+                  {/* Autocomplete Suggestions Dropdown */}
+                  {isSearchingPlaces && placeHits.length === 0 && (
+                    <View style={[styles.autocompleteBox, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+                      <ActivityIndicator size="small" color={theme.primary} style={{ padding: 10 }} />
+                    </View>
+                  )}
+
+                  {placeHits.length > 0 && (
+                    <View style={[styles.autocompleteBox, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+                      {placeHits.map((hit, idx) => (
+                        <TouchableOpacity
+                          key={`${hit.latitude}-${hit.longitude}-${idx}`}
+                          onPress={() => handleSelectPlaceHit(hit)}
+                          style={[styles.autocompleteItem, { borderBottomColor: theme.cardBorder }]}
+                        >
+                          <MaterialIcons name="place" size={18} color={theme.primary} style={{ marginRight: 8, marginTop: 2 }} />
+                          <Text style={[styles.autocompleteItemText, { color: theme.textPrimary }]} numberOfLines={2}>
+                            {hit.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {gpsCoordinates && (
+                    <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '600', marginTop: 4 }}>
+                      ✓ Coordinates locked: {gpsCoordinates.latitude.toFixed(5)}, {gpsCoordinates.longitude.toFixed(5)}
                     </Text>
-                  </TouchableOpacity>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: theme.inputBg, color: theme.textPrimary, borderColor: theme.cardBorder, minHeight: 70 }]}
-                    value={hotelAddress}
-                    onChangeText={setHotelAddress}
-                    multiline
-                    placeholder="Tap 'Use Current GPS Location' to capture outlet GPS"
-                    placeholderTextColor={theme.textTertiary}
-                  />
+                  )}
                   <View style={styles.row}>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.label, { color: theme.textSecondary }]}>City</Text>
@@ -723,6 +874,51 @@ export const RoleApplicationScreen: React.FC = () => {
           </>
         </ScrollView>
       </FormKeyboardAvoid>
+
+      {/* Pin on Map Modal */}
+      <Modal
+        visible={isMapModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsMapModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>Pin Outlet on Map</Text>
+                <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }}>
+                  Drag map or tap location to set exact hotel / restaurant point
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsMapModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <MaterialIcons name="close" size={24} color={theme.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalMapContent}>
+              <LocationMapPicker
+                label="Search or move pin"
+                initialCoordinate={gpsCoordinates || undefined}
+                initialAddress={hotelAddress}
+                height={320}
+                hideSearchInput={false}
+                onSelect={handleMapPlaceSelect}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.modalDoneBtn, { backgroundColor: theme.primary }]}
+              onPress={() => setIsMapModalVisible(false)}
+            >
+              <Text style={styles.modalDoneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -857,4 +1053,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
+  autocompleteBox: {
+    borderWidth: 1,
+    borderRadius: 10,
+    marginTop: 6,
+    overflow: 'hidden',
+    maxHeight: 180,
+  },
+  autocompleteItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  autocompleteItemText: {
+    flex: 1,
+    fontSize: 13,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    padding: 16,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalMapContent: {
+    marginVertical: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalDoneBtn: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  modalDoneBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
+  },
 });
