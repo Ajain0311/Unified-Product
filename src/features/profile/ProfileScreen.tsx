@@ -240,7 +240,7 @@ export const ProfileScreen: React.FC = () => {
   };
 
   const name = user?.fullName || 'Guest Explorer';
-  const phone = user?.mobileNumber ? `+91 ${user.mobileNumber}` : 'Exploring Mandphiya';
+  const phone = user?.mobileNumber ? `+91 ${user.mobileNumber}` : '';
   const initials = user?.fullName
     ? user.fullName
         .split(' ')
@@ -301,9 +301,6 @@ export const ProfileScreen: React.FC = () => {
                 <Text style={[styles.profileName, { color: theme.textPrimary }]}>
                   {language === 'hi' ? 'अतिथि (Guest Explorer)' : 'Guest Explorer'}
                 </Text>
-                <Text style={[styles.profilePhone, { color: theme.textSecondary }]}>
-                  {language === 'hi' ? 'मंडफिया व चित्तौड़गढ़ का अन्वेषण' : 'Exploring Mandphiya & Chittorgarh'}
-                </Text>
                 <View style={[styles.verifiedBadge, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
                   <Text style={[styles.verifiedBadgeText, { color: '#2563EB' }]}>
                     {language === 'hi' ? 'अतिथि मोड' : 'Guest Mode'}
@@ -316,7 +313,7 @@ export const ProfileScreen: React.FC = () => {
             <View style={styles.guestPerksList}>
               <View style={styles.guestPerkRow}>
                 <Ionicons name="fast-food-outline" size={15} color={theme.primary} />
-                <Text style={[styles.guestPerkText, { color: theme.textSecondary }]}>Order food from top Mandphiya restaurants</Text>
+                <Text style={[styles.guestPerkText, { color: theme.textSecondary }]}>Order food from top restaurants</Text>
               </View>
               <View style={styles.guestPerkRow}>
                 <Ionicons name="car-outline" size={15} color="#2563EB" />
