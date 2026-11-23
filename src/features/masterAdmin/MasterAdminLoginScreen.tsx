@@ -48,14 +48,6 @@ export const MasterAdminLoginScreen: React.FC<MasterAdminLoginScreenProps> = ({ 
       return;
     }
 
-    if (!useRecoveryCode && !totpCode.trim()) {
-      Alert.alert(
-        'Authenticator Code Required',
-        'Please enter the 6-digit code from your Google or Microsoft Authenticator app.'
-      );
-      return;
-    }
-
     if (useRecoveryCode && !recoveryCode.trim()) {
       Alert.alert('Recovery Code Required', 'Please enter one of your 8-digit emergency recovery codes.');
       return;
@@ -66,8 +58,8 @@ export const MasterAdminLoginScreen: React.FC<MasterAdminLoginScreenProps> = ({ 
       const response = await masterAdminService.login({
         usernameOrEmail: usernameOrEmail.trim(),
         password,
-        totpCode: !useRecoveryCode ? totpCode.trim() : undefined,
-        recoveryCode: useRecoveryCode ? recoveryCode.trim() : undefined,
+        totpCode: !useRecoveryCode && totpCode.trim() ? totpCode.trim() : undefined,
+        recoveryCode: useRecoveryCode && recoveryCode.trim() ? recoveryCode.trim() : undefined,
       });
 
       if (response.requiresMfaEnrollment && response.tempEnrollmentToken) {
@@ -209,9 +201,14 @@ export const MasterAdminLoginScreen: React.FC<MasterAdminLoginScreenProps> = ({ 
               {/* TOTP or Recovery Code */}
               {!useRecoveryCode ? (
                 <>
-                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 14 }]}>
-                    Authenticator 6-Digit Code (TOTP)
-                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                      Authenticator 6-Digit Code (TOTP)
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#D97706', fontWeight: '500' }}>
+                      (Blank on 1st login)
+                    </Text>
+                  </View>
                   <View
                     style={[styles.inputWrapper, { backgroundColor: theme.background, borderColor: theme.border }]}
                   >

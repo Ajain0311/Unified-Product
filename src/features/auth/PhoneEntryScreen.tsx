@@ -87,7 +87,22 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
         devOtp: response.devOtp,
       });
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Could not send OTP. Please try again.');
+      const errMsg = err?.message || 'Could not send OTP. Please try again.';
+      if (errMsg.toLowerCase().includes('master admin')) {
+        Alert.alert(
+          '👑 Master Admin Account',
+          'This mobile number is registered with Master Admin privileges. Please log in using your Master Password & Authenticator.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Master Admin Login',
+              onPress: () => navigation.navigate('MasterAdminLogin'),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', errMsg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -301,6 +316,17 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
                 {language === 'hi' ? 'अतिथि के रूप में ब्राउज़ करें' : 'Browse as Guest'}
               </Text>
               <Ionicons name="chevron-forward" size={14} color={theme.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.adminPortalButton}
+              onPress={() => navigation.navigate('MasterAdminLogin')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="key-outline" size={13} color="#D97706" />
+              <Text style={styles.adminPortalButtonText}>
+                Master Admin Portal
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -617,6 +643,19 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
       fontSize: 13,
       fontWeight: '700',
       color: theme.textSecondary,
+    },
+    adminPortalButton: {
+      marginTop: 2,
+      paddingVertical: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    adminPortalButtonText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: '#D97706',
     },
     trustGrid: {
       flexDirection: 'row',

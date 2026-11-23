@@ -58,7 +58,7 @@ public class AuthController : ControllerBase
             return BadRequest(new SendOtpResponse
             {
                 Success = false,
-                Message = "Master Admin accounts require Email/Password + Authenticator (TOTP) login via the Master Admin portal."
+                Message = "Master Admin accounts require Email/Password + Authenticator (TOTP) login via the in-app Master Admin portal."
             });
         }
 
