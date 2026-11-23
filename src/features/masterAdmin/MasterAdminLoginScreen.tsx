@@ -16,7 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '../../theme/themeStore';
 import { masterAdminService, MasterAdminTotpSetupResponse } from '../../services/masterAdminService';
 import { useRoleStore } from '../../store/roleStore';
+import { useAuthStore } from '../../store/authStore';
 import { storage } from '../../services/storage';
+import { User } from '../../models/auth';
 
 interface MasterAdminLoginScreenProps {
   navigation: any;
@@ -59,6 +61,7 @@ export const MasterAdminLoginScreen: React.FC<MasterAdminLoginScreenProps> = ({ 
     setIsSubmitting(true);
     try {
       const response = await masterAdminService.login({
+        identifier: usernameOrEmail.trim(),
         usernameOrEmail: usernameOrEmail.trim(),
         password,
         totpCode: !useRecoveryCode && totpCode.trim() ? totpCode.trim() : undefined,
@@ -75,8 +78,26 @@ export const MasterAdminLoginScreen: React.FC<MasterAdminLoginScreenProps> = ({ 
       }
 
       if (response.success && response.token) {
+        await storage.setToken(response.token);
         await storage.setMasterAdminMfaVerified(true);
-        // Switch active role
+        const apiUser = response.user;
+        const userData: User = {
+          id: apiUser?.id ? Number(apiUser.id) : 1,
+          mobileNumber: apiUser?.mobileNumber || usernameOrEmail.trim(),
+          fullName: apiUser?.fullName || 'Master Administrator',
+          email: apiUser?.email || null,
+          profileImageUrl: null,
+          roles: apiUser?.roles && apiUser.roles.length > 0 ? apiUser.roles : ['MASTER_ADMIN', 'ADMIN', 'CUSTOMER'],
+        };
+        await storage.setUserData(userData);
+        useAuthStore.setState({
+          user: userData,
+          token: response.token,
+          isAuthenticated: true,
+          error: null,
+          isFallbackSession: false,
+        });
+        await useRoleStore.getState().syncWithUserRoles(userData.roles);
         await switchRole('MASTER_ADMIN');
         navigation.replace('MasterAdminControlPanel');
       } else {
@@ -100,14 +121,35 @@ export const MasterAdminLoginScreen: React.FC<MasterAdminLoginScreenProps> = ({ 
     setIsConfirmingMfa(true);
     try {
       const candidateSecret = enrollmentData?.secretKey || enrollmentData?.manualEntryKey || '';
+      const candidateCodes = enrollmentData?.recoveryCodes || undefined;
       const res = await masterAdminService.confirmTotp(
         enrollmentConfirmCode.trim(),
         candidateSecret,
-        enrollmentToken || undefined
+        enrollmentToken || undefined,
+        candidateCodes
       );
 
       if (res.success && res.token) {
+        await storage.setToken(res.token);
         await storage.setMasterAdminMfaVerified(true);
+        const apiUser = res.user;
+        const userData: User = {
+          id: apiUser?.id ? Number(apiUser.id) : 1,
+          mobileNumber: apiUser?.mobileNumber || usernameOrEmail.trim(),
+          fullName: apiUser?.fullName || 'Master Administrator',
+          email: apiUser?.email || null,
+          profileImageUrl: null,
+          roles: apiUser?.roles && apiUser.roles.length > 0 ? apiUser.roles : ['MASTER_ADMIN', 'ADMIN', 'CUSTOMER'],
+        };
+        await storage.setUserData(userData);
+        useAuthStore.setState({
+          user: userData,
+          token: res.token,
+          isAuthenticated: true,
+          error: null,
+          isFallbackSession: false,
+        });
+        await useRoleStore.getState().syncWithUserRoles(userData.roles);
         await switchRole('MASTER_ADMIN');
         Alert.alert(
           'MFA Successfully Registered',

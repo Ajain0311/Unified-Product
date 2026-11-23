@@ -23,6 +23,7 @@ public class MasterAdminLoginResponse
     public bool RequiresMfaEnrollment { get; set; }
     public string? TempEnrollmentToken { get; set; }
     public UserDto? User { get; set; }
+    public List<string>? RecoveryCodes { get; set; }
 }
 
 public class MasterAdminTotpSetupResponse
@@ -42,6 +43,8 @@ public class MasterAdminConfirmTotpRequest
     [Required]
     [StringLength(6, MinimumLength = 6)]
     public string TotpCode { get; set; } = string.Empty;
+
+    public List<string>? RecoveryCodes { get; set; }
 }
 
 public class MasterAdminAuthStatusDto

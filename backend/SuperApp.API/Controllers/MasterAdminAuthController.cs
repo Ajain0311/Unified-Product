@@ -281,6 +281,7 @@ public class MasterAdminAuthController : ControllerBase
         var label = !string.IsNullOrWhiteSpace(user.Email) ? user.Email : user.MobileNumber;
         var qrUri = _totpService.GenerateTotpUri("Zupify", label, secret);
         var recoveryCodes = _totpService.GenerateRecoveryCodes();
+        _cache.Set($"mfa_setup_codes_{user.Id}", recoveryCodes, TimeSpan.FromMinutes(15));
 
         var response = new MasterAdminTotpSetupResponse
         {
@@ -321,9 +322,23 @@ public class MasterAdminAuthController : ControllerBase
             });
         }
 
-        // Generate and save 8 recovery codes
-        var recoveryCodes = _totpService.GenerateRecoveryCodes();
-        var hashedCodes = recoveryCodes.Select(c => _totpService.HashRecoveryCode(c)).ToList();
+        // Retrieve and persist the exact recovery codes displayed to the user
+        List<string> recoveryCodesToHash;
+        if (_cache.TryGetValue($"mfa_setup_codes_{user.Id}", out List<string>? cachedCodes) && cachedCodes != null && cachedCodes.Count > 0)
+        {
+            recoveryCodesToHash = cachedCodes;
+            _cache.Remove($"mfa_setup_codes_{user.Id}");
+        }
+        else if (request.RecoveryCodes != null && request.RecoveryCodes.Count > 0)
+        {
+            recoveryCodesToHash = request.RecoveryCodes;
+        }
+        else
+        {
+            recoveryCodesToHash = _totpService.GenerateRecoveryCodes();
+        }
+
+        var hashedCodes = recoveryCodesToHash.Select(c => _totpService.HashRecoveryCode(c)).ToList();
 
         // Encrypt secret at rest using AES-GCM
         user.TotpSecret = _totpService.EncryptSecret(request.SecretKey.Trim());
@@ -343,7 +358,8 @@ public class MasterAdminAuthController : ControllerBase
             Message = "Authenticator MFA successfully activated. Secure Master Admin session established.",
             Token = token,
             RequiresMfaEnrollment = false,
-            User = MapToUserDto(user)
+            User = MapToUserDto(user),
+            RecoveryCodes = recoveryCodesToHash
         });
     }
 

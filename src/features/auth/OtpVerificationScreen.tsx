@@ -26,6 +26,7 @@ import { AppRadius, AppShadows } from '../../theme/spacing';
 import { masterAdminService, MasterAdminTotpSetupResponse } from '../../services/masterAdminService';
 import { useRoleStore } from '../../store/roleStore';
 import { storage } from '../../services/storage';
+import { User } from '../../models/auth';
 
 interface OtpVerificationScreenProps {
   route: {
@@ -217,15 +218,12 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
       setErrorMessage('Please enter your emergency recovery code.');
       return;
     }
-    if (!useRecoveryCode && otp.length < AppConstants.otpLength) {
-      setErrorMessage('Please enter the 6-digit Authenticator code (TOTP).');
-      return;
-    }
 
     setIsLoading(true);
     setErrorMessage(null);
     try {
       const response = await masterAdminService.login({
+        identifier: mobileNumber,
         usernameOrEmail: mobileNumber,
         password: adminPassword,
         totpCode: !useRecoveryCode && otp.trim() ? otp.trim() : undefined,
@@ -243,11 +241,14 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
       if (response.success && response.token) {
         await storage.setToken(response.token);
         await storage.setMasterAdminMfaVerified(true);
-        const userData = {
-          id: response.user?.id ? Number(response.user.id) : 1,
-          mobileNumber: response.user?.mobileNumber || mobileNumber,
-          fullName: response.user?.fullName || 'Master Administrator',
-          roles: response.user?.roles || ['MASTER_ADMIN', 'ADMIN', 'CUSTOMER'],
+        const apiUser = response.user;
+        const userData: User = {
+          id: apiUser?.id ? Number(apiUser.id) : 1,
+          mobileNumber: apiUser?.mobileNumber || mobileNumber,
+          fullName: apiUser?.fullName || 'Master Administrator',
+          email: apiUser?.email || null,
+          profileImageUrl: null,
+          roles: apiUser?.roles && apiUser.roles.length > 0 ? apiUser.roles : ['MASTER_ADMIN', 'ADMIN', 'CUSTOMER'],
         };
         await storage.setUserData(userData);
         useAuthStore.setState({
@@ -283,20 +284,25 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
     setIsConfirmingMfa(true);
     try {
       const candidateSecret = enrollmentData?.secretKey || enrollmentData?.manualEntryKey || '';
+      const candidateCodes = enrollmentData?.recoveryCodes || undefined;
       const res = await masterAdminService.confirmTotp(
         enrollmentConfirmCode.trim(),
         candidateSecret,
-        enrollmentToken || undefined
+        enrollmentToken || undefined,
+        candidateCodes
       );
 
       if (res.success && res.token) {
         await storage.setToken(res.token);
         await storage.setMasterAdminMfaVerified(true);
-        const userData = {
-          id: 1,
-          mobileNumber,
-          fullName: 'Master Administrator',
-          roles: ['MASTER_ADMIN', 'ADMIN', 'CUSTOMER'],
+        const apiUser = res.user;
+        const userData: User = {
+          id: apiUser?.id ? Number(apiUser.id) : 1,
+          mobileNumber: apiUser?.mobileNumber || mobileNumber,
+          fullName: apiUser?.fullName || 'Master Administrator',
+          email: apiUser?.email || null,
+          profileImageUrl: null,
+          roles: apiUser?.roles && apiUser.roles.length > 0 ? apiUser.roles : ['MASTER_ADMIN', 'ADMIN', 'CUSTOMER'],
         };
         await storage.setUserData(userData);
         useAuthStore.setState({
@@ -411,29 +417,35 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
 
   const isContinueDisabled = useMemo(() => {
     if (isLoading) return true;
+    if (isResettingPassword) {
+      return (
+        !newPassword ||
+        !confirmPassword ||
+        newPassword !== confirmPassword ||
+        newPassword.length < 6 ||
+        otp.length !== AppConstants.otpLength
+      );
+    }
     if (isMasterAdmin) {
       if (!adminPassword.trim()) return true;
       if (useRecoveryCode) return !recoveryCode.trim();
-      return otp.length !== AppConstants.otpLength;
+      return false;
     }
     if (isAdmin) {
       return !adminPassword.trim() || otp.length !== AppConstants.otpLength;
     }
-    if (isResettingPassword) {
-      return !newPassword || !confirmPassword || otp.length !== AppConstants.otpLength;
-    }
     return otp.length !== AppConstants.otpLength;
   }, [
     isLoading,
+    isResettingPassword,
+    newPassword,
+    confirmPassword,
+    otp,
     isMasterAdmin,
     adminPassword,
     useRecoveryCode,
     recoveryCode,
-    otp,
     isAdmin,
-    isResettingPassword,
-    newPassword,
-    confirmPassword,
   ]);
 
   const continueButtonText = useMemo(() => {
@@ -790,9 +802,14 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
                         : 'Enter 6-digit code'}
                     </Text>
                     {isMasterAdmin && !useRecoveryCode && (
-                      <View style={styles.totpBadge}>
-                        <Ionicons name="shield-checkmark" size={11} color="#D97706" style={{ marginRight: 3 }} />
-                        <Text style={styles.totpBadgeText}>APP TOTP</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontSize: 11, color: '#D97706', fontWeight: '600' }}>
+                          (Blank on 1st login)
+                        </Text>
+                        <View style={styles.totpBadge}>
+                          <Ionicons name="shield-checkmark" size={11} color="#D97706" style={{ marginRight: 3 }} />
+                          <Text style={styles.totpBadgeText}>APP TOTP</Text>
+                        </View>
                       </View>
                     )}
                   </View>

@@ -8,7 +8,8 @@ import {
 } from './configService';
 
 export interface MasterAdminLoginRequest {
-  usernameOrEmail: string;
+  identifier?: string;
+  usernameOrEmail?: string;
   password?: string;
   totpCode?: string;
   recoveryCode?: string;
@@ -31,6 +32,7 @@ export interface MasterAdminLoginResponse {
   requiresMfaEnrollment: boolean;
   tempEnrollmentToken?: string;
   user?: MasterAdminUserDto;
+  recoveryCodes?: string[];
 }
 
 export interface MasterAdminTotpSetupResponse {
@@ -58,9 +60,15 @@ export const masterAdminService = {
    * Primary Master Admin login requiring Email/Password + Authenticator (TOTP) or Recovery Code.
    */
   async login(request: MasterAdminLoginRequest): Promise<MasterAdminLoginResponse> {
+    const payload = {
+      identifier: request.identifier || request.usernameOrEmail || '',
+      password: request.password,
+      totpCode: request.totpCode,
+      recoveryCode: request.recoveryCode,
+    };
     const res = await apiClient.post<any>(
       ApiEndpoints.masterAdmin.auth.login,
-      request
+      payload
     );
     const data = (res?.data || res) as MasterAdminLoginResponse;
     if (data.token) {
@@ -104,18 +112,19 @@ export const masterAdminService = {
   async confirmTotp(
     totpCode: string,
     secretKey: string,
-    mfaEnrollmentToken?: string
-  ): Promise<{ success: boolean; message: string; token?: string }> {
+    mfaEnrollmentToken?: string,
+    recoveryCodes?: string[]
+  ): Promise<MasterAdminLoginResponse> {
     const headers: Record<string, string> = {};
     if (mfaEnrollmentToken) {
       headers['X-MFA-Token'] = mfaEnrollmentToken;
     }
     const res = await apiClient.post<any>(
       ApiEndpoints.masterAdmin.auth.confirmTotp,
-      { totpCode, secretKey },
+      { totpCode, secretKey, recoveryCodes },
       { headers }
     );
-    const data = res.data || res;
+    const data = (res.data || res) as MasterAdminLoginResponse;
     if (data.token) {
       await storage.setToken(data.token);
       await storage.setMasterAdminMfaVerified(true);
