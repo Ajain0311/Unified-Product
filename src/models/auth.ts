@@ -16,6 +16,7 @@ export interface SendOtpResponse {
   message: string;
   isNewUser: boolean;
   isAdmin: boolean;
+  isMasterAdmin?: boolean;
   devOtp?: string;
 }
 

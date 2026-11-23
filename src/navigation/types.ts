@@ -98,6 +98,6 @@ export type RootStackParamList = {
   } | undefined;
   MyBusinessRequests: undefined;
   AdminBusinessRequests: undefined;
-  MasterAdminLogin: undefined;
+  MasterAdminLogin: { identifier?: string } | undefined;
   MasterAdminControlPanel: undefined;
 };

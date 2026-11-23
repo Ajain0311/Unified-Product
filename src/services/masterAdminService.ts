@@ -34,11 +34,14 @@ export interface MasterAdminLoginResponse {
 }
 
 export interface MasterAdminTotpSetupResponse {
+  secretKey: string;
   manualEntryKey: string;
   authenticatorUri: string;
   qrCodeUrl: string;
   recoveryCodes: string[];
-  message: string;
+  message?: string;
+  accountLabel?: string;
+  issuer?: string;
 }
 
 export interface MasterAdminPlatformConfig {
@@ -81,7 +84,18 @@ export const masterAdminService = {
       { headers }
     );
     const data = res.data?.data || res.data || res;
-    return data;
+    const rawSecret = data.secretKey || data.manualEntryKey || '';
+    const rawUri = data.qrCodeUri || data.authenticatorUri || '';
+    return {
+      secretKey: rawSecret,
+      manualEntryKey: rawSecret,
+      authenticatorUri: rawUri,
+      qrCodeUrl: rawUri,
+      recoveryCodes: data.recoveryCodes || [],
+      message: data.message,
+      accountLabel: data.accountLabel,
+      issuer: data.issuer || 'Zupify',
+    };
   },
 
   /**
@@ -89,6 +103,7 @@ export const masterAdminService = {
    */
   async confirmTotp(
     totpCode: string,
+    secretKey: string,
     mfaEnrollmentToken?: string
   ): Promise<{ success: boolean; message: string; token?: string }> {
     const headers: Record<string, string> = {};
@@ -97,7 +112,7 @@ export const masterAdminService = {
     }
     const res = await apiClient.post<any>(
       ApiEndpoints.masterAdmin.auth.confirmTotp,
-      { totpCode },
+      { totpCode, secretKey },
       { headers }
     );
     const data = res.data || res;

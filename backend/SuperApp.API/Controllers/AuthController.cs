@@ -58,7 +58,20 @@ public class AuthController : ControllerBase
 
         bool isNewUser = user == null;
         bool isMasterAdmin = user?.UserRoles.Any(ur => ur.Role.Name == RoleNames.MasterAdmin) ?? false;
-        bool isAdmin = user?.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin || ur.Role.Name == RoleNames.MasterAdmin) ?? false;
+        bool isAdmin = !isMasterAdmin && (user?.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin) ?? false);
+
+        if (isMasterAdmin)
+        {
+            return Ok(new SendOtpResponse
+            {
+                Success = true,
+                Message = "Master Admin account detected. Password and Authenticator (TOTP) verification required.",
+                IsNewUser = false,
+                IsAdmin = false,
+                IsMasterAdmin = true,
+                DevOtp = null
+            });
+        }
 
         if (user != null && !user.IsActive)
             return BadRequest(new SendOtpResponse { Success = false, Message = "Account is deactivated. Please contact support." });
@@ -225,8 +238,12 @@ public class AuthController : ControllerBase
         if (!user.IsActive)
             return BadRequest(new AuthResponse { Success = false, Message = "Account is deactivated" });
 
-        // Check admin or master admin role
-        if (!user.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin || ur.Role.Name == RoleNames.MasterAdmin))
+        // Master Admin role is strictly barred from standard AdminLogin (SMS OTP)
+        if (user.UserRoles.Any(ur => ur.Role.Name == RoleNames.MasterAdmin))
+            return BadRequest(new AuthResponse { Success = false, Message = "Master Admin accounts cannot log in via SMS OTP. Please use Authenticator (TOTP) login." });
+
+        // Check standard admin role
+        if (!user.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin))
             return BadRequest(new AuthResponse { Success = false, Message = "Access denied. User is not an admin." });
 
         // 1. Verify Password
@@ -254,15 +271,10 @@ public class AuthController : ControllerBase
         if (!isPasswordValid)
             return BadRequest(new AuthResponse { Success = false, Message = "Invalid password" });
 
-        // 2. Verify OTP (SMS/Dev OTP) or Authenticator TOTP
+        // 2. Verify OTP
         var isOtpValid = await _otpService.VerifyOtpAsync(cleanMobile, request.OtpCode);
-        if (!isOtpValid && user.IsTotpEnabled && !string.IsNullOrWhiteSpace(user.TotpSecret))
-        {
-            isOtpValid = _totpService.VerifyCode(user.TotpSecret, request.OtpCode);
-        }
-
         if (!isOtpValid)
-            return BadRequest(new AuthResponse { Success = false, Message = "Invalid or expired verification code" });
+            return BadRequest(new AuthResponse { Success = false, Message = "Invalid or expired OTP" });
 
         user.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -279,9 +291,10 @@ public class AuthController : ControllerBase
                 .FirstAsync(u => u.Id == user.Id);
         }
 
-        // Return all user roles (including MasterAdmin)
+        // Master Admin role is strictly excluded from standard AdminLogin tokens (MFA via Authenticator is mandatory)
         var roles = user.UserRoles
             .Select(ur => ur.Role.Name)
+            .Where(r => r != RoleNames.MasterAdmin)
             .ToList();
         var token = _tokenService.GenerateToken(user, roles);
 

@@ -18,6 +18,7 @@ public class SendOtpResponse
     public string Message { get; set; } = string.Empty;
     public bool IsNewUser { get; set; }
     public bool IsAdmin { get; set; }
+    public bool IsMasterAdmin { get; set; }
     public string? DevOtp { get; set; } // Only in development
 }
 

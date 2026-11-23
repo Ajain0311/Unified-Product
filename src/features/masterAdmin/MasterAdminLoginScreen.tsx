@@ -20,14 +20,17 @@ import { storage } from '../../services/storage';
 
 interface MasterAdminLoginScreenProps {
   navigation: any;
+  route?: any;
 }
 
-export const MasterAdminLoginScreen: React.FC<MasterAdminLoginScreenProps> = ({ navigation }) => {
+export const MasterAdminLoginScreen: React.FC<MasterAdminLoginScreenProps> = ({ navigation, route }) => {
   const { theme, isDark } = useAppTheme();
   const switchRole = useRoleStore((s) => s.switchRole);
 
+  const initialIdentifier = route?.params?.identifier || '';
+
   // Form State
-  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState(initialIdentifier);
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
@@ -96,8 +99,10 @@ export const MasterAdminLoginScreen: React.FC<MasterAdminLoginScreenProps> = ({ 
 
     setIsConfirmingMfa(true);
     try {
+      const candidateSecret = enrollmentData?.secretKey || enrollmentData?.manualEntryKey || '';
       const res = await masterAdminService.confirmTotp(
         enrollmentConfirmCode.trim(),
+        candidateSecret,
         enrollmentToken || undefined
       );
 
