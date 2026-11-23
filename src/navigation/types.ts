@@ -31,6 +31,7 @@ export type RootStackParamList = {
     mobileNumber: string;
     isNewUser?: boolean;
     isAdmin?: boolean;
+    isMasterAdmin?: boolean;
     devOtp?: string;
   };
   AdminPortal: undefined;

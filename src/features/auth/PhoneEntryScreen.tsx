@@ -80,16 +80,11 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
     setIsLoading(true);
     try {
       const response = await sendOtp(cleanNumber);
-      if (response.isMasterAdmin) {
-        navigation.navigate('MasterAdminLogin', {
-          identifier: cleanNumber,
-        });
-        return;
-      }
       navigation.navigate('OtpVerification', {
         mobileNumber: cleanNumber,
         isNewUser: response.isNewUser ?? false,
         isAdmin: response.isAdmin ?? false,
+        isMasterAdmin: response.isMasterAdmin ?? false,
         devOtp: response.devOtp,
       });
     } catch (err: any) {
