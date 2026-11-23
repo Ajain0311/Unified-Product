@@ -18,13 +18,20 @@ public class AuthController : ControllerBase
     private readonly IOtpService _otpService;
     private readonly ITokenService _tokenService;
     private readonly IConfiguration _configuration;
+    private readonly ITotpService _totpService;
 
-    public AuthController(AppDbContext db, IOtpService otpService, ITokenService tokenService, IConfiguration configuration)
+    public AuthController(
+        AppDbContext db,
+        IOtpService otpService,
+        ITokenService tokenService,
+        IConfiguration configuration,
+        ITotpService totpService)
     {
         _db = db;
         _otpService = otpService;
         _tokenService = tokenService;
         _configuration = configuration;
+        _totpService = totpService;
     }
 
     /// <summary>
@@ -51,16 +58,7 @@ public class AuthController : ControllerBase
 
         bool isNewUser = user == null;
         bool isMasterAdmin = user?.UserRoles.Any(ur => ur.Role.Name == RoleNames.MasterAdmin) ?? false;
-        bool isAdmin = user?.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin) ?? false;
-
-        if (isMasterAdmin)
-        {
-            return BadRequest(new SendOtpResponse
-            {
-                Success = false,
-                Message = "Master Admin accounts require Email/Password + Authenticator (TOTP) login via the in-app Master Admin portal."
-            });
-        }
+        bool isAdmin = user?.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin || ur.Role.Name == RoleNames.MasterAdmin) ?? false;
 
         if (user != null && !user.IsActive)
             return BadRequest(new SendOtpResponse { Success = false, Message = "Account is deactivated. Please contact support." });
@@ -99,15 +97,15 @@ public class AuthController : ControllerBase
 
         var cleanMobile = BigBSmsService.NormalizeMobileNumber(request.MobileNumber);
 
-        // Pre-check: Master Admin accounts can NEVER log in via citizen OTP verification
+        // Pre-check: Admin and Master Admin accounts must use password authentication
         var user = await _db.Users
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.MobileNumber == request.MobileNumber || u.MobileNumber == cleanMobile);
 
-        if (user != null && user.UserRoles.Any(ur => ur.Role.Name == RoleNames.MasterAdmin))
+        if (user != null && user.UserRoles.Any(ur => ur.Role.Name == RoleNames.MasterAdmin || ur.Role.Name == RoleNames.Admin))
         {
-            return BadRequest(new AuthResponse { Success = false, Message = "Master Admin accounts must use the Master Admin portal with Password & Authenticator (TOTP)." });
+            return BadRequest(new AuthResponse { Success = false, Message = "Admin account detected. Password verification required." });
         }
 
         var isValid = await _otpService.VerifyOtpAsync(cleanMobile, request.OtpCode);
@@ -144,12 +142,8 @@ public class AuthController : ControllerBase
         }
         else
         {
-            // Check if user is master admin or admin - they must use their designated secure login endpoints
-            if (user.UserRoles.Any(ur => ur.Role.Name == RoleNames.MasterAdmin))
-                return BadRequest(new AuthResponse { Success = false, Message = "Master Admin accounts must use the Master Admin portal with Password & Authenticator (TOTP)." });
-
-            if (user.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin))
-                return BadRequest(new AuthResponse { Success = false, Message = "Admin users must use the admin login endpoint with Password & OTP" });
+            if (user.UserRoles.Any(ur => ur.Role.Name == RoleNames.MasterAdmin || ur.Role.Name == RoleNames.Admin))
+                return BadRequest(new AuthResponse { Success = false, Message = "Admin account detected. Password verification required." });
 
             if (!user.IsActive)
                 return BadRequest(new AuthResponse { Success = false, Message = "Account is deactivated" });
@@ -231,8 +225,8 @@ public class AuthController : ControllerBase
         if (!user.IsActive)
             return BadRequest(new AuthResponse { Success = false, Message = "Account is deactivated" });
 
-        // Check admin role
-        if (!user.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin))
+        // Check admin or master admin role
+        if (!user.UserRoles.Any(ur => ur.Role.Name == RoleNames.Admin || ur.Role.Name == RoleNames.MasterAdmin))
             return BadRequest(new AuthResponse { Success = false, Message = "Access denied. User is not an admin." });
 
         // 1. Verify Password
@@ -260,10 +254,15 @@ public class AuthController : ControllerBase
         if (!isPasswordValid)
             return BadRequest(new AuthResponse { Success = false, Message = "Invalid password" });
 
-        // 2. Verify OTP
+        // 2. Verify OTP (SMS/Dev OTP) or Authenticator TOTP
         var isOtpValid = await _otpService.VerifyOtpAsync(cleanMobile, request.OtpCode);
+        if (!isOtpValid && user.IsTotpEnabled && !string.IsNullOrWhiteSpace(user.TotpSecret))
+        {
+            isOtpValid = _totpService.VerifyCode(user.TotpSecret, request.OtpCode);
+        }
+
         if (!isOtpValid)
-            return BadRequest(new AuthResponse { Success = false, Message = "Invalid or expired OTP" });
+            return BadRequest(new AuthResponse { Success = false, Message = "Invalid or expired verification code" });
 
         user.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -280,10 +279,9 @@ public class AuthController : ControllerBase
                 .FirstAsync(u => u.Id == user.Id);
         }
 
-        // Master Admin role is strictly excluded from standard AdminLogin tokens (MFA via Authenticator is mandatory)
+        // Return all user roles (including MasterAdmin)
         var roles = user.UserRoles
             .Select(ur => ur.Role.Name)
-            .Where(r => r != RoleNames.MasterAdmin)
             .ToList();
         var token = _tokenService.GenerateToken(user, roles);
 

@@ -128,6 +128,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
         if (response.user?.roles) {
           await useRoleStore.getState().syncWithUserRoles(response.user.roles);
+          if (response.user.roles.includes('MASTER_ADMIN') || response.user.roles.includes('MasterAdmin')) {
+            await storage.setMasterAdminMfaVerified(true);
+          }
         }
         // Register push token with backend after successful authentication
         notificationService.getExpoPushToken().then((pushToken) => {
@@ -168,6 +171,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
         if (response.user?.roles) {
           await useRoleStore.getState().syncWithUserRoles(response.user.roles);
+          if (response.user.roles.includes('MASTER_ADMIN') || response.user.roles.includes('MasterAdmin')) {
+            await storage.setMasterAdminMfaVerified(true);
+          }
         }
         notificationService.getExpoPushToken().then((pushToken) => {
           if (pushToken) {
