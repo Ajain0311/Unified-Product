@@ -44,7 +44,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Official Zupify Brand Logo */}
+      {/* Official RJ09 Sewa Brand Logo */}
       <View style={[styles.brandLogoBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
         <Image
           source={require('../../../assets/icon.png')}

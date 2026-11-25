@@ -135,7 +135,7 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
             )}
 
             <Text style={[styles.heroTitle, keyboardOpen && styles.heroTitleCompact]}>
-              Zupify
+              RJ09 Sewa
             </Text>
             {!keyboardOpen && (
               <Text style={styles.heroSubtitle}>

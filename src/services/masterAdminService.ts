@@ -102,7 +102,7 @@ export const masterAdminService = {
       recoveryCodes: data.recoveryCodes || [],
       message: data.message,
       accountLabel: data.accountLabel,
-      issuer: data.issuer || 'Zupify',
+      issuer: data.issuer || 'RJ09 Sewa',
     };
   },
 

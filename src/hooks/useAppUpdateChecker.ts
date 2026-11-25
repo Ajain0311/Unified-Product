@@ -181,7 +181,7 @@ async function downloadAndInstallApk(downloadUrl: string, latestTag: string): Pr
     } catch {
       Alert.alert(
         'Installation Help',
-        'Could not open installer directly. Please allow "Install unknown apps" for Zupify in phone settings or download via browser.'
+        'Could not open installer directly. Please allow "Install unknown apps" for RJ09 Sewa in phone settings or download via browser.'
       );
     }
   }

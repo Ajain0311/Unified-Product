@@ -291,7 +291,7 @@ export const AdminPushNotificationsScreen: React.FC<{ navigation: any }> = ({ na
             <View style={styles.previewHeader}>
               <View style={styles.previewAppBadge}>
                 <Ionicons name="sparkles" size={12} color="#FFF" />
-                <Text style={styles.previewAppName}>ZUPIFY SUPERAPP</Text>
+                <Text style={styles.previewAppName}>RJ09 SEWA</Text>
               </View>
               <Text style={[styles.previewTime, { color: theme.textSecondary }]}>Now</Text>
             </View>

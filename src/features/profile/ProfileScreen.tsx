@@ -564,7 +564,7 @@ export const ProfileScreen: React.FC = () => {
             style={styles.footerLogo}
             resizeMode="contain"
           />
-          <Text style={styles.versionText}>Zupify v1.0.4 (Unified Ecosystem)</Text>
+          <Text style={styles.versionText}>RJ09 Sewa v1.0.4 (Unified Ecosystem)</Text>
         </View>
       </ScrollView>
 

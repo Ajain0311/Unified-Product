@@ -63,7 +63,7 @@ export const GlobalMaintenanceOverlay: React.FC = () => {
           <Text style={styles.subtitle}>
             {language === 'hi'
               ? 'ज़ुपिफाई पर आवश्यक तकनीकी उन्नयन कार्य चल रहा है। सेवाएं और बुकिंग्स शीघ्र ही पुनः शुरू होंगी।'
-              : 'Zupify services are temporarily paused while our engineering team performs system upgrades. All features will resume shortly.'}
+              : 'RJ09 Sewa services are temporarily paused while our engineering team performs system upgrades. All features will resume shortly.'}
           </Text>
 
           {/* Broadcast Announcement if configured */}

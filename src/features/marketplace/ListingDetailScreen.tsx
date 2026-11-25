@@ -75,8 +75,8 @@ async function openWhatsAppChat(rawPhone: string, listingTitle?: string): Promis
     return;
   }
   const defaultMsg = listingTitle
-    ? `Namaste! I am interested in your listing "${listingTitle}" on Zupify. Is it still available?`
-    : `Namaste! I am interested in your listing on Zupify. Is it still available?`;
+    ? `Namaste! I am interested in your listing "${listingTitle}" on RJ09 Sewa. Is it still available?`
+    : `Namaste! I am interested in your listing on RJ09 Sewa. Is it still available?`;
   const url = `https://wa.me/${sanitized}?text=${encodeURIComponent(defaultMsg)}`;
   try {
     await Linking.openURL(url);

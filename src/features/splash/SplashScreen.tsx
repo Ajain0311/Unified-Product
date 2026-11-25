@@ -66,7 +66,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
           },
         ]}
       >
-        {/* Official Play Store Zupify App Logo */}
+        {/* Official RJ09 Sewa App Logo */}
         <View style={styles.logoWrapper}>
           <Image
             source={require('../../../assets/icon.png')}
@@ -75,7 +75,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
           />
         </View>
 
-        <Text style={[styles.appName, { color: '#0F172A' }]}>Zupify</Text>
+        <Text style={[styles.appName, { color: '#0F172A' }]}>RJ09 Sewa</Text>
         <Text style={[styles.tagline, { color: '#64748B' }]}>Everything in a Tap</Text>
       </Animated.View>
     </View>

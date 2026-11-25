@@ -33,7 +33,7 @@ export const GlobalGuestRestrictionModal: React.FC = () => {
     // Open in-place auth modal or navigate to PhoneEntry
     try {
       openAuthModal({
-        title: language === 'hi' ? 'लॉगिन करें' : 'Sign In to Zupify',
+        title: language === 'hi' ? 'लॉगिन करें' : 'Sign In to RJ09 Sewa',
         subtitle:
           language === 'hi'
             ? 'गेस्ट ब्राउज़िंग अक्षम है, कृपया जारी रखने के लिए लॉगिन करें।'
@@ -72,7 +72,7 @@ export const GlobalGuestRestrictionModal: React.FC = () => {
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
               {language === 'hi'
                 ? 'प्रशासन द्वारा गेस्ट ब्राउज़िंग अस्थायी रूप से बंद है। ज़ुपिफाई का उपयोग करने के लिए कृपया अपने मोबाइल नंबर से लॉगिन करें।'
-                : 'Guest browsing is currently disabled by platform administration. Please sign in with your phone number to access Zupify services.'}
+                : 'Guest browsing is currently disabled by platform administration. Please sign in with your phone number to access RJ09 Sewa services.'}
             </Text>
 
             {/* Sign In Button */}

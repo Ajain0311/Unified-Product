@@ -76,7 +76,7 @@ export const GrowWithSuperAppScreen: React.FC = () => {
         </TouchableOpacity>
         <View style={styles.headerTitleWrap}>
           <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-            {language === 'hi' ? 'पार्टनर बनें' : 'Grow with Zupify'}
+            {language === 'hi' ? 'पार्टनर बनें' : 'Grow with RJ09 Sewa'}
           </Text>
           <Text style={[styles.headerSubtitle, { color: theme.textTertiary }]}>
             {language === 'hi' ? 'बिज़नेस जोड़ें और कमाई शुरू करें' : 'Start earning with your vehicle or business'}
@@ -90,7 +90,7 @@ export const GrowWithSuperAppScreen: React.FC = () => {
             style={[styles.loginPromptCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
             onPress={() =>
               openAuthModal({
-                title: language === 'hi' ? 'लॉगिन करें' : 'Sign In to Zupify',
+                title: language === 'hi' ? 'लॉगिन करें' : 'Sign In to RJ09 Sewa',
                 subtitle:
                   language === 'hi'
                     ? 'पार्टनर आवेदन और स्टेटस ट्रैक करने के लिए लॉगिन करें।'

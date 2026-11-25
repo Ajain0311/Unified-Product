@@ -549,7 +549,7 @@ export const RoleApplicationScreen: React.FC = () => {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.authCardTitle, { color: theme.textPrimary }]}>
-                    {language === 'hi' ? 'आवेदन करने के लिए लॉगिन करें' : 'Sign in to Partner with Zupify'}
+                    {language === 'hi' ? 'आवेदन करने के लिए लॉगिन करें' : 'Sign in to Partner with RJ09 Sewa'}
                   </Text>
                   <Text style={[styles.authCardSub, { color: theme.textSecondary }]}>
                     {language === 'hi'
