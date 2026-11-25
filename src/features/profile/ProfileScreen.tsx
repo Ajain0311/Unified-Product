@@ -123,8 +123,8 @@ function roleAppBadge(status: string | null): { label: string; color: string; su
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { theme, isDark, toggleTheme } = useAppTheme();
-  const { language, toggleLanguage } = useLanguageStore();
+  const { theme, isDark, toggleTheme, allowUserThemeSwitch } = useAppTheme();
+  const { language, toggleLanguage, allowUserLanguageSwitch } = useLanguageStore();
   const { user, logout, updateUser } = useAuthStore();
   const { activeRole, hasMultipleRoles } = useRoleStore();
   const [roleModalVisible, setRoleModalVisible] = useState(false);
@@ -138,6 +138,7 @@ export const ProfileScreen: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      configService.fetchConfig(true).catch(() => {});
       (async () => {
         try {
           const res = await apiClient.get<any>(ApiEndpoints.roleApplications.mine);
@@ -471,7 +472,7 @@ export const ProfileScreen: React.FC = () => {
             color={colors.purple}
             onPress={() => navigation.navigate('HelpSupport')}
           />
-          {configService.isLanguageSwitchAllowed() && (
+          {allowUserLanguageSwitch && (
             <>
               <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
               <TouchableOpacity style={styles.menuItem} onPress={toggleLanguage} activeOpacity={0.7}>
@@ -500,7 +501,7 @@ export const ProfileScreen: React.FC = () => {
             </>
           )}
 
-          {configService.isThemeSwitchAllowed() && (
+          {allowUserThemeSwitch && (
             <>
               <View style={[styles.itemDivider, { backgroundColor: theme.borderSubtle }]} />
               <View style={styles.menuItem}>

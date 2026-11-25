@@ -105,6 +105,10 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
   const otpBoxSize = Math.min(50, Math.max(42, Math.floor((windowWidth - 88) / 6) - 4));
 
   useEffect(() => {
+    if (isMasterAdmin) {
+      navigation.replace('MasterAdminLogin', { identifier: mobileNumber });
+      return;
+    }
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -117,7 +121,7 @@ export const OtpVerificationScreen: React.FC<OtpVerificationScreenProps> = ({
         useNativeDriver: USE_NATIVE_DRIVER,
       }),
     ]).start();
-  }, [fadeAnim, slideAnim]);
+  }, [fadeAnim, slideAnim, isMasterAdmin, mobileNumber, navigation]);
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';

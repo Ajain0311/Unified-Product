@@ -5,6 +5,7 @@ import { apiClient, ApiError } from '../services/apiClient';
 import { ApiEndpoints } from '../constants/api';
 import { signalRService } from '../services/signalr';
 import { notificationService } from '../services/notificationService';
+import { configService } from '../services/configService';
 import { useRoleStore } from './roleStore';
 import { useCartStore } from './cartStore';
 import { useMarketplaceStore } from './marketplaceStore';
@@ -138,6 +139,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             notificationService.registerDeviceTokenWithBackend(pushToken);
           }
         }).catch(() => {});
+        configService.fetchConfig(true).catch(() => {});
       }
 
       return response;
@@ -180,6 +182,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             notificationService.registerDeviceTokenWithBackend(pushToken);
           }
         }).catch(() => {});
+        configService.fetchConfig(true).catch(() => {});
       }
 
       return response;
@@ -240,6 +243,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     useCartStore.getState().clearCart();
     useMarketplaceStore.getState().resetMarketplace();
     set({ user: null, token: null, isAuthenticated: false, error: null, isFallbackSession: false });
+    configService.fetchConfig(true).catch(() => {});
   },
 
   updateUser: (updatedFields: Partial<User>) => {

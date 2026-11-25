@@ -1,3 +1,6 @@
+import React from 'react';
+import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { configService } from '../services/configService';
 
 /**
@@ -165,6 +168,33 @@ export const BUSINESS_MODULES: BusinessModuleConfig[] = [
   },
 ];
 
+interface EcosystemModuleStoreState {
+  rawRemoteModules: any[] | null;
+  version: number;
+  setRemoteModules: (remoteModules: any[]) => void;
+  loadCachedModules: () => Promise<void>;
+}
+
+export const useEcosystemModuleStore = create<EcosystemModuleStoreState>((set) => ({
+  rawRemoteModules: null,
+  version: 0,
+  setRemoteModules: (remoteModules: any[]) => {
+    set((state) => ({ rawRemoteModules: remoteModules, version: state.version + 1 }));
+    AsyncStorage.setItem('superapp_cached_remote_modules', JSON.stringify(remoteModules)).catch(() => {});
+  },
+  loadCachedModules: async () => {
+    try {
+      const saved = await AsyncStorage.getItem('superapp_cached_remote_modules');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          set((state) => ({ rawRemoteModules: parsed, version: state.version + 1 }));
+        }
+      }
+    } catch {}
+  },
+}));
+
 /**
  * Filter enabled modules for active user role
  */
@@ -185,7 +215,8 @@ export function getAvailableModules(
 export function resolveConfiguredModules(
   activeRole: string = 'CUSTOMER'
 ): BusinessModuleConfig[] {
-  const remoteModules = configService.getPlatformControls()?.modules;
+  const storeModules = useEcosystemModuleStore.getState().rawRemoteModules;
+  const remoteModules = storeModules || configService.getPlatformControls()?.modules;
   if (!remoteModules || remoteModules.length === 0) {
     return getAvailableModules(activeRole);
   }
@@ -231,11 +262,22 @@ export function resolveConfiguredModules(
 }
 
 /**
+ * Reactive hook that re-renders components whenever Master Admin updates module controls.
+ */
+export function useConfiguredModules(activeRole: string = 'CUSTOMER'): BusinessModuleConfig[] {
+  const version = useEcosystemModuleStore((s) => s.version);
+  return React.useMemo(() => {
+    return resolveConfiguredModules(activeRole);
+  }, [version, activeRole]);
+}
+
+/**
  * Checks if a specific module is active according to Master Admin controls.
  */
 export function isModuleEnabled(key: string): boolean {
   if (!key) return true;
-  const remoteModules = configService.getPlatformControls()?.modules;
+  const storeModules = useEcosystemModuleStore.getState().rawRemoteModules;
+  const remoteModules = storeModules || configService.getPlatformControls()?.modules;
   if (remoteModules && remoteModules.length > 0) {
     const found = remoteModules.find((m) => m.key.toLowerCase() === key.toLowerCase());
     if (found) {
@@ -244,6 +286,16 @@ export function isModuleEnabled(key: string): boolean {
   }
   const base = BUSINESS_MODULES.find((m) => m.key.toLowerCase() === key.toLowerCase());
   return base ? base.isEnabled && base.isReady : true;
+}
+
+/**
+ * Reactive hook to check if a specific module is active.
+ */
+export function useModuleEnabled(key: string): boolean {
+  const version = useEcosystemModuleStore((s) => s.version);
+  return React.useMemo(() => {
+    return isModuleEnabled(key);
+  }, [version, key]);
 }
 
 /**

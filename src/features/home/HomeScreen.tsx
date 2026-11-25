@@ -30,7 +30,8 @@ import { useCartStore } from '../../store/cartStore';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
 import { useAuthStore } from '../../store/authStore';
-import { BUSINESS_MODULES, resolveConfiguredModules, isModuleEnabled } from '../../config/businessModules';
+import { BUSINESS_MODULES, useConfiguredModules, useModuleEnabled } from '../../config/businessModules';
+import { configService } from '../../services/configService';
 import { apiClient } from '../../services/apiClient';
 import { ApiEndpoints } from '../../constants/api';
 import { AppEnvironment } from '../../config/environment';
@@ -121,6 +122,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { theme, isDark } = useAppTheme();
   const { language, t } = useLanguageStore();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const ecosystemModules = useConfiguredModules('CUSTOMER');
+  const isRidesActive = useModuleEnabled('rides');
+  const isFoodActive = useModuleEnabled('food');
+  const isBazaarActive = useModuleEnabled('bazaar');
 
   const [activeRide, setActiveRide] = useState<any>(null);
   const [banners, setBanners] = useState<BannerItem[]>([]);
@@ -157,6 +162,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           ? apiClient.get<any>(ApiEndpoints.common.notifications, { suppressAuthPrompt: true })
           : Promise.resolve(null),
         apiClient.get<any>(ApiEndpoints.common.support),
+        configService.fetchConfig(true),
       ]);
 
       let defaultDisplayHours = 24;
@@ -597,7 +603,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
         <View style={styles.moduleSection}>
           <ModuleGrid
-            modules={resolveConfiguredModules()}
+            modules={ecosystemModules}
             onSelectModule={(route) => {
               if (route === 'Food' || route === 'Rides' || route === 'Bazaar') {
                 navigation.navigate(route);
@@ -609,7 +615,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
 
         {/* 7. QUICK RIDE SHORTCUT STRIP (Floating Action Card Style) */}
-        {isModuleEnabled('rides') && (
+        {isRidesActive && (
           <TouchableOpacity
             style={[
               styles.rideShortcutCard,
@@ -696,7 +702,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
 
         {/* 9. FOOD DISCOVERY CUISINES */}
-        {isModuleEnabled('food') && (
+        {isFoodActive && (
           <View style={styles.sectionContainer}>
             <SectionHeader
               title={language === 'hi' ? 'स्वादिष्ट श्रेणियां' : 'Cuisine Discovery'}
@@ -740,7 +746,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         )}
 
         {/* 10. POPULAR RESTAURANTS */}
-        {isModuleEnabled('food') && (
+        {isFoodActive && (
           <View style={styles.sectionContainer}>
             <SectionHeader
               title={language === 'hi' ? 'नजदीकी लोकप्रिय रेस्तरां' : 'Top Restaurants Near You'}
@@ -815,7 +821,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         )}
 
         {/* 11. BAZAAR PICKS */}
-        {isModuleEnabled('bazaar') && bazaarListings.length > 0 && (
+        {isBazaarActive && bazaarListings.length > 0 && (
           <View style={styles.sectionContainer}>
             <SectionHeader
               title={language === 'hi' ? 'स्थानीय कम्युनिटी बाज़ार' : 'Community Bazaar Finds'}

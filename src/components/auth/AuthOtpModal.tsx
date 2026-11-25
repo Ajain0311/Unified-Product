@@ -18,6 +18,7 @@ import { useAppTheme } from '../../theme/themeStore';
 import { AppRadius } from '../../theme/spacing';
 import { shadowStyle, USE_NATIVE_DRIVER } from '../../utils/platformStyles';
 import { FormKeyboardAvoid } from '../common/FormKeyboardAvoid';
+import { navigate, navigationRef } from '../../navigation/navigationRef';
 
 interface AuthOtpModalProps {
   visible: boolean;
@@ -25,6 +26,7 @@ interface AuthOtpModalProps {
   onSuccess: () => void;
   title?: string;
   subtitle?: string;
+  navigation?: any;
 }
 
 export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
@@ -33,6 +35,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
   onSuccess,
   title = 'Sign In to Continue',
   subtitle = 'Verify your phone number to proceed seamlessly',
+  navigation,
 }) => {
   const { theme, isDark } = useAppTheme();
   const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
@@ -41,6 +44,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
   const [fullName, setFullName] = useState('');
   const [isNewUser, setIsNewUser] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMasterAdmin, setIsMasterAdmin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [devOtp, setDevOtp] = useState<string | undefined>(undefined);
@@ -64,6 +68,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
       setFullName('');
       setIsNewUser(false);
       setIsAdmin(false);
+      setIsMasterAdmin(false);
       setAdminPassword('');
       setShowPassword(false);
       setDevOtp(undefined);
@@ -102,6 +107,23 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
   const isOtpValid = otp.trim().length === 6;
   const isPasswordValid = adminPassword.trim().length >= 4;
 
+  const navigateToMasterAdmin = (identifier: string) => {
+    try {
+      if (navigation?.navigate) {
+        navigation.navigate('MasterAdminLogin', { identifier });
+      } else if (navigationRef.isReady()) {
+        navigationRef.navigate('MasterAdminLogin', { identifier });
+      } else {
+        navigate('MasterAdminLogin', { identifier });
+      }
+    } catch (e) {
+      console.warn('Navigation to MasterAdminLogin failed:', e);
+    }
+    setTimeout(() => {
+      onClose();
+    }, 100);
+  };
+
   const handleSendOtp = async () => {
     if (isLoading) return;
     if (!isPhoneValid) {
@@ -113,6 +135,11 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
     Keyboard.dismiss();
     try {
       const res = await sendOtp(cleanNumber);
+      if (res?.isMasterAdmin) {
+        setIsMasterAdmin(true);
+        navigateToMasterAdmin(cleanNumber);
+        return;
+      }
       setIsAdmin(Boolean(res.isAdmin));
       setIsNewUser(Boolean(res.isNewUser));
       setDevOtp(res.devOtp);
@@ -134,8 +161,8 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
       setError('Please enter a complete 6-digit OTP');
       return;
     }
-    if (isAdmin && !isPasswordValid) {
-      setError('Please enter your admin password');
+    if ((isAdmin || isMasterAdmin) && !isPasswordValid) {
+      setError(isMasterAdmin ? 'Please enter your master password' : 'Please enter your admin password');
       return;
     }
     if (isNewUser && (!fullName.trim() || fullName.trim().length < 2)) {
@@ -146,7 +173,10 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
     setIsLoading(true);
     Keyboard.dismiss();
     try {
-      if (isAdmin) {
+      if (isMasterAdmin) {
+        navigateToMasterAdmin(cleanNumber);
+        return;
+      } else if (isAdmin) {
         await adminLogin(cleanNumber, adminPassword.trim(), otp.trim());
       } else {
         await verifyOtp(cleanNumber, otp.trim(), isNewUser ? fullName.trim() : undefined);
@@ -171,6 +201,10 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
     setIsLoading(true);
     try {
       const res = await sendOtp(cleanNumber);
+      if (res?.isMasterAdmin) {
+        navigateToMasterAdmin(cleanNumber);
+        return;
+      }
       setTimerSeconds(30);
       if (res.devOtp) {
         setDevOtp(res.devOtp);
@@ -311,13 +345,17 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
                   </View>
                 ) : null}
 
-                {isAdmin ? (
+                {isAdmin || isMasterAdmin ? (
                   <View style={{ marginBottom: 14 }}>
                     <View style={styles.adminBadgeRow}>
                       <Ionicons name="shield-half" size={14} color="#FF5A1F" />
-                      <Text style={[styles.adminBadgeText, { color: '#FF5A1F' }]}>ADMIN ACCOUNT VERIFICATION</Text>
+                      <Text style={[styles.adminBadgeText, { color: '#FF5A1F' }]}>
+                        {isMasterAdmin ? 'MASTER ADMIN VERIFICATION' : 'ADMIN ACCOUNT VERIFICATION'}
+                      </Text>
                     </View>
-                    <Text style={[styles.label, { color: theme.textSecondary }]}>ADMIN PASSWORD</Text>
+                    <Text style={[styles.label, { color: theme.textSecondary }]}>
+                      {isMasterAdmin ? 'MASTER PASSWORD' : 'ADMIN PASSWORD'}
+                    </Text>
                     <View
                       style={[
                         styles.passwordContainer,
@@ -329,7 +367,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
                     >
                       <TextInput
                         style={[styles.passwordInput, { color: theme.textPrimary }]}
-                        placeholder="Enter admin password (e.g. Admin@123)"
+                        placeholder={isMasterAdmin ? 'Enter master password' : 'Enter admin password (e.g. Admin@123)'}
                         placeholderTextColor={theme.textTertiary}
                         secureTextEntry={!showPassword}
                         value={adminPassword}
@@ -402,9 +440,9 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.primaryBtn, (!isOtpValid || (isAdmin && !isPasswordValid) || isLoading) && { opacity: 0.6 }]}
+                  style={[styles.primaryBtn, (!isOtpValid || ((isAdmin || isMasterAdmin) && !isPasswordValid) || isLoading) && { opacity: 0.6 }]}
                   onPress={handleVerifyOtp}
-                  disabled={!isOtpValid || (isAdmin && !isPasswordValid) || isLoading}
+                  disabled={!isOtpValid || ((isAdmin || isMasterAdmin) && !isPasswordValid) || isLoading}
                   activeOpacity={0.88}
                 >
                   <LinearGradient
@@ -418,7 +456,7 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
                     ) : (
                       <View style={styles.btnRow}>
                         <Text style={styles.btnText}>
-                          {isAdmin ? 'Login as Admin' : 'Verify & Continue'}
+                          {isMasterAdmin ? 'Login as Master Admin' : isAdmin ? 'Login as Admin' : 'Verify & Continue'}
                         </Text>
                         <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
                       </View>

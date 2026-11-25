@@ -112,9 +112,11 @@ interface ThemeState {
   isDark: boolean;
   colors: ThemePalette;
   theme: ThemePalette;
+  allowUserThemeSwitch: boolean;
   setMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
   initTheme: () => Promise<void>;
+  applyPlatformThemeControls: (controls?: { allowUserThemeSwitch?: boolean; defaultTheme?: string }) => void;
 }
 
 const systemIsDark = Appearance.getColorScheme() === 'dark';
@@ -126,8 +128,34 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   isDark: systemIsDark,
   colors: initialPalette,
   theme: initialPalette,
+  allowUserThemeSwitch: true,
+
+  applyPlatformThemeControls: (controls?: { allowUserThemeSwitch?: boolean; defaultTheme?: string }) => {
+    if (!controls) return;
+    const isAllowed = controls.allowUserThemeSwitch ?? true;
+    const defaultThemeName: ThemeMode = controls.defaultTheme === 'dark' ? 'dark' : 'light';
+
+    if (!isAllowed) {
+      const chosenColors = defaultThemeName === 'dark' ? darkTheme : lightTheme;
+      set({
+        allowUserThemeSwitch: false,
+        mode: defaultThemeName,
+        isDark: defaultThemeName === 'dark',
+        colors: chosenColors,
+        theme: chosenColors,
+      });
+      AsyncStorage.setItem('superapp_allow_theme_switch', 'false').catch(() => {});
+      AsyncStorage.setItem('superapp_theme_mode', defaultThemeName).catch(() => {});
+    } else {
+      set({ allowUserThemeSwitch: true });
+      AsyncStorage.setItem('superapp_allow_theme_switch', 'true').catch(() => {});
+    }
+  },
 
   setMode: (mode: ThemeMode) => {
+    if (!get().allowUserThemeSwitch) {
+      return;
+    }
     const chosenColors = mode === 'dark' ? darkTheme : lightTheme;
     // 1. Immediate synchronous UI state transition (0ms latency)
     set({
@@ -143,7 +171,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 
   toggleTheme: () => {
-    if (!configService.isThemeSwitchAllowed()) {
+    if (!get().allowUserThemeSwitch || !configService.isThemeSwitchAllowed()) {
       return;
     }
     const next: ThemeMode = get().mode === 'dark' ? 'light' : 'dark';
@@ -151,9 +179,19 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 
   initTheme: async () => {
+    const savedAllowed = await AsyncStorage.getItem('superapp_allow_theme_switch');
+    const isAllowed = savedAllowed !== 'false';
+    set({ allowUserThemeSwitch: isAllowed });
+
     const remoteTheme = configService.getPlatformControls()?.theme;
-    if (remoteTheme && !remoteTheme.allowUserThemeSwitch) {
-      const lockedMode: ThemeMode = remoteTheme.defaultTheme === 'dark' ? 'dark' : 'light';
+    if (remoteTheme) {
+      get().applyPlatformThemeControls(remoteTheme);
+      return;
+    }
+
+    const saved = await AsyncStorage.getItem('superapp_theme_mode');
+    if (!isAllowed) {
+      const lockedMode: ThemeMode = saved === 'dark' ? 'dark' : 'light';
       const chosenColors = lockedMode === 'dark' ? darkTheme : lightTheme;
       set({
         mode: lockedMode,
@@ -164,7 +202,6 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       return;
     }
 
-    const saved = await AsyncStorage.getItem('superapp_theme_mode');
     if (saved === 'light' || saved === 'dark') {
       const chosenColors = saved === 'dark' ? darkTheme : lightTheme;
       set({
@@ -174,7 +211,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
         theme: chosenColors,
       });
     } else {
-      const defaultMode: ThemeMode = remoteTheme?.defaultTheme === 'dark' ? 'dark' : (Appearance.getColorScheme() === 'dark' ? 'dark' : 'light');
+      const defaultMode: ThemeMode = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
       const chosenColors = defaultMode === 'dark' ? darkTheme : lightTheme;
       set({
         mode: defaultMode,
@@ -187,21 +224,24 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 }));
 
 Appearance.addChangeListener(({ colorScheme }) => {
-  AsyncStorage.getItem('superapp_theme_mode').then((saved) => {
-    if (!saved) {
-      const isSysDark = colorScheme === 'dark';
-      const chosenColors = isSysDark ? darkTheme : lightTheme;
-      useThemeStore.setState({
-        mode: isSysDark ? 'dark' : 'light',
-        isDark: isSysDark,
-        colors: chosenColors,
-        theme: chosenColors,
-      });
-    }
+  AsyncStorage.getItem('superapp_allow_theme_switch').then((savedAllowed) => {
+    if (savedAllowed === 'false') return;
+    AsyncStorage.getItem('superapp_theme_mode').then((saved) => {
+      if (!saved) {
+        const isSysDark = colorScheme === 'dark';
+        const chosenColors = isSysDark ? darkTheme : lightTheme;
+        useThemeStore.setState({
+          mode: isSysDark ? 'dark' : 'light',
+          isDark: isSysDark,
+          colors: chosenColors,
+          theme: chosenColors,
+        });
+      }
+    });
   });
 });
 
 export function useAppTheme() {
-  const { colors, theme, isDark, mode, toggleTheme, setMode } = useThemeStore();
-  return { colors, theme, isDark, mode, toggleTheme, setMode };
+  const { colors, theme, isDark, mode, allowUserThemeSwitch, toggleTheme, setMode } = useThemeStore();
+  return { colors, theme, isDark, mode, allowUserThemeSwitch, toggleTheme, setMode };
 }

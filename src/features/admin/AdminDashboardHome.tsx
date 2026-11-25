@@ -24,7 +24,7 @@ interface AdminDashboardHomeProps {
 }
 
 export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigation }) => {
-  const { theme, isDark, toggleTheme } = useAppTheme();
+  const { theme, isDark, toggleTheme, allowUserThemeSwitch } = useAppTheme();
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -118,7 +118,7 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({ navigati
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {configService.isThemeSwitchAllowed() && (
+          {allowUserThemeSwitch && (
             <TouchableOpacity
               style={[styles.themeBtn, { backgroundColor: theme.surfaceLight, borderColor: theme.border }]}
               onPress={toggleTheme}

@@ -53,7 +53,41 @@ export interface RemoteClientConfig {
 let cachedRemoteConfig: RemoteClientConfig | null = null;
 let fetchPromise: Promise<RemoteClientConfig | null> | null = null;
 
+const syncStoresWithControls = (platformControls?: PlatformPublicControls) => {
+  if (!platformControls) return;
+  try {
+    const { useThemeStore } = require('../theme/themeStore');
+    if (platformControls.theme) {
+      useThemeStore.getState().applyPlatformThemeControls(platformControls.theme);
+    }
+  } catch (e) {
+    // Ignore require circularity
+  }
+  try {
+    const { useLanguageStore } = require('../store/languageStore');
+    if (platformControls.language) {
+      useLanguageStore.getState().applyPlatformLanguageControls(platformControls.language);
+    }
+  } catch (e) {
+    // Ignore require circularity
+  }
+  try {
+    const { useEcosystemModuleStore } = require('../config/businessModules');
+    if (platformControls.modules) {
+      useEcosystemModuleStore.getState().setRemoteModules(platformControls.modules);
+    }
+  } catch (e) {
+    // Ignore require circularity
+  }
+};
+
 export const configService = {
+  syncPlatformControls(controls: PlatformPublicControls) {
+    if (cachedRemoteConfig) {
+      cachedRemoteConfig.platformControls = controls;
+    }
+    syncStoresWithControls(controls);
+  },
   async fetchConfig(forceRefresh = false): Promise<RemoteClientConfig | null> {
     if (!forceRefresh && cachedRemoteConfig) {
       return cachedRemoteConfig;
@@ -72,12 +106,14 @@ export const configService = {
           if (cachedRemoteConfig.mapboxAccessToken) {
             AppEnvironment.setRuntimeMapboxToken(cachedRemoteConfig.mapboxAccessToken);
           }
+          syncStoresWithControls(cachedRemoteConfig.platformControls);
           return cachedRemoteConfig;
         } else if (data && data.mapboxAccessToken) {
           cachedRemoteConfig = data as RemoteClientConfig;
           if (cachedRemoteConfig.mapboxAccessToken) {
             AppEnvironment.setRuntimeMapboxToken(cachedRemoteConfig.mapboxAccessToken);
           }
+          syncStoresWithControls(cachedRemoteConfig.platformControls);
           return cachedRemoteConfig;
         }
       } catch (err) {

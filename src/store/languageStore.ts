@@ -74,11 +74,13 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
 export interface LanguageState {
   currentLanguage: LanguageCode;
   language: LanguageCode;
+  allowUserLanguageSwitch: boolean;
   t: (key: string, fallback?: string) => string;
   translations: Record<string, string>;
   setLanguage: (lang: LanguageCode) => void;
   toggleLanguage: () => void;
   initLanguage: () => Promise<void>;
+  applyPlatformLanguageControls: (controls?: { allowUserLanguageSwitch?: boolean; supportedLanguages?: string[]; defaultLanguage?: string }) => void;
 }
 
 export const useLanguageStore = create<LanguageState>((set, get) => {
@@ -90,11 +92,33 @@ export const useLanguageStore = create<LanguageState>((set, get) => {
   return {
     currentLanguage: 'en',
     language: 'en',
+    allowUserLanguageSwitch: true,
     translations: TRANSLATIONS.en,
     t: translators.en,
 
+    applyPlatformLanguageControls: (controls?: { allowUserLanguageSwitch?: boolean; supportedLanguages?: string[]; defaultLanguage?: string }) => {
+      if (!controls) return;
+      const isAllowed = controls.allowUserLanguageSwitch ?? true;
+      const defaultLang: LanguageCode = controls.defaultLanguage === 'hi' ? 'hi' : 'en';
+
+      if (!isAllowed) {
+        set({
+          allowUserLanguageSwitch: false,
+          currentLanguage: defaultLang,
+          language: defaultLang,
+          translations: TRANSLATIONS[defaultLang] || TRANSLATIONS.en,
+          t: translators[defaultLang] || translators.en,
+        });
+        AsyncStorage.setItem('superapp_allow_lang_switch', 'false').catch(() => {});
+        AsyncStorage.setItem('superapp_language', defaultLang).catch(() => {});
+      } else {
+        set({ allowUserLanguageSwitch: true });
+        AsyncStorage.setItem('superapp_allow_lang_switch', 'true').catch(() => {});
+      }
+    },
+
     setLanguage: (lang: LanguageCode) => {
-      if (!configService.isLanguageSwitchAllowed()) {
+      if (!get().allowUserLanguageSwitch || !configService.isLanguageSwitchAllowed()) {
         return;
       }
       const supported = configService.getPlatformControls()?.language?.supportedLanguages;
@@ -116,7 +140,7 @@ export const useLanguageStore = create<LanguageState>((set, get) => {
     },
 
     toggleLanguage: () => {
-      if (!configService.isLanguageSwitchAllowed()) {
+      if (!get().allowUserLanguageSwitch || !configService.isLanguageSwitchAllowed()) {
         return;
       }
       const next: LanguageCode = get().currentLanguage === 'en' ? 'hi' : 'en';
@@ -128,9 +152,19 @@ export const useLanguageStore = create<LanguageState>((set, get) => {
     },
 
     initLanguage: async () => {
+      const savedAllowed = await AsyncStorage.getItem('superapp_allow_lang_switch');
+      const isAllowed = savedAllowed !== 'false';
+      set({ allowUserLanguageSwitch: isAllowed });
+
       const remoteLang = configService.getPlatformControls()?.language;
-      if (remoteLang && !remoteLang.allowUserLanguageSwitch) {
-        const locked: LanguageCode = remoteLang.defaultLanguage === 'hi' ? 'hi' : 'en';
+      if (remoteLang) {
+        get().applyPlatformLanguageControls(remoteLang);
+        return;
+      }
+
+      const saved = await AsyncStorage.getItem('superapp_language');
+      if (!isAllowed) {
+        const locked: LanguageCode = saved === 'hi' ? 'hi' : 'en';
         set({
           currentLanguage: locked,
           language: locked,
@@ -140,26 +174,21 @@ export const useLanguageStore = create<LanguageState>((set, get) => {
         return;
       }
 
-      const saved = await AsyncStorage.getItem('superapp_language');
       if (saved === 'hi' || saved === 'en') {
-        const supported = remoteLang?.supportedLanguages;
-        if (!supported || supported.includes(saved)) {
-          set({
-            currentLanguage: saved as LanguageCode,
-            language: saved as LanguageCode,
-            translations: TRANSLATIONS[saved as LanguageCode] || TRANSLATIONS.en,
-            t: translators[saved as LanguageCode] || translators.en,
-          });
-          return;
-        }
+        set({
+          currentLanguage: saved as LanguageCode,
+          language: saved as LanguageCode,
+          translations: TRANSLATIONS[saved as LanguageCode] || TRANSLATIONS.en,
+          t: translators[saved as LanguageCode] || translators.en,
+        });
+        return;
       }
 
-      const defaultLang: LanguageCode = remoteLang?.defaultLanguage === 'hi' ? 'hi' : 'en';
       set({
-        currentLanguage: defaultLang,
-        language: defaultLang,
-        translations: TRANSLATIONS[defaultLang] || TRANSLATIONS.en,
-        t: translators[defaultLang] || translators.en,
+        currentLanguage: 'en',
+        language: 'en',
+        translations: TRANSLATIONS.en,
+        t: translators.en,
       });
     },
   };

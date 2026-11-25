@@ -18,7 +18,7 @@ import {
   masterAdminService,
   MasterAdminPlatformConfig,
 } from '../../services/masterAdminService';
-import { PlatformModulePublicConfig } from '../../services/configService';
+import { PlatformModulePublicConfig, configService } from '../../services/configService';
 import { useRoleStore } from '../../store/roleStore';
 
 interface MasterAdminControlPanelScreenProps {
@@ -60,6 +60,7 @@ export const MasterAdminControlPanelScreen: React.FC<MasterAdminControlPanelScre
     try {
       const data = await masterAdminService.getConfig();
       setConfig(data);
+      configService.syncPlatformControls(data as any);
       setModules(data.modules || []);
       setAllowThemeSwitch(data.theme.allowUserThemeSwitch);
       setDefaultTheme(data.theme.defaultTheme as 'light' | 'dark');
@@ -145,6 +146,7 @@ export const MasterAdminControlPanelScreen: React.FC<MasterAdminControlPanelScre
         defaultTheme,
       });
       setConfig(res);
+      configService.syncPlatformControls(res as any);
       Alert.alert('Saved', 'Theme configuration updated successfully!');
     } catch (err: any) {
       Alert.alert('Save Failed', err.message || 'Could not update theme.');
@@ -167,6 +169,7 @@ export const MasterAdminControlPanelScreen: React.FC<MasterAdminControlPanelScre
         defaultLanguage,
       });
       setConfig(res);
+      configService.syncPlatformControls(res as any);
       Alert.alert('Saved', 'Language controls updated successfully!');
     } catch (err: any) {
       Alert.alert('Save Failed', err.message || 'Could not update language settings.');

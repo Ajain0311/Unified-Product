@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,12 @@ export const MasterAdminLoginScreen: React.FC<MasterAdminLoginScreenProps> = ({ 
 
   // Form State
   const [usernameOrEmail, setUsernameOrEmail] = useState(initialIdentifier);
+
+  useEffect(() => {
+    if (route?.params?.identifier) {
+      setUsernameOrEmail(route.params.identifier);
+    }
+  }, [route?.params?.identifier]);
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');

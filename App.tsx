@@ -15,6 +15,8 @@ import { polyfillAlert } from './src/utils/alertPolyfill';
 polyfillAlert();
 import { useAppUpdateChecker } from './src/hooks/useAppUpdateChecker';
 import { useAppTheme, useThemeStore } from './src/theme/themeStore';
+import { useLanguageStore } from './src/store/languageStore';
+import { useEcosystemModuleStore } from './src/config/businessModules';
 import { AppAlert } from './src/components/common/AppAlert';
 import { GlobalAuthModal } from './src/components/auth/GlobalAuthModal';
 
@@ -44,7 +46,9 @@ export default function App() {
   }, [theme, isDark]);
   useEffect(() => {
     useThemeStore.getState().initTheme();
-    configService.fetchConfig().then(() => {
+    useLanguageStore.getState().initLanguage();
+    useEcosystemModuleStore.getState().loadCachedModules();
+    configService.fetchConfig(true).then(() => {
       if ((Platform.OS === 'ios' || Platform.OS === 'android') && AppEnvironment.hasMapboxToken) {
         try {
           const Mapbox = require('@rnmapbox/maps').default;

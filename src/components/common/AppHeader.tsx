@@ -28,8 +28,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onPressProfile,
   unreadCount = 0,
 }) => {
-  const { theme, isDark, toggleTheme } = useAppTheme();
-  const { language, toggleLanguage } = useLanguageStore();
+  const { theme, isDark, toggleTheme, allowUserThemeSwitch } = useAppTheme();
+  const { language, toggleLanguage, allowUserLanguageSwitch } = useLanguageStore();
   const user = useAuthStore((state) => state.user);
 
   const getInitials = () => {
@@ -85,7 +85,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       {/* Right Quick Actions */}
       <View style={styles.actionsRow}>
         {/* Language Switch */}
-        {configService.isLanguageSwitchAllowed() && (
+        {allowUserLanguageSwitch && (
           <TouchableOpacity
             style={[
               styles.actionButton,
@@ -102,7 +102,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         )}
 
         {/* Theme Toggle */}
-        {configService.isThemeSwitchAllowed() && (
+        {allowUserThemeSwitch && (
           <TouchableOpacity
             style={[
               styles.actionButton,

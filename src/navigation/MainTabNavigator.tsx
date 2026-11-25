@@ -21,7 +21,7 @@ import { SellerDashboardScreen } from '../features/seller/SellerDashboardScreen'
 import { AddListingScreen } from '../features/marketplace/AddListingScreen';
 import { AdminPortalScreen } from '../features/admin/AdminPortalScreen';
 import { MasterAdminControlPanelScreen } from '../features/masterAdmin/MasterAdminControlPanelScreen';
-import { isModuleEnabled } from '../config/businessModules';
+import { isModuleEnabled, useModuleEnabled } from '../config/businessModules';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -34,6 +34,9 @@ const MainTabNavigatorComponent: React.FC = () => {
 
   const activeColor = config.color;
   const inactiveColor = theme.textTertiary;
+  const isFoodActive = useModuleEnabled('food');
+  const isRidesActive = useModuleEnabled('rides');
+  const isBazaarActive = useModuleEnabled('bazaar');
 
   const screenOptions = React.useMemo(() => ({
     headerShown: false,
@@ -83,7 +86,7 @@ const MainTabNavigatorComponent: React.FC = () => {
               ),
             }}
           />
-          {isModuleEnabled('food') && (
+          {isFoodActive && (
             <Tab.Screen
               name="Food"
               component={FoodHomeScreen}
@@ -99,7 +102,7 @@ const MainTabNavigatorComponent: React.FC = () => {
               }}
             />
           )}
-          {isModuleEnabled('rides') && (
+          {isRidesActive && (
             <Tab.Screen
               name="Rides"
               component={RideBookingScreen}
@@ -115,7 +118,7 @@ const MainTabNavigatorComponent: React.FC = () => {
               }}
             />
           )}
-          {isModuleEnabled('bazaar') && (
+          {isBazaarActive && (
             <Tab.Screen
               name="Bazaar"
               component={MarketplaceHomeScreen}
