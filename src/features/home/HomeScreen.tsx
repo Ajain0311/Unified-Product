@@ -597,8 +597,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               ? 'होटल, खाना, कैब, बाज़ार एवं पेय'
               : 'Curated stays, fast delivery & local commerce'
           }
-          actionText={language === 'hi' ? 'सभी मॉड्यूल' : 'All Modules'}
-          onAction={() => navigation.navigate('ModuleCatalog' as any)}
         />
 
         <View style={styles.moduleSection}>
