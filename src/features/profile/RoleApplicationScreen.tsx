@@ -28,6 +28,9 @@ import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { locationService } from '../../services/locationService';
 import { mapboxService, MapPlaceSuggestion, SelectedMapPlace } from '../../services/mapboxService';
 import { LocationMapPicker } from '../../components/maps/LocationMapPicker';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthModalStore } from '../../store/authModalStore';
+import { useLanguageStore } from '../../store/languageStore';
 
 type RoleKind = 'DRIVER' | 'RESTAURANT_OWNER' | 'HOTEL_OWNER';
 
@@ -110,6 +113,9 @@ export const RoleApplicationScreen: React.FC = () => {
   const { theme, isDark } = useAppTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'RoleApplication'>>();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const openAuthModal = useAuthModalStore((s) => s.openAuthModal);
+  const { language } = useLanguageStore();
   const initialRole: RoleKind =
     route.params?.role === 'HOTEL_OWNER'
       ? 'HOTEL_OWNER'
@@ -163,6 +169,13 @@ export const RoleApplicationScreen: React.FC = () => {
 
   const loadMine = useCallback(
     async (pull = false) => {
+      if (!useAuthStore.getState().isAuthenticated) {
+        setLoadingApp(false);
+        setRefreshing(false);
+        setApps([]);
+        setLoadError(null);
+        return;
+      }
       if (pull) setRefreshing(true);
       else setLoadingApp(true);
       setLoadError(null);
@@ -338,6 +351,16 @@ export const RoleApplicationScreen: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    if (!useAuthStore.getState().isAuthenticated) {
+      openAuthModal({
+        title: language === 'hi' ? 'लॉगिन आवश्यक है' : 'Sign In Required',
+        subtitle:
+          language === 'hi'
+            ? 'पार्टनर आवेदन सबमिट करने के लिए कृपया अपने फोन नंबर से लॉगिन करें।'
+            : 'Please sign in with your mobile number to submit your partner application.',
+      });
+      return;
+    }
     if (!isDriver && !gpsCoordinates && !hotelAddress.trim()) {
       Alert.alert(
         'GPS Location Required',
@@ -518,6 +541,44 @@ export const RoleApplicationScreen: React.FC = () => {
               : 'Apply for a hotel, restaurant, or cafe. Already have one outlet? Submit again to add another — admin must approve each outlet.'}
           </Text>
 
+          {!isAuthenticated && (
+            <View style={[styles.authCard, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+              <View style={styles.authCardHeader}>
+                <View style={styles.authIconWrap}>
+                  <Ionicons name="lock-closed" size={22} color="#FF5A1F" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.authCardTitle, { color: theme.textPrimary }]}>
+                    {language === 'hi' ? 'आवेदन करने के लिए लॉगिन करें' : 'Sign in to Partner with Zupify'}
+                  </Text>
+                  <Text style={[styles.authCardSub, { color: theme.textSecondary }]}>
+                    {language === 'hi'
+                      ? 'आवेदन जमा करने और स्थिति देखने के लिए कृपया लॉगिन करें।'
+                      : 'Please sign in with your mobile number to submit and track your partner application.'}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.authLoginBtn}
+                onPress={() =>
+                  openAuthModal({
+                    title: language === 'hi' ? 'पार्टनर लॉगिन' : 'Partner Sign In',
+                    subtitle:
+                      language === 'hi'
+                        ? 'आवेदन जारी रखने के लिए अपने नंबर से लॉगिन करें'
+                        : 'Sign in to continue your partner application',
+                  })
+                }
+                activeOpacity={0.85}
+              >
+                <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.authLoginBtnText}>
+                  {language === 'hi' ? 'लॉगिन / साइन इन करें' : 'Sign In / Register'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {loadingApp ? (
             <View style={[styles.statusLoading, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
               <ActivityIndicator color={theme.primary} />
@@ -526,9 +587,22 @@ export const RoleApplicationScreen: React.FC = () => {
           ) : loadError ? (
             <View style={[styles.statusCard, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
               <Text style={styles.errorText}>{loadError}</Text>
-              <TouchableOpacity style={[styles.retryBtn, { backgroundColor: theme.surfaceMuted }]} onPress={() => loadMine()}>
-                <Text style={[styles.retryText, { color: theme.textPrimary }]}>Retry</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <TouchableOpacity style={[styles.retryBtn, { backgroundColor: theme.surfaceMuted }]} onPress={() => loadMine()}>
+                  <Text style={[styles.retryText, { color: theme.textPrimary }]}>Retry</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.retryBtn, { backgroundColor: '#FF5A1F', borderColor: '#FF5A1F' }]}
+                  onPress={() =>
+                    openAuthModal({
+                      title: 'Sign In',
+                      subtitle: 'Verify your mobile number to access partner services.',
+                    })
+                  }
+                >
+                  <Text style={[styles.retryText, { color: '#FFFFFF', fontWeight: '700' }]}>Sign In</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : apps.length > 0 ? (
             <View style={styles.appsList}>
@@ -861,7 +935,11 @@ export const RoleApplicationScreen: React.FC = () => {
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <Text style={styles.submitText}>
-                    {isDriver
+                    {!isAuthenticated
+                      ? language === 'hi'
+                        ? 'लॉगिन करके आवेदन सबमिट करें'
+                        : 'Sign In to Submit Application'
+                      : isDriver
                       ? hasApproved
                         ? 'Submit Another Vehicle'
                         : 'Submit for Admin Approval'
@@ -939,6 +1017,50 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#FFF', fontSize: 16, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   content: { padding: 16, paddingBottom: 40 },
   intro: { color: AppColors.textSecondary, fontSize: 13, lineHeight: 19, marginBottom: 16 },
+  authCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+  },
+  authCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  authIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 90, 31, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  authCardSub: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  authLoginBtn: {
+    backgroundColor: '#FF5A1F',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  authLoginBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   statusLoading: {
     flexDirection: 'row',
     alignItems: 'center',

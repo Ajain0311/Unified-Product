@@ -18,6 +18,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useAppTheme } from '../../theme/themeStore';
 import { apiClient } from '../../services/apiClient';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthModalStore } from '../../store/authModalStore';
 
 export const SubmitBusinessRequestScreen: React.FC = () => {
   const { theme } = useAppTheme();
@@ -46,6 +48,14 @@ export const SubmitBusinessRequestScreen: React.FC = () => {
   ];
 
   const handleSubmit = async () => {
+    if (!useAuthStore.getState().isAuthenticated) {
+      useAuthModalStore.getState().openAuthModal({
+        title: 'Sign In Required',
+        subtitle: 'Please sign in to submit your business proposal.',
+      });
+      return;
+    }
+
     if (!title.trim()) {
       Alert.alert('Required Field', 'Please enter a title or item name for your request.');
       return;

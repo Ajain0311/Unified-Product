@@ -30,6 +30,8 @@ import { LocationService } from '../../services/locationService';
 import { FormKeyboardAvoid } from '../../components/common/FormKeyboardAvoid';
 import { AppRadius, AppSpacing, AppShadows } from '../../theme/spacing';
 import * as ImagePicker from 'expo-image-picker';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthModalStore } from '../../store/authModalStore';
 
 const locationService = new LocationService();
 
@@ -212,6 +214,14 @@ export const AddListingScreen: React.FC = () => {
 
   // Step 3 Submission
   const handleSubmit = async () => {
+    if (!useAuthStore.getState().isAuthenticated) {
+      useAuthModalStore.getState().openAuthModal({
+        title: 'Sign In Required',
+        subtitle: 'Please sign in to publish your item to City Bazaar.',
+      });
+      return;
+    }
+
     if (!location.trim()) {
       Alert.alert('Location Required', 'Please enter or detect your pickup locality.');
       return;

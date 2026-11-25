@@ -13,11 +13,15 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useAppTheme } from '../../theme/themeStore';
 import { useLanguageStore } from '../../store/languageStore';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthModalStore } from '../../store/authModalStore';
 
 export const GrowWithSuperAppScreen: React.FC = () => {
   const { theme } = useAppTheme();
   const { language } = useLanguageStore();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const openAuthModal = useAuthModalStore((s) => s.openAuthModal);
 
   // Core 4 MVP Business Partner categories - Simple, clear and easy to understand
   const partnerOptions = [
@@ -81,6 +85,41 @@ export const GrowWithSuperAppScreen: React.FC = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {!isAuthenticated && (
+          <TouchableOpacity
+            style={[styles.loginPromptCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+            onPress={() =>
+              openAuthModal({
+                title: language === 'hi' ? 'लॉगिन करें' : 'Sign In to Zupify',
+                subtitle:
+                  language === 'hi'
+                    ? 'पार्टनर आवेदन और स्टेटस ट्रैक करने के लिए लॉगिन करें।'
+                    : 'Sign in to submit applications and manage your business.',
+              })
+            }
+            activeOpacity={0.8}
+          >
+            <View style={styles.loginPromptLeft}>
+              <View style={styles.loginPromptIconBox}>
+                <Ionicons name="person-circle-outline" size={24} color="#FF5A1F" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.loginPromptTitle, { color: theme.textPrimary }]}>
+                  {language === 'hi' ? 'लॉगिन नहीं किया है?' : 'Not signed in yet?'}
+                </Text>
+                <Text style={[styles.loginPromptSub, { color: theme.textSecondary }]}>
+                  {language === 'hi' ? 'पार्टनरशिप ट्रैक करने के लिए साइन इन करें' : 'Sign in to track your partner applications'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.loginPromptBtn}>
+              <Text style={styles.loginPromptBtnText}>
+                {language === 'hi' ? 'लॉगिन' : 'Sign In'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Simple MVP Callout */}
         <View style={[styles.calloutCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <Text style={[styles.calloutTitle, { color: theme.textPrimary }]}>
@@ -168,6 +207,50 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 32,
+  },
+  loginPromptCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 14,
+    gap: 12,
+  },
+  loginPromptLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  loginPromptIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 90, 31, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loginPromptTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  loginPromptSub: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  loginPromptBtn: {
+    backgroundColor: '#FF5A1F',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  loginPromptBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   calloutCard: {
     borderRadius: 16,
