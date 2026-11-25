@@ -830,14 +830,6 @@ export const RideBookingScreen: React.FC = () => {
                     )}
                   </View>
                 </View>
-
-                <TouchableOpacity
-                  style={[styles.pinIconBtn, { backgroundColor: `${theme.primary}15` }]}
-                  onPress={() => openMapModal('pickup')}
-                  accessibilityLabel="Pin pickup on map"
-                >
-                  <MaterialIcons name="map" size={18} color={theme.primary} />
-                </TouchableOpacity>
               </TouchableOpacity>
 
               {/* Connecting Divider */}
@@ -888,14 +880,6 @@ export const RideBookingScreen: React.FC = () => {
                     )}
                   </View>
                 </View>
-
-                <TouchableOpacity
-                  style={[styles.pinIconBtn, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}
-                  onPress={() => openMapModal('dropoff')}
-                  accessibilityLabel="Pin destination on map"
-                >
-                  <MaterialIcons name="map" size={18} color="#EF4444" />
-                </TouchableOpacity>
               </TouchableOpacity>
             </View>
 
