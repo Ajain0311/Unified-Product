@@ -17,8 +17,11 @@ import { useAppUpdateChecker } from './src/hooks/useAppUpdateChecker';
 import { useAppTheme, useThemeStore } from './src/theme/themeStore';
 import { useLanguageStore } from './src/store/languageStore';
 import { useEcosystemModuleStore } from './src/config/businessModules';
+import { useSystemSettingsStore } from './src/store/systemSettingsStore';
 import { AppAlert } from './src/components/common/AppAlert';
 import { GlobalAuthModal } from './src/components/auth/GlobalAuthModal';
+import { GlobalMaintenanceOverlay } from './src/components/common/GlobalMaintenanceOverlay';
+import { GlobalGuestRestrictionModal } from './src/components/common/GlobalGuestRestrictionModal';
 
 import { apiClient } from './src/services/apiClient';
 import { useAuthModalStore } from './src/store/authModalStore';
@@ -48,6 +51,7 @@ export default function App() {
     useThemeStore.getState().initTheme();
     useLanguageStore.getState().initLanguage();
     useEcosystemModuleStore.getState().loadCachedModules();
+    useSystemSettingsStore.getState().loadCachedSettings();
     configService.fetchConfig(true).then(() => {
       if ((Platform.OS === 'ios' || Platform.OS === 'android') && AppEnvironment.hasMapboxToken) {
         try {
@@ -109,6 +113,8 @@ export default function App() {
       </NavigationContainer>
       <AppAlert />
       <GlobalAuthModal />
+      <GlobalGuestRestrictionModal />
+      <GlobalMaintenanceOverlay />
     </SafeAreaProvider>
   );
 }

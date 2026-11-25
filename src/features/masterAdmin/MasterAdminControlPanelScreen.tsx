@@ -200,6 +200,7 @@ export const MasterAdminControlPanelScreen: React.FC<MasterAdminControlPanelScre
       };
       const res = await masterAdminService.updateSettings(updated);
       setConfig(res);
+      configService.syncPlatformControls(res);
       Alert.alert('Saved', 'System settings & killswitches updated successfully!');
     } catch (err: any) {
       Alert.alert('Save Failed', err.message || 'Could not update settings.');

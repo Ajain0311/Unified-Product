@@ -79,6 +79,14 @@ const syncStoresWithControls = (platformControls?: PlatformPublicControls) => {
   } catch (e) {
     // Ignore require circularity
   }
+  try {
+    const { useSystemSettingsStore } = require('../store/systemSettingsStore');
+    if (platformControls.systemSettings) {
+      useSystemSettingsStore.getState().applySystemSettings(platformControls.systemSettings);
+    }
+  } catch (e) {
+    // Ignore require circularity
+  }
 };
 
 export const configService = {
@@ -147,5 +155,17 @@ export const configService = {
 
   isLanguageSwitchAllowed(): boolean {
     return cachedRemoteConfig?.platformControls?.language.allowUserLanguageSwitch ?? true;
+  },
+
+  isMaintenanceMode(): boolean {
+    return cachedRemoteConfig?.platformControls?.systemSettings?.['maintenance_mode'] === 'true';
+  },
+
+  isGuestBrowsingAllowed(): boolean {
+    return cachedRemoteConfig?.platformControls?.systemSettings?.['allow_guest_browsing'] !== 'false';
+  },
+
+  getBroadcastAnnouncement(): string {
+    return cachedRemoteConfig?.platformControls?.systemSettings?.['broadcast_announcement'] || '';
   },
 };
