@@ -13,6 +13,7 @@ import {
   Platform,
   Linking,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -116,14 +117,13 @@ export const PhoneEntryScreen: React.FC<PhoneEntryScreenProps> = ({ navigation }
         >
           {/* Brand Header */}
           <View style={[styles.brandHeader, keyboardOpen && styles.brandHeaderCompact]}>
-            <LinearGradient
-              colors={['#FF5A1F', '#FF8A5C']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.logoBadge, keyboardOpen && styles.logoBadgeCompact]}
-            >
-              <Ionicons name="sparkles" size={keyboardOpen ? 22 : 30} color="#FFFFFF" />
-            </LinearGradient>
+            <View style={[styles.logoBadge, keyboardOpen && styles.logoBadgeCompact]}>
+              <Image
+                source={require('../../../assets/icon.png')}
+                style={styles.logoBadgeImage}
+                resizeMode="contain"
+              />
+            </View>
 
             {!keyboardOpen && (
               <View style={styles.regionBadge}>
@@ -404,6 +404,11 @@ const createStyles = (theme: ThemePalette, isDark: boolean) =>
       height: 44,
       borderRadius: 14,
       marginBottom: 8,
+    },
+    logoBadgeImage: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 22,
     },
     regionBadge: {
       flexDirection: 'row',

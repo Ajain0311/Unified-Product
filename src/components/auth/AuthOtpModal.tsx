@@ -10,6 +10,7 @@ import {
   Animated,
   Keyboard,
   Platform,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -240,9 +241,11 @@ export const AuthOtpModal: React.FC<AuthOtpModalProps> = ({
             <View style={styles.headerRow}>
               <View style={styles.headerTitles}>
                 <View style={styles.titleIconRow}>
-                  <View style={[styles.sparkleBox, { backgroundColor: isDark ? '#FF5A1F25' : '#FFF3EE' }]}>
-                    <Ionicons name="shield-checkmark" size={18} color="#FF5A1F" />
-                  </View>
+                  <Image
+                    source={require('../../../assets/icon.png')}
+                    style={styles.modalLogo}
+                    resizeMode="contain"
+                  />
                   <Text style={[styles.title, { color: theme.textPrimary }]}>{title}</Text>
                 </View>
                 <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
@@ -511,6 +514,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  modalLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    marginRight: 8,
   },
   sparkleBox: {
     width: 32,

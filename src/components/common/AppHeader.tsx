@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -43,6 +44,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   return (
     <View style={styles.container}>
+      {/* Official Zupify Brand Logo */}
+      <View style={[styles.brandLogoBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }, AppShadows.subtle]}>
+        <Image
+          source={require('../../../assets/icon.png')}
+          style={styles.brandLogo}
+          resizeMode="contain"
+        />
+      </View>
+
       {/* Location Selector */}
       <TouchableOpacity
         style={[
@@ -166,6 +176,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: AppSpacing.md,
+  },
+  brandLogoBox: {
+    width: 38,
+    height: 38,
+    borderRadius: AppRadius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: AppSpacing.xs,
+    overflow: 'hidden',
+  },
+  brandLogo: {
+    width: 34,
+    height: 34,
+    borderRadius: AppRadius.sm,
   },
   locationCard: {
     flexDirection: 'row',

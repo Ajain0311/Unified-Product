@@ -15,6 +15,7 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   Switch,
+  Image,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -557,7 +558,14 @@ export const ProfileScreen: React.FC = () => {
         )}
 
         {/* App Version Info */}
-        <Text style={styles.versionText}>Zupify v1.0.4 (Unified Ecosystem)</Text>
+        <View style={styles.footerBrandWrap}>
+          <Image
+            source={require('../../../assets/icon.png')}
+            style={styles.footerLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.versionText}>Zupify v1.0.4 (Unified Ecosystem)</Text>
+        </View>
       </ScrollView>
 
       <RoleSwitchModal
@@ -830,11 +838,22 @@ const styles = StyleSheet.create({
     color: colors.error,
     fontWeight: '700',
   },
+  footerBrandWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  footerLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
   versionText: {
     textAlign: 'center',
     fontSize: 12,
     color: colors.textTertiary,
-    marginTop: spacing.lg,
   },
   roleSwitchCard: {
     flexDirection: 'row',
