@@ -11,8 +11,10 @@ import { AppEnvironment } from './src/config/environment';
 import { mapboxService } from './src/services/mapboxService';
 import { configService } from './src/services/configService';
 import { polyfillAlert } from './src/utils/alertPolyfill';
+import * as SplashScreen from 'expo-splash-screen';
 
 polyfillAlert();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 import { useAppUpdateChecker } from './src/hooks/useAppUpdateChecker';
 import { useAppTheme, useThemeStore } from './src/theme/themeStore';
 import { useLanguageStore } from './src/store/languageStore';

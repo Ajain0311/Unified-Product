@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Image } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, Image } from 'react-native';
+import * as ExpoSplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../../store/authStore';
 import { useAppTheme } from '../../theme/themeStore';
-import { shadowStyle, USE_NATIVE_DRIVER } from '../../utils/platformStyles';
+import { shadowStyle } from '../../utils/platformStyles';
 
 interface SplashScreenProps {
   navigation: any;
@@ -11,28 +12,14 @@ interface SplashScreenProps {
 export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
   const checkAuth = useAuthStore((state) => state.checkAuth);
   const { theme } = useAppTheme();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
 
   useEffect(() => {
-    // Smooth intro animation matching native app icon
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 6,
-        tension: 40,
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-    ]).start();
+    // Dismiss the native OS splash screen once the React Native splash view is mounted
+    ExpoSplashScreen.hideAsync().catch(() => {});
 
-    // Verify authentication immediately with maximum 1.5s intro
     let cancelled = false;
-    const minimumIntro = new Promise((resolve) => setTimeout(resolve, 800));
+    // Guaranteed intro duration (1.2s) so branding is visible consistently across fast and slow devices
+    const minimumIntro = new Promise((resolve) => setTimeout(resolve, 1200));
 
     Promise.all([checkAuth(), minimumIntro])
       .then(([isAuthenticated]) => {
@@ -53,20 +40,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
     return () => {
       cancelled = true;
     };
-  }, [navigation, checkAuth, fadeAnim, scaleAnim]);
+  }, [navigation, checkAuth]);
 
   return (
     <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}
-      >
-        {/* Official RJ09 Sewa App Logo */}
+      <View style={styles.content}>
+        {/* Official RJ09 Sewa App Logo - instantly visible on mount */}
         <View style={styles.logoWrapper}>
           <Image
             source={require('../../../assets/icon.png')}
@@ -77,7 +56,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
 
         <Text style={[styles.appName, { color: '#0F172A' }]}>RJ09 Sewa</Text>
         <Text style={[styles.tagline, { color: '#64748B' }]}>Everything in a Tap</Text>
-      </Animated.View>
+      </View>
     </View>
   );
 };
