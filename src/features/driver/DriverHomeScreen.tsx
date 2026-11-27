@@ -683,7 +683,7 @@ export const DriverHomeScreen: React.FC = () => {
     : 'Vehicle Assigned';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <FormKeyboardAvoid>
       <ScrollView
         contentContainerStyle={styles.container}

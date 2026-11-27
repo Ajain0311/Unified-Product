@@ -166,7 +166,7 @@ export const SellerDashboardScreen: React.FC<{ navigation: any }> = ({ navigatio
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>My Bazaar Store</Text>

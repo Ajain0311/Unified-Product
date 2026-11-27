@@ -30,7 +30,9 @@ const MainTabNavigatorComponent: React.FC = () => {
   const { theme, isDark } = useAppTheme();
   const config = ROLE_CONFIGS[activeRole] || ROLE_CONFIGS.CUSTOMER;
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 16 : 8);
+  const bottomInset = Platform.OS === 'ios'
+    ? Math.max(insets.bottom, 16)
+    : insets.bottom;
 
   const activeColor = config.color;
   const inactiveColor = theme.textTertiary;
@@ -48,11 +50,17 @@ const MainTabNavigatorComponent: React.FC = () => {
       height: 60 + bottomInset,
       paddingBottom: Math.max(bottomInset, 6),
       paddingTop: 8,
-      elevation: 8,
-      shadowColor: '#000000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: isDark ? 0.3 : 0.05,
-      shadowRadius: 6,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: isDark ? 0.3 : 0.05,
+          shadowRadius: 6,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     tabBarActiveTintColor: activeColor,
     tabBarInactiveTintColor: inactiveColor,

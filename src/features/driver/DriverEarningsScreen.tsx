@@ -40,7 +40,7 @@ export const DriverEarningsScreen: React.FC = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View style={[styles.header, { paddingHorizontal: spacing.md, paddingTop: spacing.sm }]}>
           <View style={styles.headerTop}>
             <ScreenBackButton accessibilityLabel="Back" />
@@ -58,7 +58,7 @@ export const DriverEarningsScreen: React.FC = () => {
   const trips = earnings?.recentTrips || [];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); loadEarnings(); }} tintColor="#10B981" />}

@@ -638,7 +638,7 @@ export const RideBookingScreen: React.FC = () => {
   const defaultCenter = pickupCoords || { latitude: 24.8887, longitude: 74.6269 };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor="transparent" translucent />
 
       {/* 1. MAP-FIRST VIEWPORT */}

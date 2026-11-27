@@ -83,7 +83,7 @@ export const DriverRidesScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <ScreenBackButton accessibilityLabel="Back" />

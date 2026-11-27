@@ -455,7 +455,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   }, [searchQuery, searchFilter, foodPool, bazaarPool]);
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       <ScrollView
