@@ -14,7 +14,9 @@ import { polyfillAlert } from './src/utils/alertPolyfill';
 import * as SplashScreen from 'expo-splash-screen';
 
 polyfillAlert();
-SplashScreen.preventAutoHideAsync().catch(() => {});
+try {
+  SplashScreen?.preventAutoHideAsync?.().catch(() => {});
+} catch (_) {}
 import { useAppUpdateChecker } from './src/hooks/useAppUpdateChecker';
 import { useAppTheme, useThemeStore } from './src/theme/themeStore';
 import { useLanguageStore } from './src/store/languageStore';

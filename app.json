@@ -2,7 +2,7 @@
   "expo": {
     "name": "RJ09 Sewa",
     "slug": "Unified-Product",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -24,10 +24,10 @@
     },
     "android": {
       "package": "com.zupify.app",
-      "versionCode": 11,
+      "versionCode": 12,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#FA644E",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

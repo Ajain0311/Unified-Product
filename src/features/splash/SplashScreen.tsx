@@ -14,8 +14,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
   const { theme } = useAppTheme();
 
   useEffect(() => {
-    // Dismiss the native OS splash screen once the React Native splash view is mounted
-    ExpoSplashScreen.hideAsync().catch(() => {});
+    // Dismiss the native OS splash screen once the React Native splash view is mounted (guarded for backward compatibility)
+    try {
+      ExpoSplashScreen?.hideAsync?.().catch(() => {});
+    } catch (_) {}
 
     let cancelled = false;
     // Guaranteed intro duration (1.2s) so branding is visible consistently across fast and slow devices
